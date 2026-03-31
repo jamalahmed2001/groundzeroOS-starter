@@ -25,6 +25,7 @@ function phaseNoteContent(
   tasks: string
 ): string {
   const logName = `L${phaseNumber} - P${phaseNumber} - ${phaseName}`;
+  const desc = description.trim() || '_No description provided._';
   return `---
 project_id: "${projectName}"
 project: "${projectName}"
@@ -50,7 +51,9 @@ created: ${new Date().toISOString().slice(0, 10)}
 
 ## Overview
 
-${description || '_No description provided._'}
+<!-- GZOS_MANAGED_START:linear-overview -->
+${desc}
+<!-- GZOS_MANAGED_END:linear-overview -->
 
 ## Human Requirements
 

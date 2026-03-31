@@ -154,6 +154,14 @@ export async function runPhase(
   // 1. Acquire lock
   const lockResult = acquireLock(phaseNode.path, runId);
   if (!lockResult.ok) {
+    if (lockResult.reason === 'schema_invalid') {
+      console.error(`[gzos] Cannot execute phase — schema validation failed:`);
+      for (const err of lockResult.errors) {
+        console.error(`  • ${err}`);
+      }
+      console.error(`[gzos] Fix the phase note frontmatter and re-run. Use \`gzos heal\` to auto-repair project_id.`);
+      return { status: 'error', tasksCompleted: 0, blockers: lockResult.errors, logNotePath, repoPath: bundleDir };
+    }
     const reason = lockResult.reason === 'already_locked'
       ? `Locked by ${lockResult.lockedBy}`
       : `Not ready: ${lockResult.currentTag}`;

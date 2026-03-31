@@ -1,6 +1,7 @@
 import { loadConfig } from '../config/load.js';
 import { discoverBundles, readRawFile } from '../vault/reader.js';
 import { writeFile, writeFrontmatter } from '../vault/writer.js';
+import { setManagedBlock } from '../vault/managedBlocks.js';
 import { scanRepo } from './init.js';
 import { resolveRepoPath } from '../repos/resolveRepoPath.js';
 import matter from 'gray-matter';
@@ -59,25 +60,49 @@ export async function runRefreshContext(projectArg?: string): Promise<void> {
   const scan = scanRepo(repoPath);
   console.log(`Stack: ${scan.stack}`);
 
-  // Read existing Repo Context to preserve frontmatter and Agent Constraints
   const existing = readRawFile(rcPath);
   let existingFm: Record<string, unknown> = {};
-  let existingConstraints = scan.constraints;
 
   if (existing) {
-    const parsed = matter(existing);
-    existingFm = parsed.data as Record<string, unknown>;
-    // Preserve manually-edited Agent Constraints if present
-    const constraintsMatch = existing.match(/## Agent Constraints([\s\S]*?)(?=\n##|\s*$)/);
-    if (constraintsMatch?.[1]?.trim()) {
-      existingConstraints = constraintsMatch[1].trim();
-    }
+    existingFm = matter(existing).data as Record<string, unknown>;
   }
-
   existingFm['stack'] = scan.stack;
 
-  const newBody = `\n## 🔗 Navigation\n\n- [[${bundle.projectId} - Overview|Overview]]\n- [[${bundle.projectId} - Docs Hub|Docs Hub]]\n\n# Repo Context — ${bundle.projectId}\n\n## Repo Path\n\nSee Overview frontmatter (\`repo_path\`).\n\n## Stack\n\n${scan.stack}\n\n## Key Areas\n\n${scan.keyAreas}\n\n## Architecture Notes\n\n${scan.architectureNotes}\n\n## Agent Constraints\n\n${existingConstraints}\n`;
+  if (!existing) {
+    // Fresh file — build full content with managed blocks
+    const body = `\n## 🔗 Navigation\n\n- [[${bundle.projectId} - Overview|Overview]]\n- [[${bundle.projectId} - Docs Hub|Docs Hub]]\n\n# Repo Context — ${bundle.projectId}\n\n## Repo Path\n\nSee Overview frontmatter (\`repo_path\`).\n\n## Stack\n\n<!-- GZOS_MANAGED_START:stack -->\n${scan.stack.trim()}\n<!-- GZOS_MANAGED_END:stack -->\n\n## Key Areas\n\n<!-- GZOS_MANAGED_START:key-areas -->\n${scan.keyAreas.trim()}\n<!-- GZOS_MANAGED_END:key-areas -->\n\n## Architecture Notes\n\n${scan.architectureNotes}\n\n## Agent Constraints\n\n${scan.constraints}\n`;
+    writeFile(rcPath, matter.stringify(body, existingFm));
+  } else {
+    // Existing file — update only the managed blocks; preserve everything else
+    let body = matter(existing).content;
 
-  writeFile(rcPath, matter.stringify(newBody, existingFm));
+    // Stack: update managed block, or upgrade legacy unmanaged section
+    if (body.includes('<!-- GZOS_MANAGED_START:stack -->')) {
+      body = setManagedBlock(body, 'stack', scan.stack.trim());
+    } else {
+      // Legacy: replace unmanaged ## Stack section if present
+      const stackRe = /(## Stack\s*\n)([\s\S]*?)(?=\n## |\s*$)/;
+      if (stackRe.test(body)) {
+        body = body.replace(stackRe, `## Stack\n\n<!-- GZOS_MANAGED_START:stack -->\n${scan.stack.trim()}\n<!-- GZOS_MANAGED_END:stack -->\n`);
+      } else {
+        body = `${body.trimEnd()}\n\n## Stack\n\n<!-- GZOS_MANAGED_START:stack -->\n${scan.stack.trim()}\n<!-- GZOS_MANAGED_END:stack -->\n`;
+      }
+    }
+
+    // Key Areas: update managed block, or upgrade legacy
+    if (body.includes('<!-- GZOS_MANAGED_START:key-areas -->')) {
+      body = setManagedBlock(body, 'key-areas', scan.keyAreas.trim());
+    } else {
+      const kaRe = /(## Key Areas\s*\n)([\s\S]*?)(?=\n## |\s*$)/;
+      if (kaRe.test(body)) {
+        body = body.replace(kaRe, `## Key Areas\n\n<!-- GZOS_MANAGED_START:key-areas -->\n${scan.keyAreas.trim()}\n<!-- GZOS_MANAGED_END:key-areas -->\n`);
+      } else {
+        body = `${body.trimEnd()}\n\n## Key Areas\n\n<!-- GZOS_MANAGED_START:key-areas -->\n${scan.keyAreas.trim()}\n<!-- GZOS_MANAGED_END:key-areas -->\n`;
+      }
+    }
+
+    writeFile(rcPath, matter.stringify(body, existingFm));
+  }
+
   console.log(`Updated: ${rcPath}`);
 }

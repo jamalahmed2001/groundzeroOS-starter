@@ -2,21 +2,24 @@ import os from 'os';
 import { readPhaseNode } from '../vault/reader.js';
 import { setLockFields, setPhaseTag, writeFrontmatter } from '../vault/writer.js';
 import { appendAuditEvent } from '../audit/trail.js';
+import { validatePhaseForExecution } from '../shared/schemas.js';
 import type { PhaseTag } from '../fsm/states.js';
 
 export type LockResult =
   | { ok: true; runId: string }
   | { ok: false; reason: 'already_locked'; lockedBy: string; lockedAt: string }
-  | { ok: false; reason: 'not_ready'; currentTag: string };
+  | { ok: false; reason: 'not_ready'; currentTag: string }
+  | { ok: false; reason: 'schema_invalid'; errors: string[] };
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // Attempt to acquire vault-native lock on a phase note.
-// 1. Read frontmatter
-// 2. If locked_by is set and !== runId → check TTL expiry; if expired, clear and re-acquire
-// 3. If locked_by === runId → return ok (re-entrant)
-// 4. If phase-ready → write phase-active + locked_by + locked_at + lock_pid + lock_hostname + lock_ttl_ms
-// 5. Read back to verify (race condition check)
+// 1. Validate schema — reject if project_id or required fields are missing
+// 2. Read frontmatter
+// 3. If locked_by is set and !== runId → check TTL expiry; if expired, clear and re-acquire
+// 4. If locked_by === runId → return ok (re-entrant)
+// 5. If phase-ready → write phase-active + locked_by + locked_at + lock_pid + lock_hostname + lock_ttl_ms
+// 6. Read back to verify (race condition check)
 export function acquireLock(
   phaseNotePath: string,
   runId: string,
@@ -25,6 +28,12 @@ export function acquireLock(
 ): LockResult {
   const node = readPhaseNode(phaseNotePath);
   if (!node.exists) return { ok: false, reason: 'not_ready', currentTag: 'missing' };
+
+  // Schema validation — refuse to lock a phase with missing required fields
+  const schemaCheck = validatePhaseForExecution(node.frontmatter);
+  if (!schemaCheck.valid) {
+    return { ok: false, reason: 'schema_invalid', errors: schemaCheck.errors };
+  }
 
   const existingLockedBy = node.frontmatter['locked_by'];
   if (typeof existingLockedBy === 'string' && existingLockedBy !== '') {
