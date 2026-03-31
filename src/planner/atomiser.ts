@@ -7,6 +7,7 @@ import type { ControllerConfig } from '../config/load.js';
 import { notify } from '../notify/notify.js';
 import { setPhaseTag, appendToLog, writeFile } from '../vault/writer.js';
 import { planningCall, planningUsesAgent } from '../llm/planningRouter.js';
+import { spawnClaudeCode } from '../agents/claudeCodeSpawn.js';
 import { uplinkPhasesToLinear } from '../linear/uplink.js';
 import { readBundle } from '../vault/reader.js';
 import { scanRepoFiles, validatePlanFilePaths } from '../vault/repoScanner.js';
@@ -60,6 +61,73 @@ GROUNDING RULES (critical — prevents hallucinated file paths):
 - Base your task structure on what ACTUALLY exists in the repo — read the tree carefully before planning
 - If the phase requires work in areas not visible in the tree, describe what to find in the Steps rather than guessing paths
 - Validation steps must use commands that actually exist in the repo (check package.json scripts, Makefile targets, etc.)`;
+
+const ATOMISE_WRITE_SYSTEM_PROMPT = `You are a senior technical architect creating an implementation task plan for an AI coding agent.
+
+You will be asked to:
+1. Read a phase note to understand what needs to be built
+2. Explore the repo to understand existing patterns and structure
+3. Write an implementation task plan DIRECTLY into the phase note file
+
+CRITICAL: You MUST write the plan to the file using your Edit or Write tools. Do NOT output the plan to stdout.
+
+Plan format — write this exact structure between the managed markers in the file:
+
+<!-- AGENT_WRITABLE_START:phase-plan -->
+
+## Implementation Plan
+
+### [T1] Task name (3-6 words, action-oriented)
+**Files:** \`path/to/file.ts\`, \`path/to/other.ts\`
+**Steps:**
+1. Concrete step
+2. Concrete step
+**Validation:** How to verify (e.g. "npm test passes", "curl /api/foo returns 200")
+**DoD:** One measurable binary done condition
+
+- [ ] [T1.1] Sub-task — imperative verb, specific file/symbol if known
+- [ ] [T1.2] Sub-task — imperative verb, specific file/symbol if known
+
+### [T2] Next task name
+...
+
+<!-- AGENT_WRITABLE_END:phase-plan -->
+
+Rules:
+- Sub-tasks MUST be checkboxes (- [ ]) — these are actual work items the agent will execute
+- Steps must be concrete — not "implement" but "add POST /api/x in src/routes/x.ts"
+- File paths MUST exist in the repo (use Glob/Grep to verify before writing)
+- 4-8 parent tasks maximum
+- Do NOT add tasks about writing documentation or tests unless the phase explicitly requires it
+- When done writing the plan, also update the frontmatter: add phase-ready to tags, set state: ready`;
+
+function buildAgentWritePrompt(opts: {
+  phaseNotePath: string;
+  repoPath: string;
+  phaseLabel: string;
+  phaseNum: unknown;
+  projectId: string;
+  userPrompt: string;
+}): string {
+  return `Phase note to update: ${opts.phaseNotePath}
+Repo to explore: ${opts.repoPath}
+
+## Your task
+
+1. Read the phase note at ${opts.phaseNotePath}
+2. Explore the repo — read key source files, check package.json for scripts and dependencies, understand existing patterns
+3. Write the implementation task plan directly into the phase note between these markers:
+   <!-- AGENT_WRITABLE_START:phase-plan -->
+   ...your plan here...
+   <!-- AGENT_WRITABLE_END:phase-plan -->
+4. After writing the plan, update the frontmatter:
+   - Set state: ready
+   - Ensure tags includes phase-ready (replace phase-backlog or phase-planning)
+
+## Phase context
+
+${opts.userPrompt}`;
+}
 
 // scanRepoFiles imported from ../vault/repoScanner.js
 
@@ -233,6 +301,62 @@ ${repoSection}
 Generate the implementation task plan for this phase.`;
 
   try {
+    // Branch A: agent driver can write directly to the vault
+    if (planningUsesAgent(config, repoPath)) {
+      const agentPrompt = buildAgentWritePrompt({
+        phaseNotePath: phaseNode.path,
+        repoPath,
+        phaseLabel,
+        phaseNum,
+        projectId,
+        userPrompt,
+      });
+
+      const result = await spawnClaudeCode({
+        prompt: agentPrompt,
+        repoPath,
+        systemPrompt: ATOMISE_WRITE_SYSTEM_PROMPT,
+        timeoutMs: 180_000,
+        model: config.llm.model,
+      });
+
+      if (result.success) {
+        // Verify the managed block landed in the file
+        const written = fs.readFileSync(phaseNode.path, 'utf8');
+        const blockStart = written.indexOf(PLAN_START);
+        const blockEnd   = written.indexOf(PLAN_END);
+        if (blockStart !== -1 && blockEnd !== -1 && blockEnd > blockStart) {
+          // Agent wrote successfully — post-validate paths, set tag, done
+          const planSection = written.slice(blockStart, blockEnd + PLAN_END.length);
+          const missingFiles = validatePlanFilePaths(planSection, repoPath);
+          if (missingFiles.length > 0) {
+            const warning = `<!-- gzos: WARNING — These file paths were not found in the repo and may be hallucinated:\n${missingFiles.map(f => `- ${f}`).join('\n')}\nConsider verifying before execution. -->`;
+            const withWarning = written.replace(PLAN_END, `${PLAN_END}\n\n${warning}`);
+            fs.writeFileSync(phaseNode.path, withWarning, 'utf8');
+            appendToLog(phaseNode.path, { runId, event: 'atomise_done', detail: `Plan written directly by agent with ${missingFiles.length} unverified file path(s): ${missingFiles.join(', ')}` });
+          }
+
+          setPhaseTag(phaseNode.path, 'phase-ready');
+          if (missingFiles.length === 0) {
+            appendToLog(phaseNode.path, { runId, event: 'atomise_done', detail: 'Task plan written directly by agent, phase set to ready' });
+          }
+          await notify({ event: 'atomise_done', projectId, phaseLabel, runId }, config);
+
+          if (config.linear) {
+            const bundleDirLinear = bundleDirFromPhase(phaseNode.path);
+            const bundle = readBundle(bundleDirLinear, projectId);
+            await uplinkPhasesToLinear(bundle, config);
+          }
+
+          return 'ready';
+        }
+        // Block not found — fall through to OpenRouter path
+        console.warn('[gzos] Agent did not write plan block — falling back to LLM text output');
+      }
+      // On failure, fall through to OpenRouter path
+    }
+
+    // Branch B: OpenRouter path (unchanged existing code)
     const output = await planningCall({
       config,
       repoPath,
@@ -281,8 +405,8 @@ Generate the implementation task plan for this phase.`;
     await notify({ event: 'atomise_done', projectId, phaseLabel, runId }, config);
 
     if (config.linear) {
-      const bundleDir = bundleDirFromPhase(phaseNode.path);
-      const bundle = readBundle(bundleDir, projectId);
+      const bundleDirLinear = bundleDirFromPhase(phaseNode.path);
+      const bundle = readBundle(bundleDirLinear, projectId);
       await uplinkPhasesToLinear(bundle, config);
     }
 
