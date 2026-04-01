@@ -8,9 +8,33 @@ Standard notification contract. Every controller action fires a notification.
   ```
   [GroundZeroOS] event_type · Project · Phase · detail (#runId)
   ```
-- **WhatsApp** — if `notify.whatsapp` is configured in `groundzero.config.json`
+- **OpenClaw Gateway (WhatsApp)** — if `notify.openclaw` is configured (recommended)
+- **WhatsApp (CallMeBot)** — if `notify.whatsapp` is configured (legacy/simple)
 
-## WhatsApp setup
+## OpenClaw setup (recommended)
+Requires the `openclaw` CLI installed + logged in on the machine running GZOS.
+
+Add to `groundzero.config.json`:
+```json
+{
+  "notify": {
+    "stdout": true,
+    "openclaw": {
+      "target": "+447743183601"
+    }
+  }
+}
+```
+
+Optional fields:
+- `channel`: override channel name (usually omit)
+- `profile`: OpenClaw profile name (maps to `openclaw --profile <name>`)
+- `account_id`: OpenClaw account id (best-effort; only used if your CLI supports `--account`)
+
+Environment variable alternative (keep out of git):
+- `OPENCLAW_NOTIFY_TARGET=+4477...`
+
+## WhatsApp (CallMeBot) setup (legacy)
 1. Get a free CallMeBot API key: https://www.callmebot.com/blog/free-api-whatsapp-messages/
 2. Add to config:
 ```json

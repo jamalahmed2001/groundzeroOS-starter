@@ -202,19 +202,16 @@ export interface ControllerConfig {
   notify: {
     stdout: boolean;
 
-    // Legacy/simple WhatsApp channel (CallMeBot).
+    // OpenClaw Gateway — `openclaw message send --target <E.164> --message <text>`
+    // Requires openclaw CLI installed + logged in. Or set OPENCLAW_NOTIFY_TARGET env var.
+    openclaw?: {
+      target: string;   // E.164 phone number, e.g. "+4477..."
+    };
+
+    // Legacy: CallMeBot WhatsApp (kept for backward compat, not recommended)
     whatsapp?: {
       apiUrl: string;
       recipient: string;
-    };
-
-    // OpenClaw Gateway channel.
-    // Uses the local `openclaw` CLI (no SDK dependency) to send a message.
-    openclaw?: {
-      target: string;          // E.164, e.g. "+4477..."
-      channel?: string;        // optional override, usually omit
-      profile?: string;        // optional, maps to `openclaw --profile <name>`
-      accountId?: string;      // optional, maps to `--account <id>` if supported by CLI
     };
   };
 }

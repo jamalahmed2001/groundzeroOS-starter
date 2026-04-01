@@ -20,10 +20,9 @@
   "repos_root": "",
   "notify": {
     "stdout": true,
-    "_whatsapp_comment": "Uncomment to enable WhatsApp notifications via CallMeBot. Setup: send 'I allow callmebot to send me messages' to +34 644 35 04 44 on WhatsApp — you'll receive your API key.",
-    "_whatsapp": {
-      "api_url": "https://api.callmebot.com/whatsapp.php",
-      "recipient": "+YOUR_NUMBER"
+    "_openclaw_comment": "Set target to your E.164 number. Requires openclaw CLI installed + logged in. Alternatively set OPENCLAW_NOTIFY_TARGET env var.",
+    "_openclaw": {
+      "target": "+447..."
     }
   },
   "_linear_comment": "Uncomment and fill in to enable Linear integration (gzos import + phase uplink).",

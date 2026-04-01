@@ -51,6 +51,13 @@ interface RawConfig {
       apiUrl?: string;             // deprecated
       recipient?: string;
     };
+    openclaw?: {
+      target?: string;
+      channel?: string;
+      profile?: string;
+      account_id?: string;
+      accountId?: string;          // deprecated
+    };
   };
 }
 
@@ -135,6 +142,22 @@ export function loadConfig(configPath?: string): ControllerConfig {
   const modelTiers = raw.model_tiers ?? raw.modelTiers;
   const reposRoot = raw.repos_root ?? raw.reposRoot;
 
+  // OpenClaw: merge env vars into config
+  const envOpenClawTarget = process.env['OPENCLAW_NOTIFY_TARGET'];
+  const envOpenClawChannel = process.env['OPENCLAW_NOTIFY_CHANNEL'];
+  const envOpenClawProfile = process.env['OPENCLAW_PROFILE'];
+  const envOpenClawAccountId = process.env['OPENCLAW_ACCOUNT_ID'];
+
+  const rawOpenClaw = raw.notify?.openclaw;
+  const openclaw = (rawOpenClaw?.target ?? envOpenClawTarget)
+    ? {
+        target: (rawOpenClaw?.target ?? envOpenClawTarget) as string,
+        channel: rawOpenClaw?.channel ?? envOpenClawChannel,
+        profile: rawOpenClaw?.profile ?? envOpenClawProfile,
+        accountId: rawOpenClaw?.account_id ?? rawOpenClaw?.accountId ?? envOpenClawAccountId,
+      }
+    : undefined;
+
   return {
     vaultRoot,
     projectsGlob: raw.projects_glob ?? raw.projectsGlob ?? '01 - Projects/**',
@@ -157,6 +180,7 @@ export function loadConfig(configPath?: string): ControllerConfig {
     notify: {
       stdout: raw.notify?.stdout ?? true,
       whatsapp,
+      openclaw,
     },
   };
 }

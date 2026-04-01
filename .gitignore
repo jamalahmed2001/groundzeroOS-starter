@@ -17,5 +17,9 @@ dashboard/tsconfig.tsbuildinfo
 # Vault viewer cache / generated
 vault-viewer.html
 
+# Local demo/test vault artifacts (keep vault content if you want, but never commit Obsidian settings)
+vault/.obsidian/
+vault/.trash/
+
 # Skills node_modules
 skills/**/node_modules/
