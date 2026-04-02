@@ -1,11 +1,30 @@
 import { discoverActivePhases } from '../vault/discover.js';
-import { readPhaseNode } from '../vault/reader.js';
-import { setLockFields, setPhaseTag, appendToLog, deriveLogNotePath } from '../vault/writer.js';
+import { readPhaseNode, readRawFile } from '../vault/reader.js';
+import { appendToLog, deriveLogNotePath } from '../vault/writer.js';
 import { appendAuditEvent } from '../audit/trail.js';
 import type { HealAction } from './index.js';
 import matter from 'gray-matter';
-import { readRawFile } from '../vault/reader.js';
 import fs from 'fs';
+
+// Single atomic write: set phase-ready + clear all lock fields in one pass
+function clearLockAtomic(phasePath: string, frontmatter: Record<string, unknown>): void {
+  const existingTags = Array.isArray(frontmatter['tags']) ? (frontmatter['tags'] as string[]) : [];
+  const fm: Record<string, unknown> = {
+    ...frontmatter,
+    state:  'ready',
+    status: 'ready',
+    tags:   [...existingTags.filter(t => !t.startsWith('phase-')), 'phase-ready'],
+  };
+  delete fm['locked_by'];
+  delete fm['locked_at'];
+  delete fm['lock_pid'];
+  delete fm['lock_hostname'];
+  delete fm['lock_ttl_ms'];
+
+  const raw = fs.readFileSync(phasePath, 'utf-8');
+  const parsed = matter(raw);
+  fs.writeFileSync(phasePath, matter.stringify(parsed.content, fm), 'utf-8');
+}
 
 function getLastLogActivity(phaseNotePath: string): number {
   const raw = readRawFile(phaseNotePath);
@@ -49,8 +68,7 @@ export function healStaleLocks(
         applied: false,
       };
       try {
-        setPhaseTag(phase.path, 'phase-ready');
-        setLockFields(phase.path, '', '');
+        clearLockAtomic(phase.path, node.frontmatter as Record<string, unknown>);
         appendToLog(phase.path, {
           runId: 'healer',
           event: 'stale_lock_cleared',
@@ -94,8 +112,7 @@ export function healStaleLocks(
     };
 
     try {
-      setPhaseTag(phase.path, 'phase-ready');
-      setLockFields(phase.path, '', '');
+      clearLockAtomic(phase.path, node.frontmatter as Record<string, unknown>);
       appendToLog(phase.path, {
         runId: 'healer',
         event: 'stale_lock_cleared',

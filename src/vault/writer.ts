@@ -188,6 +188,11 @@ export function setPhaseTag(absolutePath: string, tag: PhaseTag): void {
 // For ## Verification, skips the ### Human sub-section (non-blocking).
 // Called after all tasks complete — criteria are human-readable success docs,
 // not agent-ticked gates. If tasks all passed, we mark criteria as met.
+// Strip leading emoji/unicode symbols so "✅ Acceptance Criteria" matches "acceptance criteria"
+function normaliseHeading(raw: string): string {
+  return raw.replace(/^[\p{Emoji}\p{So}\p{Sk}\s]+/u, '').trim().toLowerCase();
+}
+
 export function tickAcceptanceCriteria(absolutePath: string): void {
   const raw = readRawFile(absolutePath);
   if (raw === null) return;
@@ -200,13 +205,13 @@ export function tickAcceptanceCriteria(absolutePath: string): void {
     const h2 = line.match(/^##\s+(.+)$/);
     const h3 = line.match(/^###\s+(.+)$/);
     if (h2) {
-      const t = h2[1]!.trim().toLowerCase();
+      const t = normaliseHeading(h2[1]!);
       inSection = t === 'acceptance criteria' || t === 'verification';
       inHuman = false;
       return line;
     }
     if (h3 && inSection) {
-      inHuman = h3[1]!.trim().toLowerCase() === 'human';
+      inHuman = normaliseHeading(h3[1]!) === 'human';
       return line;
     }
     if (inSection && !inHuman && /^\s*-\s*\[\s\]/.test(line)) {
@@ -230,13 +235,13 @@ export function resetAcceptanceCriteria(absolutePath: string): void {
     const h2 = line.match(/^##\s+(.+)$/);
     const h3 = line.match(/^###\s+(.+)$/);
     if (h2) {
-      const t = h2[1]!.trim().toLowerCase();
+      const t = normaliseHeading(h2[1]!);
       inAC = t === 'acceptance criteria' || t === 'verification';
       inHuman = false;
       return line;
     }
     if (h3 && inAC) {
-      inHuman = h3[1]!.trim().toLowerCase() === 'human';
+      inHuman = normaliseHeading(h3[1]!) === 'human';
       return line;
     }
     if (inAC && !inHuman && /^\s*-\s*\[\s*x\s*\]/i.test(line)) {

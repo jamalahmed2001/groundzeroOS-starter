@@ -329,6 +329,7 @@ created: ${today}
     // Starter phase
     writeFile(path.join(phasesDir, 'P1 - Project Setup.md'), `---
 project: "${projectName}"
+project_id: "${projectName}"
 phase_number: 1
 phase_name: "Project Setup"
 milestone: ""

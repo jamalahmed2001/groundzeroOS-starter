@@ -280,6 +280,7 @@ Use the phase note format from your system prompt. Write files directly.`;
     const dependsOn = n === 1 ? '[]' : `[${n - 1}]`;
 
     const phaseContent = `---
+project_id: "${bundle.projectId}"
 project: "${bundle.projectId}"
 phase_number: ${n}
 phase_name: "${name}"
@@ -578,6 +579,7 @@ Use the phase note format from your system prompt. Write files directly.`;
     const dependsOn = n === 1 ? '[]' : `[${n - 1}]`;
 
     const phaseContent = `---
+project_id: "${bundle.projectId}"
 project: "${bundle.projectId}"
 phase_number: ${n}
 phase_name: "${name}"
