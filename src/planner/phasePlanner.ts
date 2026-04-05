@@ -227,7 +227,7 @@ Use the phase note format from your system prompt. Write files directly.`;
     const result = await spawnClaudeCode({
       prompt: agentPrompt,
       repoPath,
-      systemPrompt: PHASE_PLANNER_WRITE_SYSTEM_PROMPT,
+      systemPrompt: config.prompts?.decompose ?? PHASE_PLANNER_WRITE_SYSTEM_PROMPT,
       timeoutMs: 300_000,
       model: config.llm.model,
     });
@@ -247,7 +247,7 @@ Use the phase note format from your system prompt. Write files directly.`;
   const output = await planningCall({
     config,
     repoPath,
-    systemPrompt: PLANNER_SYSTEM_PROMPT,
+    systemPrompt: config.prompts?.decompose ?? PLANNER_SYSTEM_PROMPT,
     userPrompt,
     maxTokens: 3000,
   });
@@ -525,7 +525,7 @@ Use the phase note format from your system prompt. Write files directly.`;
     const result = await spawnClaudeCode({
       prompt: agentPrompt,
       repoPath,
-      systemPrompt: PHASE_PLANNER_WRITE_SYSTEM_PROMPT,
+      systemPrompt: config.prompts?.decompose ?? PHASE_PLANNER_WRITE_SYSTEM_PROMPT,
       timeoutMs: 300_000,
       model: config.llm.model,
     });
@@ -550,7 +550,7 @@ Use the phase note format from your system prompt. Write files directly.`;
   const output = await planningCall({
     config,
     repoPath,
-    systemPrompt: EXTEND_SYSTEM_PROMPT,
+    systemPrompt: config.prompts?.extend ?? EXTEND_SYSTEM_PROMPT,
     userPrompt,
     maxTokens: 3000,
   });

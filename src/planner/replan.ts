@@ -163,7 +163,7 @@ Rewrite the task list so a fresh agent attempt can succeed. Output ONLY checkbox
       baseUrl: config.llm.baseUrl,
       maxTokens: 1024,
       messages: [
-        { role: 'system', content: REPLAN_SYSTEM_PROMPT },
+        { role: 'system', content: config.prompts?.replan ?? REPLAN_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
     });

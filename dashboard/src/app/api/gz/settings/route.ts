@@ -21,6 +21,14 @@ export async function GET() {
         standard: cfg.model_tiers?.standard ?? '',
         heavy:    cfg.model_tiers?.heavy    ?? '',
       },
+      prompts: {
+        executor:     cfg.prompts?.executor    ?? '',
+        decompose:    cfg.prompts?.decompose   ?? '',
+        atomise:      cfg.prompts?.atomise     ?? '',
+        extend:       cfg.prompts?.extend      ?? '',
+        replan:       cfg.prompts?.replan      ?? '',
+        consolidate:  cfg.prompts?.consolidate ?? '',
+      },
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -37,6 +45,7 @@ export async function PUT(req: NextRequest) {
     llmModel?: string;
     openrouterApiKey?: string;
     modelTiers?: { light?: string; standard?: string; heavy?: string };
+    prompts?: { executor?: string; decompose?: string; atomise?: string; extend?: string; replan?: string; consolidate?: string };
   };
 
   try {
@@ -69,6 +78,23 @@ export async function PUT(req: NextRequest) {
         ...(t.standard ? { standard: t.standard } : {}),
         ...(t.heavy    ? { heavy:    t.heavy    } : {}),
       };
+    }
+
+    if (body.prompts) {
+      const p = body.prompts;
+      const existing = cfg.prompts ?? {};
+      // Only save non-empty values; clear if empty string sent
+      cfg.prompts = {
+        ...existing,
+        ...(p.executor !== undefined    ? { executor:    p.executor    || undefined } : {}),
+        ...(p.decompose !== undefined   ? { decompose:   p.decompose   || undefined } : {}),
+        ...(p.atomise !== undefined     ? { atomise:     p.atomise     || undefined } : {}),
+        ...(p.extend !== undefined      ? { extend:      p.extend      || undefined } : {}),
+        ...(p.replan !== undefined      ? { replan:      p.replan      || undefined } : {}),
+        ...(p.consolidate !== undefined ? { consolidate: p.consolidate || undefined } : {}),
+      };
+      // Remove the key entirely if all prompts are empty
+      if (Object.values(cfg.prompts).every(v => !v)) delete cfg.prompts;
     }
 
     writeFileSync(getConfigPath(), JSON.stringify(cfg, null, 2), 'utf-8');

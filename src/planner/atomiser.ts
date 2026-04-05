@@ -313,7 +313,7 @@ Generate the implementation task plan for this phase.`;
       const result = await spawnClaudeCode({
         prompt: agentPrompt,
         repoPath,
-        systemPrompt: ATOMISE_WRITE_SYSTEM_PROMPT,
+        systemPrompt: config.prompts?.atomise ?? ATOMISE_WRITE_SYSTEM_PROMPT,
         timeoutMs: 180_000,
         model: config.llm.model,
       });
@@ -352,7 +352,7 @@ Generate the implementation task plan for this phase.`;
     const output = await planningCall({
       config,
       repoPath,
-      systemPrompt: ATOMISE_SYSTEM_PROMPT,
+      systemPrompt: config.prompts?.atomise ?? ATOMISE_SYSTEM_PROMPT,
       userPrompt,
       maxTokens: 3500,
     });

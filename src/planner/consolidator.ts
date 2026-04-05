@@ -55,7 +55,7 @@ export async function consolidatePhase(
       baseUrl: config.llm.baseUrl,
       maxTokens: 1024,
       messages: [
-        { role: 'system', content: CONSOLIDATE_SYSTEM_PROMPT },
+        { role: 'system', content: config.prompts?.consolidate ?? CONSOLIDATE_SYSTEM_PROMPT },
         { role: 'user', content: `Phase: ${phaseLabel}\n\nPhase note:\n${phaseNode.raw}\n\nExecution log:\n${logContent}\n\nExtract learnings.` },
       ],
     });

@@ -218,4 +218,12 @@ export interface ControllerConfig {
       recipient: string;
     };
   };
+  prompts?: {
+    executor?: string;
+    decompose?: string;
+    atomise?: string;
+    extend?: string;
+    replan?: string;
+    consolidate?: string;
+  };
 }

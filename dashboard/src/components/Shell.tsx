@@ -156,6 +156,7 @@ interface SettingsData {
   lat: number;
   lng: number;
   modelTiers: { light: string; standard: string; heavy: string };
+  prompts: { executor: string; decompose: string; atomise: string; extend: string; replan: string; consolidate: string };
 }
 
 function SettingsModal({ onClose }: { onClose: () => void }) {
@@ -182,6 +183,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
     if (linearApiKey)     body.linearApiKey     = linearApiKey;
     if (openrouterApiKey) body.openrouterApiKey = openrouterApiKey;
     body.modelTiers = data.modelTiers;
+    body.prompts = data.prompts;
     try {
       const res = await fetch('/api/gz/settings', {
         method: 'PUT',
@@ -313,6 +315,30 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             </Section>
 
             {/* Vault root (read-only info) */}
+            {/* System Prompts */}
+            <Section label="System Prompts">
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 8 }}>Customise the system prompts for each stage. Leave blank to use defaults.</div>
+              {([
+                { key: 'executor',    label: 'Executor (agent driver)', placeholder: 'System prompt for the coding agent during task execution' },
+                { key: 'decompose',   label: 'Decompose (Overview → phases)', placeholder: 'System prompt for breaking Overview into phase stubs' },
+                { key: 'atomise',     label: 'Atomise (phase → tasks)', placeholder: 'System prompt for generating concrete tasks from a phase' },
+                { key: 'extend',      label: 'Extend (add new phases)', placeholder: 'System prompt for adding phases to existing project' },
+                { key: 'replan',      label: 'Replan (blocked → new tasks)', placeholder: 'System prompt for replanning after a phase blocks' },
+                { key: 'consolidate', label: 'Consolidate (logs → knowledge)', placeholder: 'System prompt for extracting learnings from logs' },
+              ] as const).map(({ key, label, placeholder }) => (
+                <div key={key} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>{label}</div>
+                  <textarea
+                    value={(data.prompts as Record<string, string>)?.[key] ?? ''}
+                    onChange={e => setData({ ...data, prompts: { ...(data.prompts ?? {}), [key]: e.target.value } })}
+                    placeholder={placeholder}
+                    rows={3}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text-str)', fontSize: 10, outline: 'none', fontFamily: 'monospace', resize: 'vertical', lineHeight: 1.5 }}
+                  />
+                </div>
+              ))}
+            </Section>
+
             <Section label="Vault Root">
               <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-faint)', padding: '6px 8px', background: 'var(--bg-2)', borderRadius: 4, wordBreak: 'break-all' }}>
                 {data.vaultRoot || 'Not set'}

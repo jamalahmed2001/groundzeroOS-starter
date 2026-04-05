@@ -344,7 +344,7 @@ export async function runPhase(
 
     const agentResult = await runAgent(driver, {
       prompt,
-      systemPrompt: buildSystemPrompt(projectId, ctx.repoPath),
+      systemPrompt: config.prompts?.executor ?? buildSystemPrompt(projectId, ctx.repoPath),
       repoPath: ctx.repoPath,
       timeoutMs,
       model: effectiveModel,

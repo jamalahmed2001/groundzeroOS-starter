@@ -59,6 +59,14 @@ interface RawConfig {
       accountId?: string;          // deprecated
     };
   };
+  prompts?: {
+    executor?: string;
+    decompose?: string;
+    atomise?: string;
+    extend?: string;
+    replan?: string;
+    consolidate?: string;
+  };
 }
 
 // Load .env file into process.env (simple parser — no dotenv dependency needed).
@@ -206,5 +214,6 @@ export function loadConfig(configPath?: string): ControllerConfig {
       whatsapp,
       openclaw,
     },
+    prompts: raw.prompts,
   };
 }
