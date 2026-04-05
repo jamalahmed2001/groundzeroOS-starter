@@ -291,8 +291,9 @@ program
   .command('decompose <project>')
   .description('Overview → phase stubs (backlog)')
   .option('--extend', 'add new phases from updated Overview')
+  .option('--force', 'delete existing phases and re-decompose from scratch')
   .action(async (project, opts) => {
-    await runDecompose(project, { extend: !!opts.extend });
+    await runDecompose(project, { extend: !!opts.extend, force: !!opts.force });
   });
 
 // ── atomise ──────────────────────────────────────────────────────────────

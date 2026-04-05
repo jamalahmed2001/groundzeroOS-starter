@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Play, Cpu, GitBranch, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Play, Cpu, GitBranch, ExternalLink, ChevronDown, ChevronRight, Upload } from 'lucide-react';
 import type { GZProject, GZPhase, PhaseStatus } from '@/lib/types';
 import { statusColor as sc } from '@/lib/colors';
 import GitDiffPanel from './GitDiffPanel';
@@ -263,9 +263,9 @@ export default function ProjectDetail({ project, onClose, onOpenFile, onRunCLI, 
           {tab === 'phases' && (
             project.phases.length === 0 ? (
               <div style={{ padding: '24px 0', textAlign: 'center' }}>
-                <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 14 }}>No phases yet. Atomise to generate phases from the overview.</div>
+                <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 14 }}>No phases yet. Decompose to break the Overview into phases.</div>
                 <button onClick={() => onRunCLI('plan', [project.id])} style={{ padding: '7px 18px', borderRadius: 'var(--r-sm)', border: '1px solid rgba(77,156,248,0.3)', background: 'rgba(77,156,248,0.07)', cursor: 'pointer', fontSize: 12, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
-                  <Cpu size={12}/> Plan Now
+                  <Cpu size={12}/> Decompose
                 </button>
               </div>
             ) : (
@@ -283,8 +283,9 @@ export default function ProjectDetail({ project, onClose, onOpenFile, onRunCLI, 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
                 { icon: Play,       label: 'Run next ready phase',   cmd: 'run',  args: ['--project', project.id],          color: 'var(--ready)'    },
-                { icon: Cpu,        label: 'Plan / atomise project',  cmd: 'plan', args: [project.id],                       color: 'var(--accent)'   },
-                { icon: GitBranch,  label: 'Extend phases',           cmd: 'plan', args: [project.id, '--extend'],           color: 'var(--planning)' },
+                { icon: Cpu,        label: 'Decompose + Atomise',     cmd: 'plan', args: [project.id],                       color: 'var(--accent)'   },
+                { icon: GitBranch,  label: 'Extend (new phases)',     cmd: 'plan', args: [project.id, '--extend'],           color: 'var(--planning)' },
+                ...(project.linearProjectId ? [{ icon: Upload, label: 'Sync to Linear', cmd: 'linear-uplink', args: [project.id], color: '#8250df' }] : []),
               ].map(({ icon: Icon, label, cmd, args, color }) => (
                 <button key={label} onClick={() => { onRunCLI(cmd, args); onClose(); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 'var(--r-md)', border: '1px solid var(--glass-b)', background: 'var(--glass)', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 12, fontFamily: 'inherit', textAlign: 'left', width: '100%', transition: 'border-color 0.15s, color 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.color = 'var(--text-str)'; }}

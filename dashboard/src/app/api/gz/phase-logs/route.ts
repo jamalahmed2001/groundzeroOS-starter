@@ -20,11 +20,13 @@ export async function GET(req: Request) {
   if (!file) return NextResponse.json({ exists: false, content: null });
 
   const phaseNum = file.frontmatter['phase_number'] ?? 0;
-  const baseName = path.basename(absPath);
+  const phaseName = String(file.frontmatter['phase_name'] ?? '');
   const phasesDir = path.dirname(absPath);
   const bundleDir = path.dirname(phasesDir);
   const logsDir = path.join(bundleDir, 'Logs');
-  const logPath = path.join(logsDir, `L${phaseNum} - ${baseName}`);
+  const logPath = phaseName
+    ? path.join(logsDir, `L${phaseNum} - ${phaseName}.md`)
+    : path.join(logsDir, `L${phaseNum}.md`);
 
   if (!fs.existsSync(logPath)) {
     return NextResponse.json({ exists: false, content: null, logPath: path.relative(vaultRoot, logPath) });

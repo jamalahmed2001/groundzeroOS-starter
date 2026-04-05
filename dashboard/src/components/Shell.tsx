@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, Columns, BookOpen, ScrollText, Settings, RefreshCw, Search, Play, Inbox, Terminal, Download, X } from 'lucide-react';
+import { LayoutDashboard, Columns, BookOpen, ScrollText, Settings, RefreshCw, Search, Play, Inbox, Terminal, Download, X, MessageSquare, Send, Loader } from 'lucide-react';
 import type { GZProject, RunEntry, VaultFileNode } from '@/lib/types';
 import TodayView from './TodayView';
 import KanbanView from './KanbanView';
@@ -375,6 +375,15 @@ export default function Shell() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchListRef = useRef<HTMLDivElement>(null);
 
+  // Chat pane state
+  const [chatOpen, setChatOpen]             = useState(false);
+  const [chatMessages, setChatMessages]     = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [chatInput, setChatInput]           = useState('');
+  const [chatSending, setChatSending]       = useState(false);
+  const [chatProject, setChatProject]       = useState<string | undefined>(undefined);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -407,6 +416,7 @@ export default function Shell() {
         if (searchOpen)            { setSearchOpen(false); setSearchQ(''); setSearchHits([]); return; }
         if (detailProject)         { setDetailProject(null); return; }
         if (drawerPath)            { setDrawerPath(null); return; }
+        if (chatOpen)              { setChatOpen(false); return; }
         if (cliOpen)               { setCliOpen(false); return; }
         return;
       }
@@ -417,13 +427,14 @@ export default function Shell() {
       if (e.key === 'i') { setDrawerPath('00 - Dashboard/Inbox.md'); return; }
       if (e.key === 'c') { setCaptureOpen(o => !o); return; }
       if (e.key === 'l') { setLinearOpen(o => !o); return; }
+      if (e.key === '.') { setChatOpen(o => !o); return; }
       if (e.key === '`') { setCliOpen(o => !o); return; }
       if (e.key === ',' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setSettingsOpen(s => !s); return; }
       if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || e.key === '/') { e.preventDefault(); setSearchOpen(s => !s); return; }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [fetchData, settingsOpen, captureOpen, linearOpen, searchOpen, detailProject, drawerPath, cliOpen]);
+  }, [fetchData, settingsOpen, captureOpen, linearOpen, searchOpen, detailProject, drawerPath, chatOpen, cliOpen]);
 
   useEffect(() => { if (searchOpen) setTimeout(() => searchRef.current?.focus(), 40); }, [searchOpen]);
 
@@ -463,6 +474,45 @@ export default function Shell() {
     }, 260);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
   }, [searchQ]);
+
+  // Chat auto-scroll
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+  useEffect(() => { if (chatOpen) setTimeout(() => chatInputRef.current?.focus(), 60); }, [chatOpen]);
+
+  // Set chat project context when viewing a project
+  useEffect(() => {
+    if (detailProject) setChatProject(detailProject.id);
+  }, [detailProject]);
+
+  const sendChat = useCallback(async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatSending) return;
+    setChatInput('');
+    setChatSending(true);
+    const newMessages = [...chatMessages, { role: 'user' as const, content: msg }];
+    setChatMessages(newMessages);
+
+    // Find repo path for current project
+    const proj = data?.projects.find(p => p.id === chatProject);
+    const repoPath = proj?.repoPath;
+
+    try {
+      const res = await fetch('/api/gz/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages, projectId: chatProject, repoPath }),
+      });
+      const d = await res.json() as { reply?: string; error?: string };
+      if (d.error) {
+        setChatMessages(m => [...m, { role: 'assistant', content: `Error: ${d.error}` }]);
+      } else {
+        setChatMessages(m => [...m, { role: 'assistant', content: d.reply ?? '(no response)' }]);
+      }
+    } catch {
+      setChatMessages(m => [...m, { role: 'assistant', content: 'Failed to reach agent. Check connection.' }]);
+    }
+    setChatSending(false);
+  }, [chatInput, chatSending, chatMessages, chatProject, data]);
 
   return (
     <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
@@ -570,54 +620,133 @@ export default function Shell() {
               {new Date(data.lastFetch).toLocaleTimeString()}
             </span>
           )}
+          <button onClick={() => setChatOpen(o => !o)} title="Chat with agent (.)"
+            style={{ padding: '4px 10px', borderRadius: 'var(--r-sm)', border: `1px solid ${chatOpen ? 'rgba(77,156,248,0.4)' : 'var(--glass-b)'}`, background: chatOpen ? 'rgba(77,156,248,0.08)' : 'var(--glass)', cursor: 'pointer', fontSize: 11, color: chatOpen ? 'var(--accent)' : 'var(--text-dim)', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, transition: 'border-color 0.12s' }}>
+            <MessageSquare size={11}/> Ask
+          </button>
           <button onClick={() => void fetchData()} style={{ width: 26, height: 26, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RefreshCw size={11} className={loading ? 'spin' : ''}/>
           </button>
         </header>
 
-        {/* Content */}
-        <main style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-          {loading && !data ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-faint)', fontSize: 12 }}>Loading vault…</div>
-          ) : (
-            <>
-              {tab === 'today'  && <TodayView  projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRunCLI={runCLI}/>}
-              {tab === 'kanban' && <KanbanView projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRefresh={fetchData} onOpenProject={setDetailProject} onOpenProjectDiff={p => { setDetailProject(p); setDetailTab('diff'); }} onRunCLI={runCLI}/>}
-              {tab === 'vault'  && <VaultView  tree={data?.tree ?? []}         onOpenFile={setDrawerPath}/>}
-              {tab === 'runs'   && <RunsView   runs={data?.runs ?? []}          onOpenFile={setDrawerPath}/>}
-              {tab === 'system' && <SystemView onRunCLI={runCLI}/>}
-            </>
-          )}
-        </main>
+        {/* Content + Chat side-by-side */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+          {/* Main content area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+            <main style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+              {loading && !data ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-faint)', fontSize: 12 }}>Loading vault…</div>
+              ) : (
+                <>
+                  {tab === 'today'  && <TodayView  projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRunCLI={runCLI}/>}
+                  {tab === 'kanban' && <KanbanView projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRefresh={fetchData} onOpenProject={setDetailProject} onOpenProjectDiff={p => { setDetailProject(p); setDetailTab('diff'); }} onRunCLI={runCLI}/>}
+                  {tab === 'vault'  && <VaultView  tree={data?.tree ?? []}         onOpenFile={setDrawerPath}/>}
+                  {tab === 'runs'   && <RunsView   runs={data?.runs ?? []}          onOpenFile={setDrawerPath}/>}
+                  {tab === 'system' && <SystemView onRunCLI={runCLI}/>}
+                </>
+              )}
+            </main>
 
-        {/* CLI panel */}
-        {cliOpen && (
-          <div style={{ height: 185, borderTop: '1px solid var(--glass-b)', background: 'rgba(5,8,14,0.92)', backdropFilter: 'blur(16px)', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', padding: '4px 10px', borderBottom: '1px solid var(--glass-b)', gap: 8 }}>
-              <Terminal size={10} style={{ color: 'var(--accent)' }}/>
-              <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', flex: 1 }}>gzos</span>
-              {(['heal', 'doctor', 'logs', 'status'] as const).map(cmd => (
-                <button key={cmd} onClick={() => runCLI(cmd)} style={{ padding: '2px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--glass-b)', background: 'transparent', cursor: 'pointer', fontSize: 9, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
-                  {cmd}
-                </button>
-              ))}
-              <button onClick={() => setCliOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 14, lineHeight: 1 }}>×</button>
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', padding: '6px 10px', fontFamily: 'monospace', fontSize: 10 }}>
-              {cliLog.length === 0
-                ? <span style={{ color: 'var(--text-faint)' }}>No commands yet. Use buttons above or keyboard shortcuts.</span>
-                : cliLog.map((l, i) => (
-                    <div key={i} style={{ marginBottom: 6 }}>
-                      <div style={{ color: 'var(--accent)', marginBottom: 1 }}>$ gzos {l.cmd}</div>
-                      <pre style={{ color: l.exitCode === 0 ? 'var(--text-dim)' : 'var(--blocked)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
-                        {l.output.slice(0, 800)}
-                      </pre>
-                    </div>
-                  ))
-              }
-            </div>
+            {/* CLI panel */}
+            {cliOpen && (
+              <div style={{ height: 185, borderTop: '1px solid var(--glass-b)', background: 'rgba(5,8,14,0.92)', backdropFilter: 'blur(16px)', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '4px 10px', borderBottom: '1px solid var(--glass-b)', gap: 8 }}>
+                  <Terminal size={10} style={{ color: 'var(--accent)' }}/>
+                  <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'monospace', flex: 1 }}>gzos</span>
+                  {(['heal', 'doctor', 'logs', 'status'] as const).map(cmd => (
+                    <button key={cmd} onClick={() => runCLI(cmd)} style={{ padding: '2px 7px', borderRadius: 'var(--r-sm)', border: '1px solid var(--glass-b)', background: 'transparent', cursor: 'pointer', fontSize: 9, color: 'var(--text-dim)', fontFamily: 'monospace' }}>
+                      {cmd}
+                    </button>
+                  ))}
+                  <button onClick={() => setCliOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 14, lineHeight: 1 }}>×</button>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', padding: '6px 10px', fontFamily: 'monospace', fontSize: 10 }}>
+                  {cliLog.length === 0
+                    ? <span style={{ color: 'var(--text-faint)' }}>No commands yet. Use buttons above or keyboard shortcuts.</span>
+                    : cliLog.map((l, i) => (
+                        <div key={i} style={{ marginBottom: 6 }}>
+                          <div style={{ color: 'var(--accent)', marginBottom: 1 }}>$ gzos {l.cmd}</div>
+                          <pre style={{ color: l.exitCode === 0 ? 'var(--text-dim)' : 'var(--blocked)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: 0 }}>
+                            {l.output.slice(0, 800)}
+                          </pre>
+                        </div>
+                      ))
+                  }
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Chat pane — persistent right panel */}
+          {chatOpen && (
+            <div style={{
+              width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column',
+              borderLeft: '1px solid var(--glass-b)',
+              background: 'rgba(8,12,20,0.95)',
+              backdropFilter: 'blur(16px)',
+            }}>
+              {/* Chat header */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--glass-b)', gap: 8, flexShrink: 0 }}>
+                <MessageSquare size={12} style={{ color: 'var(--accent)' }}/>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-str)', flex: 1 }}>Ask</span>
+                {/* Project scope selector */}
+                <select value={chatProject ?? ''} onChange={e => setChatProject(e.target.value || undefined)}
+                  style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid var(--glass-b)', background: 'var(--bg-2)', color: 'var(--text-dim)', fontSize: 10, outline: 'none', maxWidth: 140 }}>
+                  <option value="">All projects</option>
+                  {(data?.projects ?? []).map(p => <option key={p.id} value={p.id}>{p.id}</option>)}
+                </select>
+                <button onClick={() => { setChatMessages([]); }} title="Clear chat"
+                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 10 }}>clear</button>
+                <button onClick={() => setChatOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 14, lineHeight: 1 }}>×</button>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflow: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {chatMessages.length === 0 && (
+                  <div style={{ color: 'var(--text-faint)', fontSize: 11, textAlign: 'center', padding: '30px 10px', lineHeight: 1.6 }}>
+                    Ask about any project — scope, architecture, next steps, risks.
+                    <br/><span style={{ fontSize: 10, opacity: 0.7 }}>Uses {(data?.projects ?? []).find(p => p.id === chatProject)?.repoPath ? 'agent with repo access' : 'vault context'}. Press <kbd style={{ padding: '1px 4px', borderRadius: 3, border: '1px solid var(--glass-b)', fontSize: 9 }}>.</kbd> to toggle.</span>
+                  </div>
+                )}
+                {chatMessages.map((m, i) => (
+                  <div key={i} style={{
+                    alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                    maxWidth: '90%',
+                    padding: '8px 11px',
+                    borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                    background: m.role === 'user' ? 'rgba(77,156,248,0.12)' : 'var(--glass)',
+                    border: `1px solid ${m.role === 'user' ? 'rgba(77,156,248,0.2)' : 'var(--glass-b)'}`,
+                    fontSize: 12, color: 'var(--text)', lineHeight: 1.55,
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {m.content}
+                  </div>
+                ))}
+                {chatSending && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-faint)', fontSize: 11 }}>
+                    <Loader size={11} className="spin"/> Thinking…
+                  </div>
+                )}
+                <div ref={chatEndRef}/>
+              </div>
+
+              {/* Input */}
+              <div style={{ padding: '8px 12px', borderTop: '1px solid var(--glass-b)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <textarea ref={chatInputRef} value={chatInput} onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendChat(); } }}
+                    placeholder="Ask about scope, architecture, next steps…"
+                    rows={2}
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--glass-b)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-str)', fontSize: 12, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: 1.4 }}/>
+                  <button onClick={() => void sendChat()} disabled={chatSending || !chatInput.trim()}
+                    style={{ width: 34, borderRadius: 8, border: '1px solid var(--glass-b)', background: chatInput.trim() ? 'rgba(77,156,248,0.12)' : 'transparent', cursor: chatInput.trim() ? 'pointer' : 'default', color: chatInput.trim() ? 'var(--accent)' : 'var(--text-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Send size={13}/>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Search modal — full-text vault search */}

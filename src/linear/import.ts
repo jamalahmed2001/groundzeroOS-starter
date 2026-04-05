@@ -104,6 +104,16 @@ export async function importLinearProject(
     .map((issue, i) => `- [[P${i + 1} - ${issue.title}|P${i + 1} — ${issue.title}]] — \`phase-backlog\``)
     .join('\n');
 
+  // Build rich issue summaries for the Overview
+  const issueSummaries = issues.map((issue, i) => {
+    const desc = issue.description?.trim();
+    const children = issue.children ?? [];
+    const childList = children.length > 0
+      ? '\n' + children.map(c => `    - ${c.title}`).join('\n')
+      : '';
+    return `### P${i + 1} — ${issue.title} (\`${issue.identifier}\`)\n\n${desc ? desc.slice(0, 500) : '_No description._'}${childList ? `\n\n**Sub-tasks:**${childList}` : ''}`;
+  }).join('\n\n');
+
   // Overview
   writeFile(path.join(bundleDir, `${project.name} - Overview.md`), `---
 project_id: "${project.name}"
@@ -126,6 +136,10 @@ ${phaseSummaryLinks}
 ## Description
 
 ${project.description ?? '_No description provided._'}
+
+## Scope (from Linear)
+
+${issueSummaries || '_No issues found._'}
 
 ## Source
 

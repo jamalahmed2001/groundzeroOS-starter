@@ -14,7 +14,7 @@ const SYNC_CMDS = new Set(['status', 'heal', 'doctor', 'logs', 'capture', 'set-s
 // Commands that may take minutes (LLM calls, agent spawns) — fire-and-forget
 const ASYNC_CMDS = new Set([
   'run', 'init',
-  'plan', 'research', 'consolidate', 'import', 'refresh-context', 'linear-uplink', 'daily-plan',
+  'plan', 'research', 'consolidate', 'import', 'import-linear', 'refresh-context', 'linear-uplink', 'daily-plan',
   // deprecated aliases — kept for backward compat
   'atomise', 'atomize', 'atomise-project', 'plan-phase', 'plan-project', 'execute',
 ]);

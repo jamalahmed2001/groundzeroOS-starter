@@ -63,16 +63,18 @@ function findProjectPhases(config: ControllerConfig, bundle: VaultBundle) {
 
 // ── decompose: Overview → phase stubs ────────────────────────────────────────
 
-export async function runDecompose(projectArg?: string, opts?: { extend?: boolean }): Promise<void> {
+export async function runDecompose(projectArg?: string, opts?: { extend?: boolean; force?: boolean }): Promise<void> {
   if (!projectArg) {
-    console.log('Usage: gzos decompose <project> [--extend]');
+    console.log('Usage: gzos decompose <project> [--extend] [--force]');
     console.log('');
     console.log('  Reads the Overview and generates phase stubs (status: backlog).');
     console.log('  --extend: reads updated Overview + knowledge → adds new phases.');
+    console.log('  --force:  delete existing phases and re-decompose from scratch.');
     console.log('');
     console.log('Examples:');
     console.log('  gzos decompose "GZ Demo"           — create P1..Pn from Overview');
     console.log('  gzos decompose "GZ Demo" --extend   — add new phases from updated scope');
+    console.log('  gzos decompose "GZ Demo" --force    — re-decompose (replaces all phases)');
     process.exit(0);
   }
 
@@ -99,13 +101,24 @@ export async function runDecompose(projectArg?: string, opts?: { extend?: boolea
     ? fs.readdirSync(phasesDir).filter(f => f.match(/^P\d+/) && f.endsWith('.md'))
     : [];
 
-  if (existingPhaseFiles.length > 0) {
+  if (existingPhaseFiles.length > 0 && !opts?.force) {
     console.log(`\nPhases already exist (${existingPhaseFiles.length}) for "${bundle.projectId}".`);
     console.log('  To add new phases: update Overview.md, then run:');
     console.log(`    gzos decompose "${bundle.projectId}" --extend`);
     console.log('  To generate tasks for existing backlog phases:');
     console.log(`    gzos atomise "${bundle.projectId}"`);
+    console.log('  To re-decompose from scratch (replaces all phases):');
+    console.log(`    gzos decompose "${bundle.projectId}" --force`);
     return;
+  }
+
+  if (opts?.force && existingPhaseFiles.length > 0) {
+    const trashDir = path.join(bundle.bundleDir, '.gzos-backups', `pre-redecompose-${Date.now()}`);
+    fs.mkdirSync(trashDir, { recursive: true });
+    for (const f of existingPhaseFiles) {
+      fs.renameSync(path.join(phasesDir, f), path.join(trashDir, f));
+    }
+    console.log(`\n[decompose] Moved ${existingPhaseFiles.length} existing phase(s) to ${path.relative(bundle.bundleDir, trashDir)}`);
   }
 
   console.log(`\nDecomposing Overview into phases for "${bundle.projectId}"...`);

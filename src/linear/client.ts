@@ -42,6 +42,55 @@ export interface CreateIssueInput {
   title: string;
   description?: string;
   projectId?: string;
+  parentId?: string;
+  assigneeId?: string;
+  cycleId?: string;
+  labelIds?: string[];
+}
+
+// Fetch the viewer's ID (the authenticated user)
+export async function getViewerId(apiKey: string): Promise<string> {
+  const data = await linearQuery<{ viewer: { id: string } }>(apiKey, '{ viewer { id } }');
+  return data.viewer.id;
+}
+
+// Fetch the team's active cycle ID
+export async function getActiveCycleId(apiKey: string, teamId: string): Promise<string | undefined> {
+  const safeTeamId = teamId.replace(/["\\]/g, '');
+  const data = await linearQuery<{ team: { activeCycle?: { id: string } } }>(
+    apiKey, `{ team(id: "${safeTeamId}") { activeCycle { id } } }`
+  );
+  return data.team.activeCycle?.id;
+}
+
+// Find a Linear project ID by name (fuzzy match)
+export async function findProjectByName(apiKey: string, teamId: string, name: string): Promise<string | undefined> {
+  const safeTeamId = teamId.replace(/["\\]/g, '');
+  const data = await linearQuery<{ team: { projects: { nodes: Array<{ id: string; name: string }> } } }>(
+    apiKey, `{ team(id: "${safeTeamId}") { projects(first: 100, orderBy: updatedAt) { nodes { id name } } } }`
+  );
+  const projects = data.team.projects.nodes;
+  // Exact match first, then case-insensitive
+  const exact = projects.find(p => p.name === name);
+  if (exact) return exact.id;
+  const lower = name.toLowerCase();
+  const fuzzy = projects.find(p => p.name.toLowerCase() === lower);
+  return fuzzy?.id;
+}
+
+// Search for label IDs by name patterns
+export async function findLabelIds(apiKey: string, teamId: string, patterns: RegExp[]): Promise<string[]> {
+  const safeTeamId = teamId.replace(/["\\]/g, '');
+  const data = await linearQuery<{ team: { labels: { nodes: Array<{ id: string; name: string }> } } }>(
+    apiKey, `{ team(id: "${safeTeamId}") { labels(first: 100) { nodes { id name } } } }`
+  );
+  const labels = data.team.labels.nodes;
+  const matched: string[] = [];
+  for (const pattern of patterns) {
+    const found = labels.find(l => pattern.test(l.name));
+    if (found) matched.push(found.id);
+  }
+  return matched;
 }
 
 export async function linearQuery<T>(

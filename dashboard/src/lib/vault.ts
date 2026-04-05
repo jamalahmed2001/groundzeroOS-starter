@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import glob from 'fast-glob';
 import type { GZProject, GZPhase, PhaseStatus, RunEntry, VaultFileNode, DailyPlan, InboxItem, GraphNode, GraphEdge } from './types';
 import { stateFromFrontmatter, countTasks as sharedCountTasks, stateToTag } from '@gzos/shared/vault-parse';
+import { readConfig } from './config';
 
 // ---------------------------------------------------------------------------
 // Root resolution — env var for overrides, config file for default
@@ -77,7 +79,10 @@ function walkForProjects(dir: string, vaultRoot: string): GZProject[] {
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); }
   catch { return results; }
 
-  const overviewFile = entries.find(e => e.isFile() && /Overview\.md$/i.test(e.name) && !e.name.startsWith('._'));
+  const overviewFile = entries.find(e =>
+    e.isFile() && / - Overview\.md$/i.test(e.name) && !e.name.startsWith('._')
+    && !/Skill Overview/i.test(e.name) && !/Hub\.md$/i.test(e.name)
+  );
   if (overviewFile) {
     const overviewAbs = path.join(dir, overviewFile.name);
     try {
@@ -86,10 +91,32 @@ function walkForProjects(dir: string, vaultRoot: string): GZProject[] {
       if (!data.type || data.type === 'overview' || data.type === 'project') {
         const projectId = String(data.project_id || data.project || overviewFile.name.replace(/\s*-\s*Overview\.md$/i, '')).trim();
         const phases = loadPhases(dir, vaultRoot);
+        // Detect Linear linkage from Overview frontmatter, content, or phase frontmatter
+        let linearId = data.linear_project_id ? String(data.linear_project_id) : undefined;
+        if (!linearId) {
+          // Check Overview content for Linear identifiers (e.g. ENG-1234, `linear_project_id`)
+          if (/\b[A-Z]{2,6}-\d{3,}\b/.test(raw) || /[Ii]mported from Linear/.test(raw)) {
+            linearId = 'linked';
+          }
+        }
+        if (!linearId) {
+          // Check if any phase has a linear_issue_id or linear_identifier
+          const hasLinearPhase = phases.some(ph => {
+            const phaseAbs = path.resolve(vaultRoot, ph.path);
+            try {
+              const phRaw = fs.readFileSync(phaseAbs, 'utf8');
+              const phData = matter(phRaw).data;
+              return !!(phData.linear_issue_id || phData.linear_identifier);
+            } catch { return false; }
+          });
+          if (hasLinearPhase) linearId = 'linked';
+        }
+
         results.push({
           id: projectId,
           overviewPath: path.relative(vaultRoot, overviewAbs),
           repoPath: data.repo_path ? String(data.repo_path) : undefined,
+          linearProjectId: linearId,
           status: String(data.status || 'active'),
           phases,
           phaseCount: phases.length,
@@ -143,7 +170,30 @@ function loadPhases(projectDir: string, vaultRoot: string): GZPhase[] {
 
 export function getAllProjects(vaultRoot: string): GZProject[] {
   if (!fs.existsSync(vaultRoot)) return [];
-  const projects = walkForProjects(vaultRoot, vaultRoot);
+
+  // Use projects_glob from config to scope which directories to scan
+  const cfg = readConfig();
+  const projectsGlob: string = cfg.projects_glob ?? cfg.projectsGlob ?? '';
+
+  let projects: GZProject[];
+  if (projectsGlob) {
+    // Resolve glob patterns to directories, then scan each one
+    const patterns = projectsGlob.replace(/\{|\}/g, '').split(',').map((p: string) => p.trim()).filter(Boolean);
+    const dirs = new Set<string>();
+    for (const pattern of patterns) {
+      // Strip trailing /** to get the base directory
+      const base = pattern.replace(/\/\*\*$/, '');
+      const absBase = path.join(vaultRoot, base);
+      if (fs.existsSync(absBase)) dirs.add(absBase);
+    }
+    projects = [];
+    for (const dir of dirs) {
+      projects.push(...walkForProjects(dir, vaultRoot));
+    }
+  } else {
+    projects = walkForProjects(vaultRoot, vaultRoot);
+  }
+
   const seen = new Set<string>();
   return projects.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
     .sort((a, b) => a.id.localeCompare(b.id));
@@ -154,17 +204,46 @@ export function getAllProjects(vaultRoot: string): GZProject[] {
 // ---------------------------------------------------------------------------
 export function getDailyPlan(vaultRoot: string): DailyPlan {
   const today = new Date().toISOString().split('T')[0];
-  // Check OpenClaw plan-my-day skill output first (richer: time blocks + prayers)
-  const archivePath = path.join(vaultRoot, '09 - Archive', 'Daily Archive (Legacy)', `Daily - ${today}.md`);
-  // Fallback: GZOS daily path
-  const gzosPath    = path.join(vaultRoot, '00 - Dashboard', 'Daily', `${today}.md`);
 
-  for (const p of [archivePath, gzosPath]) {
+  // Check multiple locations for today's plan
+  const candidates = [
+    path.join(vaultRoot, '09 - Archive', 'Daily Archive (Legacy)', `Daily - ${today}.md`),
+    path.join(vaultRoot, '00 - Dashboard', 'Daily', `${today}.md`),
+    path.join(vaultRoot, '04 - Planning', 'Daily', `${today}.md`),
+    path.join(vaultRoot, '04 - Planning', `Daily - ${today}.md`),
+  ];
+
+  for (const p of candidates) {
     if (fs.existsSync(p)) {
       const raw = fs.readFileSync(p, 'utf8');
       return { date: today, raw, exists: true };
     }
   }
+
+  // No plan for today — find the most recent plan to show as fallback
+  const searchDirs = [
+    path.join(vaultRoot, '09 - Archive', 'Daily Archive (Legacy)'),
+    path.join(vaultRoot, '00 - Dashboard', 'Daily'),
+  ];
+
+  let latestDate = '';
+  let latestPath = '';
+  for (const dir of searchDirs) {
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/(\d{4}-\d{2}-\d{2})/);
+      if (m && m[1]! > latestDate) {
+        latestDate = m[1]!;
+        latestPath = path.join(dir, f);
+      }
+    }
+  }
+
+  if (latestPath && latestDate) {
+    const raw = fs.readFileSync(latestPath, 'utf8');
+    return { date: latestDate, raw, exists: true };
+  }
+
   return { date: today, raw: '', exists: false };
 }
 

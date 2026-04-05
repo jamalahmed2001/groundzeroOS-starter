@@ -75,6 +75,7 @@ export interface GZProject {
   id: string;
   overviewPath: string;
   repoPath?: string;
+  linearProjectId?: string;
   status: string;
   phases: GZPhase[];
   phaseCount: number;

@@ -57,7 +57,7 @@ export default function SystemView({ onRunCLI }: { onRunCLI: (cmd: string, args?
                 {data.stats.projectsNoPhases.map(id => (
                   <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ flex: 1, fontSize: 12, color: 'var(--text-dim)' }}>{id}</span>
-                    <button onClick={() => onRunCLI('atomise-project', ['--project', id])} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--accent)44', background: 'transparent', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>Atomise</button>
+                    <button onClick={() => onRunCLI('plan', [id])} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--accent)44', background: 'transparent', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>Decompose</button>
                   </div>
                 ))}
               </div>

@@ -35,7 +35,7 @@ function eventLabel(ev: string): string {
   const map: Record<string, string> = {
     task_done: 'task done', task_started: 'task started', task_blocked: 'blocked',
     lock_acquired: 'lock acquired', lock_released: 'lock released',
-    atomise_done: 'tasks planned', atomise_started: 'planning started',
+    atomise_done: 'atomised', atomise_started: 'atomising',
     phase_completed: 'completed', phase_blocked: 'blocked',
     replan_done: 'replanned', replan_started: 'replanning',
     stale_lock_cleared: 'lock cleared',

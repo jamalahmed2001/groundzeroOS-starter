@@ -87,19 +87,48 @@ export default function LinearImportModal({ projects, onClose, onRefresh, onOpen
     loadProjects();
   }, []);
 
+  const runIssueImport = async () => {
+    if (!selectedIssue) return;
+    setImporting(true);
+    setOutput('');
+    try {
+      const res = await fetch('/api/gz/linear/import-issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          issueId: selectedIssue.id,
+          targetProject: target === '__new__' ? undefined : target,
+        }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string; project?: string; phase?: string; tasksCount?: number };
+      if (data.ok) {
+        setOutput(`Imported "${selectedIssue.title}" → ${data.project} / ${data.phase} (${data.tasksCount} tasks)`);
+        setSelectedIssue(null);
+        onRefresh();
+      } else {
+        setOutput(`Error: ${data.error}`);
+      }
+    } catch {
+      setOutput('Import failed — check connection');
+    }
+    setImporting(false);
+  };
+
   const runProjectImport = async () => {
     if (!selectedProject) return;
     setImporting(true);
-    setOutput('Running gzos import-linear…\n');
-    const args = ['--linear-project', selectedProject.id];
-    if (target !== '__new__') args.push('--target-project', target);
-    const res = await fetch('/api/gz/cli', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cmd: 'import-linear', args }),
-    });
-    const data = await res.json() as { output: string };
-    setOutput(data.output ?? 'Done');
+    setOutput('Running gzos import…\n');
+    try {
+      const res = await fetch('/api/gz/cli', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: 'import', args: [selectedProject.id] }),
+      });
+      const data = await res.json() as { output?: string; error?: string };
+      setOutput(data.output ?? data.error ?? 'Done');
+    } catch {
+      setOutput('Import failed — check connection');
+    }
     setImporting(false);
     onRefresh();
   };
@@ -191,9 +220,36 @@ export default function LinearImportModal({ projects, onClose, onRefresh, onOpen
                       );
                     })}
                   </div>
-                  <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)', fontSize: 10, color: 'var(--text-faint)', textAlign: 'center' }}>
-                    Open an issue in Linear to import it into a vault project — feature coming soon.
-                  </div>
+                  {/* Import controls for selected issue */}
+                  {selectedIssue && (
+                    <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', padding: '6px 10px', background: 'var(--bg-2)', borderRadius: 4 }}>
+                        Import: <strong style={{ color: 'var(--text-str)' }}>{selectedIssue.title}</strong>
+                        {selectedIssue.description && <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 4, lineHeight: 1.4 }}>{selectedIssue.description.slice(0, 150)}{selectedIssue.description.length > 150 ? '…' : ''}</div>}
+                      </div>
+                      <Field label="Target Vault Project">
+                        <select value={target} onChange={e => setTarget(e.target.value)}
+                          style={{ width: '100%', padding: '7px 10px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-2)', color: 'var(--text-str)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}>
+                          <option value="__new__">Create new project</option>
+                          {projects.map(p => <option key={p.id} value={p.id}>{p.id}</option>)}
+                        </select>
+                      </Field>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={runIssueImport} disabled={importing} style={{
+                          flex: 1, padding: '7px 0', borderRadius: 4, border: '1px solid var(--accent)', background: 'transparent',
+                          cursor: importing ? 'not-allowed' : 'pointer', fontSize: 12,
+                          color: importing ? 'var(--text-faint)' : 'var(--accent)', fontFamily: 'inherit',
+                        }}>
+                          {importing ? 'Importing…' : target === '__new__' ? 'Import as new project' : `Add to ${target}`}
+                        </button>
+                      </div>
+                      {output && (
+                        <pre style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 4, padding: '10px', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', maxHeight: 100, overflow: 'auto', margin: 0 }}>
+                          {output}
+                        </pre>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </>
