@@ -89,7 +89,7 @@ function renderMarkdown(
   };
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i] ?? '';
     const key = `ln-${i}`;
 
     // ── Fenced code block ──
@@ -241,8 +241,12 @@ export default function Drawer({ path, onClose, onWikilinkClick }: Props) {
   const load = useCallback(() => {
     setLoading(true); setData(null); setEditMode(false); setSaved(false);
     fetch(`/api/gz/vault-file?path=${encodeURIComponent(path)}`)
-      .then(r => r.json()).then((d: FileData) => { setData(d); setEditContent(d.raw ?? ''); })
-      .catch(console.error)
+      .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+      .then((d: FileData & { resolvedPath?: string }) => {
+        setData(d);
+        setEditContent(d.raw ?? '');
+      })
+      .catch(() => { setData(null); })
       .finally(() => setLoading(false));
   }, [path]);
 
@@ -304,7 +308,7 @@ export default function Drawer({ path, onClose, onWikilinkClick }: Props) {
 
   const filename = path.split('/').pop()?.replace(/\.md$/, '') ?? path;
   const tags: string[] = Array.isArray(data?.frontmatter?.tags) ? (data!.frontmatter.tags as string[]) : [];
-  const body = data?.raw.replace(/^---[\s\S]*?---\n?/, '') ?? '';
+  const body = (data?.raw ?? '').replace(/^---[\s\S]*?---\n?/, '');
   const fmEntries = Object.entries(data?.frontmatter ?? {}).filter(([k]) => k !== 'tags');
 
   const lineCount = editContent.split('\n').length;
