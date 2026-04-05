@@ -25,6 +25,7 @@ export interface PhaseRunResult {
 // Resolved context paths — agent reads these files directly via --add-dir
 interface ContextPaths {
   repoPath: string;
+  repoPathValid: boolean;
   overviewPath: string;
   knowledgePath: string;
   decisionsPath: string;
@@ -34,20 +35,19 @@ interface ContextPaths {
 
 // Resolve paths to vault context files. Agent reads them natively — we just point it there.
 function resolveContextPaths(projectId: string, bundleDir: string, phaseNum: string, phaseLabel: string): ContextPaths {
-  let repoPath = bundleDir;
+  let repoPath = '';
+  let repoPathValid = false;
 
   // repo_path from Overview frontmatter
   const ovPath = path.join(bundleDir, `${projectId} - Overview.md`);
   if (fs.existsSync(ovPath)) {
     const ov = readPhaseNode(ovPath);
     const frontmatterRepoPath = String(ov.frontmatter['repo_path'] ?? '');
-    if (!frontmatterRepoPath) {
-      console.warn(`[gzos] WARNING: No repo_path in Overview for "${projectId}". Agent will run in vault bundle dir: ${bundleDir}`);
-      console.warn(`[gzos] Set repo_path in "${ovPath}" to fix this.`);
-    } else if (!fs.existsSync(frontmatterRepoPath)) {
-      console.warn(`[gzos] WARNING: repo_path "${frontmatterRepoPath}" does not exist. Falling back to bundle dir.`);
-    } else {
+    if (frontmatterRepoPath && fs.existsSync(frontmatterRepoPath)) {
       repoPath = frontmatterRepoPath;
+      repoPathValid = true;
+    } else if (frontmatterRepoPath) {
+      repoPath = frontmatterRepoPath; // exists in frontmatter but path doesn't exist on disk
     }
   }
 
@@ -58,6 +58,7 @@ function resolveContextPaths(projectId: string, bundleDir: string, phaseNum: str
 
   return {
     repoPath,
+    repoPathValid,
     overviewPath: ovPath,
     knowledgePath: fs.existsSync(knowledgePath) ? knowledgePath : '',
     decisionsPath: fs.existsSync(decisionsPath) ? decisionsPath : '',
@@ -120,12 +121,15 @@ function preflightCheck(phaseNode: PhaseNode, ctx: ContextPaths, allPhases: Phas
     warnings.push('No task checkboxes found in phase note — run `gzos plan "<project>" <n>` to atomise tasks');
   }
 
-  // 2. Repo reachable?
-  if (ctx.repoPath && !fs.existsSync(ctx.repoPath)) {
+  // 2. Repo path set and valid?
+  if (!ctx.repoPathValid) {
+    const reason = !ctx.repoPath
+      ? `No repo_path set in the Overview note. Add repo_path to the frontmatter pointing to the code repository.\nWithout it, the agent has nowhere to write code.`
+      : `Repo path does not exist: ${ctx.repoPath}\nCreate the directory or fix repo_path in the Overview note.`;
     return {
       warnings,
       fatal: true,
-      fatalReason: `Repo path does not exist: ${ctx.repoPath}\nUpdate repo_path in the Overview note.`,
+      fatalReason: reason,
     };
   }
 
