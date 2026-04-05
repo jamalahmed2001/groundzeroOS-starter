@@ -8,8 +8,6 @@ import { notify } from '../notify/notify.js';
 import { setPhaseTag, appendToLog, writeFile } from '../vault/writer.js';
 import { planningCall, planningUsesAgent } from '../llm/planningRouter.js';
 import { spawnClaudeCode } from '../agents/claudeCodeSpawn.js';
-import { uplinkPhasesToLinear } from '../linear/uplink.js';
-import { readBundle } from '../vault/reader.js';
 import { scanRepoFiles, validatePlanFilePaths } from '../vault/repoScanner.js';
 
 const PLAN_START = '<!-- AGENT_WRITABLE_START:phase-plan -->';
@@ -342,12 +340,6 @@ Generate the implementation task plan for this phase.`;
           }
           await notify({ event: 'atomise_done', projectId, phaseLabel, runId }, config);
 
-          if (config.linear) {
-            const bundleDirLinear = bundleDirFromPhase(phaseNode.path);
-            const bundle = readBundle(bundleDirLinear, projectId);
-            await uplinkPhasesToLinear(bundle, config);
-          }
-
           return 'ready';
         }
         // Block not found — fall through to OpenRouter path
@@ -404,12 +396,6 @@ Generate the implementation task plan for this phase.`;
       appendToLog(phaseNode.path, { runId, event: 'atomise_done', detail: 'Task plan written, phase set to ready' });
     }
     await notify({ event: 'atomise_done', projectId, phaseLabel, runId }, config);
-
-    if (config.linear) {
-      const bundleDirLinear = bundleDirFromPhase(phaseNode.path);
-      const bundle = readBundle(bundleDirLinear, projectId);
-      await uplinkPhasesToLinear(bundle, config);
-    }
 
     return 'ready';
   } catch (err) {
