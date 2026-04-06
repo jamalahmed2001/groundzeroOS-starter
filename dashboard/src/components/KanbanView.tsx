@@ -479,12 +479,12 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
 
       {/* Phases kanban */}
       {view === 'phases' && (
-        <div style={{ flex: 1, overflow: 'auto', padding: '10px 14px', display: 'flex', gap: 8 }}>
+        <div className="gzos-kanban-board" style={{ flex: 1, overflow: 'auto', padding: '10px 14px', display: 'flex', gap: 8 }}>
           {COLUMNS.map(({ id, label }) => {
             const phases = byStatus(id);
             const showNoPhase = id === 'backlog' && filter === '';
             return (
-              <div key={id} style={{ width: 214, minWidth: 214, flexShrink: 0 }}>
+              <div key={id} className="gzos-kanban-col" style={{ width: 214, minWidth: 214, flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc(id), flexShrink: 0 }}/>
                   <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>

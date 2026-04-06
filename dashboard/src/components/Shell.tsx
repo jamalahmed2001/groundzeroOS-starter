@@ -541,10 +541,10 @@ export default function Shell() {
   }, [chatInput, chatSending, chatMessages, chatProject, data]);
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
+    <div className="gzos-shell" style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
 
-      {/* Sidebar — liquid glass */}
-      <aside style={{
+      {/* Sidebar — liquid glass (becomes bottom tab bar on mobile) */}
+      <aside className="gzos-sidebar" style={{
         width: 192, flexShrink: 0,
         background: 'rgba(10,14,22,0.82)',
         backdropFilter: 'blur(24px) saturate(160%)',
@@ -552,16 +552,16 @@ export default function Shell() {
         borderRight: '1px solid var(--glass-b)',
         display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{ height: 50, display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', borderBottom: '1px solid var(--glass-b)', flexShrink: 0 }}>
+        <div className="gzos-sidebar-header" style={{ height: 50, display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', borderBottom: '1px solid var(--glass-b)', flexShrink: 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-str)', letterSpacing: '0.12em', fontFamily: 'monospace' }}>GZOS</span>
           <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', letterSpacing: '0.05em' }}>dashboard</span>
         </div>
 
-        <nav style={{ flex: 1, padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav className="gzos-sidebar-nav" style={{ flex: 1, padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV.map(({ id, label, Icon, shortcut }) => {
             const active = tab === id;
             return (
-              <button key={id} onClick={() => setTab(id)} style={{
+              <button key={id} onClick={() => setTab(id)} className="gzos-nav-btn" style={{
                 display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: 'var(--r-sm)',
                 border: active ? '1px solid rgba(77,156,248,0.22)' : '1px solid transparent',
                 cursor: 'pointer', width: '100%',
@@ -574,15 +574,15 @@ export default function Shell() {
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-dim)'; } }}
               >
                 <Icon size={13} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}/>
-                <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
-                <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{shortcut}</span>
+                <span className="gzos-nav-label" style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+                <span className="gzos-nav-shortcut" style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{shortcut}</span>
               </button>
             );
           })}
         </nav>
 
         {/* Bottom shortcuts */}
-        <div style={{ padding: '8px', borderTop: '1px solid var(--glass-b)' }}>
+        <div className="gzos-sidebar-actions" style={{ padding: '8px', borderTop: '1px solid var(--glass-b)' }}>
           {[
             { Icon: Inbox,    label: 'Inbox',         key: 'i',  action: () => setDrawerPath('00 - Dashboard/Inbox.md') },
             { Icon: Terminal, label: 'Capture',       key: 'c',  action: () => setCaptureOpen(o => !o) },
@@ -611,7 +611,7 @@ export default function Shell() {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header — glass */}
-        <header style={{
+        <header className="gzos-header" style={{
           height: 50, display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px',
           borderBottom: '1px solid var(--glass-b)',
           background: 'rgba(10,14,22,0.7)',
@@ -705,7 +705,7 @@ export default function Shell() {
 
           {/* Chat pane — persistent right panel */}
           {chatOpen && (
-            <div style={{
+            <div className="gzos-chat-pane" style={{
               width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column',
               borderLeft: '1px solid var(--glass-b)',
               background: 'rgba(8,12,20,0.95)',
@@ -780,6 +780,7 @@ export default function Shell() {
         <>
           <div onClick={() => { setSearchOpen(false); setSearchQ(''); setSearchHits([]); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 200, animation: 'fade-in 0.1s ease' }}/>
           <div
+            className="gzos-search-modal"
             style={{
               position: 'fixed', top: '14%', left: '50%', transform: 'translateX(-50%)',
               width: 560, background: 'rgba(10,14,22,0.98)',

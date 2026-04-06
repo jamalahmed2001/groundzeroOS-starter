@@ -94,3 +94,103 @@ html, body {
 .diff-del  { color: #f5524a; background: rgba(245,82,74,0.07); }
 .diff-hunk { color: #6e8099; background: rgba(77,156,248,0.06); }
 .diff-ctx  { color: #7a8ea3; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Mobile: sidebar → bottom tab bar, panels → full width */
+@media (max-width: 768px) {
+  html, body { font-size: 14px; }
+
+  /* Shell layout flips to column */
+  .gzos-shell { flex-direction: column-reverse !important; }
+
+  /* Sidebar → bottom tab bar */
+  .gzos-sidebar {
+    width: 100% !important;
+    height: 56px !important;
+    flex-direction: row !important;
+    border-right: none !important;
+    border-top: 1px solid var(--glass-b) !important;
+    padding: 0 !important;
+  }
+  .gzos-sidebar-header { display: none !important; }
+  .gzos-sidebar-nav {
+    flex-direction: row !important;
+    padding: 4px 8px !important;
+    gap: 0 !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    width: 100% !important;
+  }
+  .gzos-nav-btn {
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 6px 8px !important;
+    font-size: 9px !important;
+    min-width: 48px !important;
+  }
+  .gzos-nav-shortcut { display: none !important; }
+  .gzos-sidebar-actions { display: none !important; }
+
+  /* Main header */
+  .gzos-header {
+    height: 44px !important;
+    padding: 0 10px !important;
+  }
+  .gzos-header-hint { display: none !important; }
+
+  /* Drawers + panels → full width */
+  .gzos-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .gzos-chat-pane {
+    width: 100% !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 150 !important;
+  }
+
+  /* Modals → wider */
+  .gzos-modal {
+    width: calc(100vw - 24px) !important;
+    max-width: 100% !important;
+    top: 10% !important;
+  }
+  .gzos-search-modal {
+    width: calc(100vw - 24px) !important;
+    top: 8% !important;
+  }
+
+  /* Phase studio → full screen */
+  .gzos-studio {
+    width: 100% !important;
+  }
+
+  /* Kanban → vertical scroll */
+  .gzos-kanban-board {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .gzos-kanban-col {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Touch-friendly targets */
+  button, select, input, textarea {
+    min-height: 36px;
+  }
+}
+
+/* Tablet: narrower sidebar, responsive panels */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .gzos-sidebar { width: 56px !important; }
+  .gzos-nav-label { display: none !important; }
+  .gzos-nav-shortcut { display: none !important; }
+  .gzos-sidebar-header span:last-child { display: none !important; }
+
+  .gzos-drawer { width: 380px !important; }
+  .gzos-chat-pane { width: 300px !important; }
+  .gzos-studio { width: 460px !important; }
+}
