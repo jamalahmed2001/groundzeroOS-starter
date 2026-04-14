@@ -52,16 +52,19 @@ Every project has a profile set in `Overview.md` frontmatter. The profile tells 
 - What bundle documents to create at init
 - What context to inject into the agent
 
-Six profiles:
+Nine profiles:
 
 | Profile | Domain | Key required fields | Acceptance gate |
 |---|---|---|---|
+| `general` | Catch-all — start here if unsure | none | all tasks checked + output documented |
 | `engineering` | Software with a git repo | `repo_path`, `test_command` | test command exits 0 |
 | `content` | Podcast, newsletter, video pipeline | `voice_profile`, `pipeline_stage` | safety filter + voice check |
 | `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | source count + confidence |
 | `operations` | System ops, incidents, maintenance | `monitored_systems`, `runbook_path` | runbook followed + outcome documented |
 | `trading` | Algorithmic strategies, exchange bots | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | backtest passes + risk compliance |
 | `experimenter` | Systematic experimentation, A/B testing | `hypothesis`, `success_metric`, `baseline_value` | result recorded + Cognition Store updated |
+| `accounting` | Bookkeeping, financial reporting, audit | `reporting_period`, `accounting_standards`, `entity_type` | balance check + human sign-off mandatory |
+| `legal` | Legal research, contract drafting, compliance | `jurisdiction`, `matter_type` | citations verified + human review required |
 
 → Full specs: [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]]
 
@@ -75,12 +78,12 @@ Two kinds:
 
 Set a directive on a phase by adding `directive: name` to the phase frontmatter. ONYX resolves it at runtime: project-local first, then system fallback.
 
-For **experimenter** projects: set `cycle_type: learn|design|experiment|analyze` and ONYX auto-wires the correct directive (no need to set `directive:` manually):
-- `learn` / `design` → `experimenter-researcher`
-- `experiment` → `experimenter-engineer`
-- `analyze` → `experimenter-analyzer`
+For **experimenter** projects: set `cycle_type: learn|design|experiment|analyze` and ONYX auto-wires the correct directive (no need to set `directive:` manually).
 
-→ Full reference: [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]]
+**15 professional role directives** are available system-wide — `accountant`, `investment-analyst`, `legal-researcher`, `legal-drafter`, `compliance-officer`, `consultant`, `product-manager`, `marketing-strategist`, `data-analyst`, `security-analyst`, `hr-manager`, `curriculum-designer`, `clinical-researcher`, `journalist`, `general`. Each one tells the agent who it is, what to read, and — for data-dependent roles — exactly which APIs to call (free, keyed, or build-first). No hallucinated data sources.
+
+→ Directive index: [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]]  
+→ Integration catalogue: [[08 - System/ONYX Integrations.md|ONYX Integrations]]
 
 ### Context injection order
 
@@ -514,7 +517,8 @@ ONYX gets smarter in three layers:
 
 ## Reference
 
-- [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]] — all 6 profiles with full specs
-- [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]] — all system directives
+- [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]] — all 9 profiles with full specs
+- [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]] — all system directives (15 professional roles + system roles)
+- [[08 - System/ONYX Integrations.md|ONYX Integrations]] — integration catalogue: APIs, tiers, env vars
 - [[08 - System/Agent Directives/ONYX Architecture Directive.md|ONYX Architecture Directive]] — full system internals
 - [[08 - System/Agent Directives/Observer Directive.md|Observer Directive]] — how to read system state

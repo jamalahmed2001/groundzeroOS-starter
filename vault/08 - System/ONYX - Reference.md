@@ -160,12 +160,15 @@ Profiles live in `08 - System/Profiles/` — one markdown file per domain. Set `
 
 | Profile | Key required fields | Context doc | Verification gate |
 |---|---|---|---|
+| `general` | none | Project Context | all tasks checked + output documented |
 | `engineering` | `repo_path`, `test_command` | Repo Context | `test_command` exits 0 |
 | `content` | `voice_profile`, `pipeline_stage` | Source Context | Safety filter + voice check |
 | `research` | `research_question`, `source_constraints`, `output_format` | Research Brief | Source count + confidence gaps addressed |
 | `operations` | `monitored_systems`, `runbook_path` | Operations Context | `runbook_followed: true` + outcome documented |
 | `trading` | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | Strategy Context + Risk Model | Backtest passes + risk model compliance |
 | `experimenter` | `hypothesis`, `success_metric`, `baseline_value` | Cognition Store + Experiment Log | Result recorded + Cognition Store updated |
+| `accounting` | `reporting_period`, `accounting_standards`, `entity_type` | Chart of Accounts + Ledger + Financial Notes | Balance check (debits = credits) + human sign-off mandatory |
+| `legal` | `jurisdiction`, `matter_type` | Matter Context + Research Notes | Citations verified + human professional review required |
 
 **Experimenter profile extras:**
 
@@ -282,6 +285,33 @@ Don't add a directive to fix a bad phase spec. Unclear tasks produce unclear res
 | `experimenter-engineer` | EXPERIMENT phases: executes the spec exactly, records raw results without interpretation, writes Trial entry |
 | `experimenter-analyzer` | ANALYZE phases: interprets delta, extracts lessons, updates Cognition Store, proposes next hypothesis |
 | `observer` | Read-only state snapshot: manifest health, active phase, blockers, what controller would do next |
+
+**Professional role directives:**
+
+| Directive | Domain | Real data access (key tiers) |
+|---|---|---|
+| `accountant` | Bookkeeping, reconciliation, financial statements | Stripe API (key), bank CSV (bundle), ECB FX rates (free) |
+| `investment-analyst` | Company research, financial modelling, investment memos | CoinGecko + SEC EDGAR + Yahoo Finance (free), Alpha Vantage (key) |
+| `legal-researcher` | Case law, statute analysis, regulatory mapping | legislation.gov.uk + CourtListener + EUR-Lex (free), Companies House (key) |
+| `legal-drafter` | Contract drafting, policy writing, clause annotation | Bundle documents |
+| `compliance-officer` | SOC 2, ISO 27001, GDPR, control frameworks | Bundle documents |
+| `consultant` | Strategy frameworks, MECE analysis, decision papers | Bundle documents |
+| `product-manager` | PRDs, roadmaps, user stories, metrics frameworks | Bundle documents |
+| `marketing-strategist` | Campaigns, messaging, copy, GTM, SEO | Reddit/HN (free), PostHog + Mailchimp + Meta (key), GA4 (build) |
+| `data-analyst` | EDA, metrics reporting, cohort/funnel analysis | CSV/SQLite (bundle), PostHog + Amplitude + DB (key) |
+| `security-analyst` | Threat modelling, OWASP code review, dependency audit | npm audit + semgrep + secrets grep (immediate), Snyk (key) |
+| `hr-manager` | Job descriptions, interview scorecards, HR policies | Bundle documents |
+| `curriculum-designer` | Course structure, lesson plans, assessments | Bundle documents |
+| `clinical-researcher` | Evidence synthesis, literature reviews, medical writing | PubMed + ClinicalTrials.gov + Europe PMC + Unpaywall (free), Semantic Scholar (key) |
+| `journalist` | Story research, article writing, fact-checking | GDELT + Guardian + Companies House + OpenCorporates (free), NewsAPI (key) |
+| `general` | Catch-all for any task without a specialist role | Adapts to whatever the phase specifies |
+
+**Three-tier tooling model** — every data-dependent directive specifies:
+- **Tier 1 (immediate):** free public APIs, exact `curl` commands, no setup
+- **Tier 2 (key):** API key in project `.env` — directive tells agent the exact call
+- **Tier 3 (build first):** pnpm script that an engineering phase must implement before this directive can use it
+
+→ Full integration catalogue by domain: [[08 - System/ONYX Integrations.md|ONYX Integrations]]
 
 ---
 

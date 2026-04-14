@@ -40,8 +40,8 @@ ONYX is the thinnest possible layer that connects all three. Plans live in the v
 |---|---|
 | **Autonomous phase execution** | `onyx run` loops over all `phase-ready` phases, spawns agents, verifies acceptance |
 | **Multi-agent pipelines** | Phases chain via `depends_on`. Vault is the coordination layer — no message brokers |
-| **Domain specialisation** | 6 profiles (engineering, content, research, operations, trading, experimenter) |
-| **Agent identity** | Directives give each phase a role, context rules, and safety constraints |
+| **Domain specialisation** | 9 profiles (engineering, content, research, operations, trading, experimenter, general, accounting, legal) |
+| **Agent identity** | Directives give each phase a role, context rules, real data sources, and safety constraints |
 | **Compounding knowledge** | Consolidator extracts learnings after every phase into `Knowledge.md` |
 | **Self-healing vault** | `onyx heal` fixes stale locks, frontmatter drift, orphaned phases |
 | **Observable by default** | Everything visible in Obsidian — no special tooling required |
@@ -65,23 +65,28 @@ Full setup: [`CLAUDE.md`](./CLAUDE.md)
 
 ---
 
-## Six profiles
+## Profiles
 
 One profile per project — set `profile:` in the project's `Overview.md`. Each profile defines required fields, the bundle structure, and the acceptance gate.
 
 | Profile | Use for | Key required fields | Acceptance gate |
 |---|---|---|---|
+| `general` | Catch-all — unsure which profile, mixed domains, lightweight tasks | none | all tasks checked + output documented |
 | `engineering` | Software projects with a git repo | `repo_path`, `test_command` | test command exits 0 |
 | `content` | Podcast, video, newsletter, social pipelines | `voice_profile`, `pipeline_stage` | safety filter + voice check |
 | `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | source count + confidence |
-| `operations` | System ops, monitoring, incident response | `monitored_systems`, `runbook_path` | runbook followed + outcome documented |
+| `operations` | System ops, monitoring, incident response, e-commerce, events | `monitored_systems`, `runbook_path` | runbook followed + outcome documented |
 | `trading` | Algorithmic trading, strategy development | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | backtest passes + risk compliance |
 | `experimenter` | A/B testing, prompt engineering, ML experiments | `hypothesis`, `success_metric`, `baseline_value` | result recorded + Cognition Store updated |
+| `accounting` | Bookkeeping, financial reporting, audit preparation | `reporting_period`, `accounting_standards`, `entity_type` | balance check + human sign-off mandatory |
+| `legal` | Legal research, contract drafting, compliance | `jurisdiction`, `matter_type` | citations verified + human professional review required |
 
 ```bash
-onyx init "KrakenBot" --profile trading
-onyx init "ManiPlus"  --profile content
-onyx init "Prompt Lab" --profile experimenter
+onyx init "KrakenBot"    --profile trading
+onyx init "ManiPlus"     --profile content
+onyx init "Prompt Lab"   --profile experimenter
+onyx init "Q1 Accounts"  --profile accounting
+onyx init "Contract Work" --profile legal
 ```
 
 ---
@@ -113,6 +118,19 @@ cycle_type: experiment   # → auto-wires experimenter-engineer
 cycle_type: analyze      # → auto-wires experimenter-analyzer
 cycle_type: learn        # → auto-wires experimenter-researcher
 ```
+
+**Professional role directives** — 15 specialist agents available system-wide:
+
+| Domain | Directives |
+|---|---|
+| Finance & Legal | `accountant`, `investment-analyst`, `legal-researcher`, `legal-drafter`, `compliance-officer` |
+| Strategy & Product | `consultant`, `product-manager`, `marketing-strategist` |
+| Data & Security | `data-analyst`, `security-analyst` |
+| People & Learning | `hr-manager`, `curriculum-designer` |
+| Research & Media | `clinical-researcher`, `journalist` |
+| Utility | `general`, `knowledge-keeper`, `observer` |
+
+Each data-dependent directive includes a three-tier tooling spec: (1) free public APIs usable immediately via `curl`, (2) integrations requiring an API key in `.env`, (3) capabilities that require a pnpm script built in an engineering phase first. See `08 - System/ONYX Integrations.md` for the full catalogue.
 
 ---
 
@@ -250,8 +268,9 @@ Open `./vault/` in Obsidian for the full interactive docs:
 | `00 - Dashboard/Getting Started.md` | First project walkthrough |
 | `08 - System/ONYX - Quick Start.md` | **Step-by-step setup guide** |
 | `08 - System/ONYX - Reference.md` | **Complete reference** — profiles, directives, pipelines, commands, internals, laws |
-| `08 - System/Profiles/` | All 6 profile specs |
-| `08 - System/Agent Directives/` | All system directives |
+| `08 - System/ONYX Integrations.md` | **Integration catalogue** — all APIs by domain with tier, env var, and which directive uses them |
+| `08 - System/Profiles/` | All 9 profile specs |
+| `08 - System/Agent Directives/` | All system directives (15 professional roles + system roles) |
 
 ---
 
