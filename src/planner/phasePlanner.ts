@@ -9,6 +9,21 @@ import { scanRepoFiles } from '../vault/repoScanner.js';
 import path from 'path';
 import fs from 'fs';
 
+// Load the profile file from vault and return its name + raw content.
+// Used to inject domain-specific planning context into decompose/extend prompts.
+function loadProfileContext(bundle: VaultBundle, config: ControllerConfig): { profileName: string; profileSection: string } {
+  const profileName = String(bundle.overview.frontmatter['profile'] ?? 'engineering').trim() || 'engineering';
+  if (profileName === 'engineering') return { profileName, profileSection: '' }; // no change for default profile
+  const profileFilePath = path.join(config.vaultRoot, '08 - System', 'Profiles', `${profileName}.md`);
+  if (fs.existsSync(profileFilePath)) {
+    const profileContent = fs.readFileSync(profileFilePath, 'utf-8');
+    const profileSection = `## Domain profile: ${profileName}\n\n${profileContent}\n\n---\n\n`;
+    return { profileName, profileSection };
+  }
+  console.warn(`[onyx] profile "${profileName}" not found at ${profileFilePath} — planning without domain context`);
+  return { profileName, profileSection: '' };
+}
+
 // Find the highest existing phase_number in the Phases/ directory, return max+1.
 function nextPhaseNumber(phasesDir: string): number {
   if (!fs.existsSync(phasesDir)) return 1;
@@ -185,6 +200,7 @@ export async function planPhases(
 
   const overviewContent = bundle.overview.exists ? bundle.overview.raw : `# ${bundle.projectId}\n\nNo overview.`;
   const repoPath = resolveRepoPath(bundle, config);
+  const { profileName, profileSection } = loadProfileContext(bundle, config);
 
   if (!planningUsesAgent(config, repoPath)) {
     const apiKey = config.llm.apiKey ?? process.env['OPENROUTER_API_KEY'];
@@ -196,29 +212,30 @@ export async function planPhases(
     ? `You have full read access to the repo at ${repoPath} — use Read, Glob, and Grep as needed to understand the codebase.`
     : `Repo file structure (${repoPath || 'path unknown'}):\n${repoTree}`;
 
-  const userPrompt = `Project overview:\n\n${overviewContent}\n\n---\n\n${repoSection}\n\nDecompose this into implementation phases.`;
+  const userPrompt = `${profileSection}Project overview:\n\n${overviewContent}\n\n---\n\n${repoSection}\n\nDecompose this into implementation phases.`;
 
   // Agent-write branch: agent creates phase files directly
   if (planningUsesAgent(config, repoPath)) {
     const today = new Date().toISOString().slice(0, 10);
     const logsDir = path.join(bundle.bundleDir, 'Logs');
     const agentPrompt = `Project: ${bundle.projectId}
+Profile: ${profileName}
 Phases directory: ${phasesDir}
 Logs directory: ${logsDir}
 Today: ${today}
-
+${profileSection ? `\n## Domain Profile\n\n${profileSection}` : ''}
 ## Overview
 
 ${overviewContent}
 
 ## Repo
 
-You have full read access at ${repoPath}. Read key files before planning.
+You have full read access at ${repoPath || bundle.bundleDir}. Read key files before planning.
 
 ## Instructions
 
-1. Explore the repo — understand the stack, architecture, existing patterns
-2. Decompose the project into 4-8 implementation phases
+1. Explore the project — understand the domain, structure, and existing patterns
+2. Decompose the project into 4-8 phases appropriate for a ${profileName} project
 3. Create phase note files in ${phasesDir}/ (P1 - Name.md, P2 - Name.md, etc.)
 4. Create log stub files in ${logsDir}/ (L1 - Name.md, L2 - Name.md, etc.)
 
@@ -446,6 +463,7 @@ export async function planNewPhases(
 
   // 4. Scan repo file tree
   const repoPath = resolveRepoPath(bundle, config);
+  const { profileName: extProfileName, profileSection: extProfileSection } = loadProfileContext(bundle, config);
 
   if (!planningUsesAgent(config, repoPath)) {
     const apiKey = config.llm.apiKey ?? process.env['OPENROUTER_API_KEY'];
@@ -459,7 +477,7 @@ export async function planNewPhases(
 
   const nextNum = nextPhaseNumber(phasesDir);
 
-  const userPrompt = `Project: ${bundle.projectId}
+  const userPrompt = `${extProfileSection}Project: ${bundle.projectId}
 
 ## Current Project Overview (source of truth — may reflect updated scope)
 
@@ -492,11 +510,12 @@ Propose additional phases starting from P${nextNum}. The phases must continue lo
     const today = new Date().toISOString().slice(0, 10);
     const logsDir = path.join(bundle.bundleDir, 'Logs');
     const agentPrompt = `Project: ${bundle.projectId}
+Profile: ${extProfileName}
 Phases directory: ${phasesDir}
 Logs directory: ${logsDir}
 Today: ${today}
 Start phase numbering from: P${nextNum}
-
+${extProfileSection ? `\n## Domain Profile\n\n${extProfileSection}` : ''}
 ## Overview
 
 ${overviewContent}
@@ -511,12 +530,12 @@ ${knowledgeSummary || '(none yet)'}
 
 ## Repo
 
-You have full read access at ${repoPath}. Read key files to understand what has been built.
+You have full read access at ${repoPath || bundle.bundleDir}. Read key files to understand what has been built.
 
 ## Instructions
 
-1. Explore the repo — understand what already exists vs what still needs to be built
-2. Propose 2-4 additional phases starting from P${nextNum}
+1. Explore the project — understand what already exists vs what still needs to be built
+2. Propose 2-4 additional phases appropriate for a ${extProfileName} project, starting from P${nextNum}
 3. Create phase note files in ${phasesDir}/ (P${nextNum} - Name.md, etc.)
 4. Create log stub files in ${logsDir}/ (L${nextNum} - Name.md, etc.)
 

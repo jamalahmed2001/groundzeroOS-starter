@@ -5,6 +5,7 @@
 // Global flags: --json (machine-readable output), --verbose/-v
 
 import { runInit } from './init.js';
+import { runExplain } from './explain.js';
 import { runDoctor } from './doctor.js';
 import { runPlan } from './plan.js';
 import { runCapture } from './capture.js';
@@ -93,7 +94,14 @@ function isJson(): boolean {
 program
   .command('init [name]')
   .description('Create a new project bundle')
-  .action(async (name) => { await runInit(name); });
+  .option('--profile <name>', 'project profile: engineering | content | research | operations | trading | experimenter')
+  .action(async (name, opts) => { await runInit(name, (opts as { profile?: string }).profile); });
+
+// ── explain ───────────────────────────────────────────────────────────────
+program
+  .command('explain [project]')
+  .description('Plain English: what is this project doing, who is the agent, what comes next')
+  .action(async (project) => { await runExplain(project); });
 
 // ── dashboard ─────────────────────────────────────────────────────────────
 program

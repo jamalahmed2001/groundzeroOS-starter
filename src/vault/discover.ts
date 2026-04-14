@@ -114,6 +114,11 @@ export function discoverReadyPhases(vaultRoot: string, projectsGlob: string): Ph
       return dependenciesMet(phase, projectPhases);
     })
     .sort((a, b) => {
+      // priority: 0–10 (default 5). Higher = run first. Operator's explicit control knob.
+      const pa = Number(a.frontmatter['priority'] ?? 5);
+      const pb = Number(b.frontmatter['priority'] ?? 5);
+      if (pa !== pb) return pb - pa;
+      // Tiebreak: risk (high first), then phase_number (ascending)
       const riskOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
       const ra = riskOrder[String(a.frontmatter['risk'] ?? 'medium')] ?? 1;
       const rb = riskOrder[String(b.frontmatter['risk'] ?? 'medium')] ?? 1;

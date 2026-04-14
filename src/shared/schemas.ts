@@ -33,6 +33,18 @@ export const PhaseFrontmatterSchema = z.object({
   // canonical state + legacy
   state:        z.string().optional(),
   status:       z.string().optional(),
+  // agent identity — resolved by executor at runtime
+  directive:    z.string().optional(),
+  // scheduling
+  priority:     z.number().min(0).max(10).optional(),
+  // experimenter profile fields
+  cycle_type:      z.enum(['learn', 'design', 'experiment', 'analyze']).optional(),
+  hypothesis:      z.string().optional(),
+  expected_result: z.number().optional(),
+  actual_result:   z.number().optional(),
+  delta:           z.number().optional(),
+  parent_experiment: z.number().optional(),
+  exploration_bonus: z.number().min(0).max(1).optional(),
 }).passthrough();
 
 // ─── Strict schema ────────────────────────────────────────────────────────────
@@ -42,9 +54,15 @@ const PhaseFrontmatterStrictSchema = PhaseFrontmatterSchema.extend({
 });
 
 export const OverviewFrontmatterSchema = z.object({
-  project_id: z.string().min(1, 'project_id is required in Overview — add it to the frontmatter'),
-  project:    z.string().optional(),
-  repo_path:  z.string().optional(),
+  project_id:     z.string().min(1, 'project_id is required in Overview — add it to the frontmatter'),
+  project:        z.string().optional(),
+  repo_path:      z.string().optional(),
+  profile:        z.string().optional(),
+  auto_knowledge: z.boolean().optional(),
+  // experimenter overview fields
+  hypothesis:     z.string().optional(),
+  success_metric: z.string().optional(),
+  baseline_value: z.number().optional(),
 }).passthrough();
 
 export interface ValidationResult {

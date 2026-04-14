@@ -10,11 +10,15 @@ export async function spawnClaudeCode(request: AgentRequest): Promise<AgentResul
   // e.g. "anthropic/claude-haiku-4-5-20251001" → "claude-haiku-4-5-20251001"
   const claudeModel = request.model?.replace(/^[^/]+\//, '');
 
+  // addDirs: explicit list takes priority; fall back to single repoPath for backward compat
+  const dirsToAdd = request.addDirs ?? (request.repoPath ? [request.repoPath] : []);
+  const addDirArgs = dirsToAdd.flatMap(d => ['--add-dir', d]);
+
   const args = [
     '--dangerously-skip-permissions',
     '--output-format', 'text',
     '--print', fullPrompt,
-    '--add-dir', request.repoPath,
+    ...addDirArgs,
     ...(claudeModel ? ['--model', claudeModel] : []),
     ...(request.systemPrompt ? ['--append-system-prompt', request.systemPrompt] : []),
   ];

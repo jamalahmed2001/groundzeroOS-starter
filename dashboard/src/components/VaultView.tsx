@@ -4,10 +4,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen } from 'lucide-react';
 import type { VaultFileNode } from '@/lib/types';
 import type { VaultGraphNode, VaultGraphLink } from '@/app/api/onyx/vault-graph/route';
-import {
-  forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY,
-  type Simulation,
-} from 'd3-force';
 import HandTracker, { type HandGestureState, type GestureType } from './HandTracker';
 
 interface Props { tree: VaultFileNode[]; onOpenFile: (path: string) => void }
@@ -45,9 +41,8 @@ function TreeNode({ node, depth, onOpen }: { node: VaultFileNode; depth: number;
   );
 }
 
-// ─── Color system (ported from original OpenClaw dashboard) ───────────────────
+// ─── Color system ─────────────────────────────────────────────────────────────
 
-// Domain → [hue, saturation, lightness]
 const DOMAIN_HSL: Record<string, [number, number, number]> = {
   '00 - Dashboard': [211, 100, 52],
   '01 - Life':      [145, 65, 50],
@@ -65,7 +60,6 @@ const DOMAIN_HSL: Record<string, [number, number, number]> = {
   Root:             [240, 2,  40],
 };
 
-// Phase status → [r, g, b]
 const PHASE_RGB: Record<string, [number, number, number]> = {
   active:   [10, 132, 255],
   running:  [10, 132, 255],
@@ -100,7 +94,6 @@ function folderToRgb(folder: string, topFolder: string): [number, number, number
   const cached = folderRgbCache.get(folder);
   if (cached) return cached;
 
-  // Get base hsl from domain
   let baseHsl: [number, number, number] = [240, 2, 40];
   for (const [key, val] of Object.entries(DOMAIN_HSL)) {
     if (topFolder === key || topFolder.startsWith(key)) { baseHsl = val; break; }
@@ -131,113 +124,218 @@ function rgba(rgb: [number, number, number], a: number): string {
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 }
 
-// ── Spread → force params ──────────────────────────────────────────────────────
+// ─── Sphere types ─────────────────────────────────────────────────────────────
 
-function spreadParams(spread: number) {
-  const t = (spread - 1) / 9; // 0..1
+interface SphereNode extends VaultGraphNode {
+  theta: number; // longitude 0..2π
+  phi: number;   // latitude -π/2..π/2
+}
+interface SphereLink { source: SphereNode; target: SphereNode }
+interface BgStar { theta: number; phi: number; size: number; alpha: number }
+
+// ─── Quaternion camera ────────────────────────────────────────────────────────
+// Full 360° rotation without gimbal lock. Camera orientation stored as unit
+// quaternion. Mouse drag applies world-Y yaw + camera-local-X pitch so the
+// horizon stays stable and there are no poles or clamps.
+
+type Quat = [number, number, number, number]; // [x, y, z, w]
+
+function qIdentity(): Quat { return [0, 0, 0, 1]; }
+
+function qNorm(q: Quat): Quat {
+  const n = Math.sqrt(q[0]**2 + q[1]**2 + q[2]**2 + q[3]**2) || 1;
+  return [q[0]/n, q[1]/n, q[2]/n, q[3]/n];
+}
+
+// Hamilton product: a ∘ b (a applied after b in world space)
+function qMul(a: Quat, b: Quat): Quat {
+  return [
+    a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
+    a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
+    a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
+    a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2],
+  ];
+}
+
+function qAxisAngle(ax: number, ay: number, az: number, angle: number): Quat {
+  const s = Math.sin(angle / 2);
+  return [ax * s, ay * s, az * s, Math.cos(angle / 2)];
+}
+
+function qSlerp(a: Quat, b: Quat, t: number): Quat {
+  let dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+  const bx = dot < 0 ? -b[0] : b[0], by = dot < 0 ? -b[1] : b[1];
+  const bz = dot < 0 ? -b[2] : b[2], bw = dot < 0 ? -b[3] : b[3];
+  dot = Math.abs(dot);
+  if (dot > 0.9995) return qNorm([a[0]+t*(bx-a[0]), a[1]+t*(by-a[1]), a[2]+t*(bz-a[2]), a[3]+t*(bw-a[3])]);
+  const th = Math.acos(dot), si = Math.sin(th);
+  const s1 = Math.sin((1-t)*th)/si, s2 = Math.sin(t*th)/si;
+  return [a[0]*s1+bx*s2, a[1]*s1+by*s2, a[2]*s1+bz*s2, a[3]*s1+bw*s2];
+}
+
+// Transform world vector into camera space (inverse = conjugate of unit quat)
+function qRotInv(q: Quat, vx: number, vy: number, vz: number): [number, number, number] {
+  const [x, y, z, w] = q;
+  return [
+    (1-2*(y*y+z*z))*vx + 2*(x*y+w*z)*vy  + 2*(x*z-w*y)*vz,
+    2*(x*y-w*z)*vx     + (1-2*(x*x+z*z))*vy + 2*(y*z+w*x)*vz,
+    2*(x*z+w*y)*vx     + 2*(y*z-w*x)*vy  + (1-2*(x*x+y*y))*vz,
+  ];
+}
+
+// ─── Inside-sphere projection ─────────────────────────────────────────────────
+function projectInsideSphere(
+  theta: number, phi: number,
+  camQuat: Quat,
+  focal: number,
+): { sx: number; sy: number; depth: number; visible: boolean } {
+  const wx = Math.cos(phi) * Math.sin(theta);
+  const wy = Math.sin(phi);
+  const wz = Math.cos(phi) * Math.cos(theta);
+  const [x_cam, y_cam, z_cam] = qRotInv(camQuat, wx, wy, wz);
+  if (z_cam < 0.05) return { sx: 0, sy: 0, depth: z_cam, visible: false };
   return {
-    charge:    -(40 + t * 280),      // -40 to -320
-    linkDist:  25 + t * 100,         // 25 to 125
-    collide:   5 + t * 8,            // 5 to 13
-    centerStr: 0.03 + t * 0.05,      // 0.03 to 0.08
+    sx: (x_cam / z_cam) * focal,
+    sy: -(y_cam / z_cam) * focal,
+    depth: z_cam,
+    visible: true,
   };
 }
 
-// ── D3 node type ───────────────────────────────────────────────────────────────
+// ─── Sphere layout ────────────────────────────────────────────────────────────
+// Two independent spatial controls:
+//   bundleSep (1–10): how spread domain cluster CENTRES are across the sphere.
+//     Uses a phi-scale factor so 10 = full pole-to-pole spread, 1 = all near equator.
+//   nodeSpread (1–10): how tightly nodes pack WITHIN their domain cap.
+//     Scales the spherical cap radius. Low = tight cluster, high = loose cloud.
+function layoutOnSphere(
+  nodes: VaultGraphNode[],
+  nodeSpread: number,
+  bundleSep: number,
+): {
+  sphereNodes: SphereNode[];
+  domainCenters: Map<string, { theta: number; phi: number }>;
+} {
+  const domains = [...new Set(nodes.map(n => n.topFolder))];
+  // phiScale: 0.1 (equator band) → 1.0 (full sphere, pole to pole)
+  const phiScale = Math.max(0.05, bundleSep / 10);
+  const domainCenter = new Map(domains.map((d, i) => {
+    const y   = 1 - (2 * i + 1) / domains.length;           // -1..1
+    const phi = Math.asin(Math.max(-1, Math.min(1, y * phiScale)));
+    const theta = 2 * Math.PI * i * 1.618;                   // golden angle
+    return [d, { theta, phi }] as [string, { theta: number; phi: number }];
+  }));
 
-interface D3Node extends VaultGraphNode {
-  x: number; y: number; vx: number; vy: number; fx?: number | null; fy?: number | null;
+  const byDomain = new Map<string, VaultGraphNode[]>();
+  for (const n of nodes) {
+    const g = byDomain.get(n.topFolder) ?? [];
+    g.push(n); byDomain.set(n.topFolder, g);
+  }
+
+  const sphereNodes: SphereNode[] = [];
+  const PHI = 1.618;
+  // tighter base formula — default nodeSpread=4 gives ~0.8× old default
+  const spreadMul = nodeSpread / 5;
+  for (const [domain, dnodes] of byDomain) {
+    const center = domainCenter.get(domain)!;
+    const capRad = Math.min(0.80, (0.12 + Math.sqrt(dnodes.length) * 0.030) * spreadMul);
+    const sorted = [...dnodes].sort((a, b) => b.linkCount - a.linkCount);
+    for (let i = 0; i < sorted.length; i++) {
+      const t     = i === 0 ? 0 : i / (sorted.length - 1 || 1);
+      const r     = capRad * Math.sqrt(t);
+      const angle = 2 * Math.PI * i * PHI;
+      const dPhi  = r * Math.sin(angle);
+      const dTheta = r * Math.cos(angle) / Math.max(0.15, Math.cos(center.phi + dPhi));
+      sphereNodes.push({
+        ...sorted[i],
+        theta: center.theta + dTheta,
+        phi: Math.max(-Math.PI / 2 + 0.02, Math.min(Math.PI / 2 - 0.02, center.phi + dPhi)),
+      });
+    }
+  }
+  return { sphereNodes, domainCenters: domainCenter };
 }
 
-interface D3Link { source: D3Node; target: D3Node }
-
-// ── Perspective projection ─────────────────────────────────────────────────────
-// Projects a 3-D point (x, y, z in D3 world space) through Y-then-X rotation
-// and a perspective divide.  Returns a 2-D canvas position (px, py) and a
-// scale factor (ps) — larger ps means closer to viewer.
-function project3D(x: number, y: number, z: number, rx: number, ry: number) {
-  const x1 = x * Math.cos(ry) - z * Math.sin(ry);
-  const z1 = x * Math.sin(ry) + z * Math.cos(ry);
-  const y1 = y * Math.cos(rx) - z1 * Math.sin(rx);
-  const z2 = y * Math.sin(rx) + z1 * Math.cos(rx);
-  const f  = 1000;
-  const ps = f / (f + z2);
-  return { px: x1 * ps, py: y1 * ps, ps };
-}
-
-const DWELL_MS = 800; // ms to dwell on a node to open it
+const DWELL_MS     = 800;
+const BG_STAR_COUNT = 350;
+const STABLE_FRAMES = 5;
 
 // ─── VaultGraph ───────────────────────────────────────────────────────────────
 
 function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
-  const wrapRef      = useRef<HTMLDivElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const simRef       = useRef<Simulation<D3Node, D3Link> | null>(null);
-  const nodesRef     = useRef<D3Node[]>([]);
-  const linksRef     = useRef<D3Link[]>([]);
-  const xfRef        = useRef({ x: 0, y: 0, k: 1 });        // current camera
-  const xfTargetRef  = useRef({ x: 0, y: 0, k: 1 });        // animated camera target
-  const sizeRef      = useRef({ w: 0, h: 0 });
-  const dragRef      = useRef<{ node: D3Node | null; ox: number; oy: number } | null>(null);
-  const panRef       = useRef({ active: false, sx: 0, sy: 0, stx: 0, sty: 0 });
-  const hovRef       = useRef<D3Node | null>(null);
+  const wrapRef    = useRef<HTMLDivElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const sizeRef    = useRef({ w: 0, h: 0 });
+
+  // Sphere data
+  const sphereNodesRef   = useRef<SphereNode[]>([]);
+  const sphereLinksRef   = useRef<SphereLink[]>([]);
+  const domainCentersRef = useRef<Map<string, { theta: number; phi: number }>>(new Map());
+  const bgStarsRef       = useRef<BgStar[]>([]);
+
+  // Camera — stored as unit quaternion (no gimbal lock, full 360°)
+  const camQuatRef       = useRef<Quat>(qIdentity());
+  const camQuatTargetRef = useRef<Quat>(qIdentity());
+  const fovRef           = useRef(75);
+  const fovTargetRef     = useRef(75);
+  const lastInteractRef  = useRef(Date.now());
+
+  // Projection cache: id → { sx, sy, depth, visible }
+  const projCacheRef = useRef<Map<string, { sx: number; sy: number; depth: number; visible: boolean }>>(new Map());
+
+  // Interaction state
+  const hovRef       = useRef<SphereNode | null>(null);
   const dirtyRef     = useRef(false);
   const rafRef       = useRef<number>(0);
-  const animRef      = useRef(false); // camera animation active
-  const didMoveRef   = useRef(false); // true if pointer moved enough to be a drag
-  const downPosRef   = useRef({ x: 0, y: 0 }); // mousedown position for click vs drag
+  const didMoveRef   = useRef(false);
+  const downPosRef   = useRef({ x: 0, y: 0 });
+  const lookDragRef  = useRef<{ active: boolean; px: number; py: number } | null>(null);
 
-  // ── 3-D orbit state ──────────────────────────────────────────────────────────
-  const orbitRef        = useRef({ rx: 0.15, ry: 0 });   // current rotation angles
-  const orbitTargetRef  = useRef({ rx: 0.15, ry: 0 });   // target (lerped toward)
-  const lastInteractRef = useRef(Date.now());             // for auto-drift idle timer
-  const orbitDragRef    = useRef<{ active: boolean; sx: number; sy: number; srx: number; sry: number } | null>(null);
-  const nodeZRef        = useRef<Map<string, number>>(new Map());
-  const projCacheRef    = useRef<Map<string, { px: number; py: number; ps: number }>>(new Map());
-  const indexCursorRef  = useRef<{ x: number; y: number } | null>(null); // index-tip canvas px
-  const palmCursorRef   = useRef<{ x: number; y: number } | null>(null); // palm-centre canvas px
+  // Hand tracking state
+  const indexCursorRef      = useRef<{ x: number; y: number } | null>(null);
+  const palmCursorRef       = useRef<{ x: number; y: number } | null>(null);
   const gestureTypeRef      = useRef<GestureType>('none');
   const dwellRef            = useRef<{ nodeId: string; startTime: number } | null>(null);
   const fistStartRef        = useRef<number | null>(null);
-  // Anchor-based pinch zoom: capture spread + zoom at pinch-start, map directly
-  const pinchAnchorRef      = useRef<{ dist: number; zoom: number } | null>(null);
-  // Gesture hysteresis: require N stable frames before committing to a new gesture
   const gestureCandidateRef = useRef<{ type: GestureType; frames: number }>({ type: 'none', frames: 0 });
-  // EMA-smoothed palm position (reduces tremor in pan)
   const smoothPalmRef       = useRef<{ x: number; y: number } | null>(null);
-  // EMA-smoothed pinch distance (reduces noise in zoom)
   const smoothPinchRef      = useRef<number | null>(null);
+  const prevGestureRef      = useRef<HandGestureState | null>(null);
 
-  const [loading, setLoading]     = useState(true);
-  const [spread, setSpread]       = useState(5);
-  const [nodeSize, setNodeSize]   = useState(5);  // 1–10 multiplier
+  const [loading, setLoading]       = useState(true);
   const [showLabels, setShowLabels] = useState(true);
-  const [connOnly, setConnOnly]   = useState(true);
-  const [search, setSearch]       = useState('');
-  const [tooltip, setTooltip]     = useState<{ x: number; y: number; label: string; sub: string } | null>(null);
-  const [handMode, setHandMode]     = useState(false);
-  const [handPaused, setHandPaused] = useState(false);
-  const handPausedRef               = useRef(false);
+  const [connOnly, setConnOnly]     = useState(true);
+  const [search, setSearch]         = useState('');
+  const [spacing, setSpacing]       = useState(4);   // 1–10: node spread WITHIN cluster cap
+  const [bundleSep, setBundleSep]   = useState(8);   // 1–10: separation BETWEEN cluster centres
+  const [nodeSize, setNodeSize]     = useState(5);    // 1–10: node radius multiplier
+  const [tooltip, setTooltip]       = useState<{ x: number; y: number; label: string; sub: string } | null>(null);
+  const [handMode, setHandMode]       = useState(false);
+  const [handPaused, setHandPaused]   = useState(false);
+  const handPausedRef                 = useRef(false);
   useEffect(() => { handPausedRef.current = handPaused; }, [handPaused]);
   const [activeGesture, setActiveGesture] = useState<GestureType>('none');
-  const prevGestureRef  = useRef<HandGestureState | null>(null);
 
-  // Stable ref so handleHandGesture can open files without stale closure
-  const onOpenFileRef = useRef(onOpenFile);
+  // Refs for values used in stable callbacks
+  const onOpenFileRef  = useRef(onOpenFile);
   useEffect(() => { onOpenFileRef.current = onOpenFile; }, [onOpenFile]);
+  const searchRef      = useRef('');
+  useEffect(() => { searchRef.current = search; dirtyRef.current = true; }, [search]);
+  const showLabelsRef  = useRef(true);
+  useEffect(() => { showLabelsRef.current = showLabels; dirtyRef.current = true; }, [showLabels]);
+  const nodeSizeRef = useRef(5);
+  useEffect(() => { nodeSizeRef.current = nodeSize; dirtyRef.current = true; }, [nodeSize]);
 
-  // Raw data from API
+  // Raw data
   const [rawNodes, setRawNodes] = useState<VaultGraphNode[]>([]);
   const [rawLinks, setRawLinks] = useState<VaultGraphLink[]>([]);
 
-  // Set of connected node IDs
   const connectedIds = useMemo(() => {
     const s = new Set<string>();
     for (const l of rawLinks) { s.add(l.source); s.add(l.target); }
     return s;
   }, [rawLinks]);
 
-  // Active nodes/links based on connOnly filter
   const activeNodes = useMemo(
     () => connOnly ? rawNodes.filter(n => connectedIds.has(n.id)) : rawNodes,
     [rawNodes, connOnly, connectedIds],
@@ -248,7 +346,6 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     [rawLinks, activeNodeIds],
   );
 
-  // Search match set
   const matchIds = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
@@ -259,8 +356,29 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     return s;
   }, [search, activeNodes]);
 
-  // ── Canvas setup (HiDPI) ──────────────────────────────────────────────────
+  // ── Hit-test ref (avoids stale closure in hand gesture callback) ──────────
+  const hitTestFnRef = useRef<(mx: number, my: number) => SphereNode | undefined>(() => undefined);
+  useEffect(() => {
+    hitTestFnRef.current = (mx: number, my: number): SphereNode | undefined => {
+      const { w, h } = sizeRef.current;
+      let best: SphereNode | undefined;
+      let bestD2 = Infinity;
+      for (const n of sphereNodesRef.current) {
+        const proj = projCacheRef.current.get(n.id);
+        if (!proj?.visible) continue;
+        const nx = w / 2 + proj.sx;
+        const ny = h / 2 + proj.sy;
+        const isConn = connectedIds.has(n.id);
+        const szMul = nodeSizeRef.current / 5;
+        const r = isConn ? Math.max(4, Math.min(24, (4 + 2.5 * n.linkCount) * szMul)) : 3 * szMul;
+        const d2 = (nx - mx) ** 2 + (ny - my) ** 2;
+        if (d2 <= (r + 8) ** 2 && d2 < bestD2) { bestD2 = d2; best = n; }
+      }
+      return best;
+    };
+  }, [connectedIds]);
 
+  // ── Canvas resize ─────────────────────────────────────────────────────────
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const wrap   = wrapRef.current;
@@ -276,191 +394,216 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
   }, []);
 
   // ── Draw ──────────────────────────────────────────────────────────────────
-
-  const nodeSizeRef = useRef(5);
-  useEffect(() => { nodeSizeRef.current = nodeSize; dirtyRef.current = true; }, [nodeSize]);
-
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
     const { w, h } = sizeRef.current;
-    const dpr = window.devicePixelRatio || 1;
-    const { x: tx, y: ty, k: scale } = xfRef.current;
-    const nodes = nodesRef.current;
-    const links = linksRef.current;
-    const hov   = hovRef.current;
-    const { rx, ry } = orbitRef.current;
+    const dpr   = window.devicePixelRatio || 1;
+    const camQuat = camQuatRef.current;
+    const fov     = fovRef.current;
+    const focal = (w / 2) / Math.tan((fov / 2) * Math.PI / 180);
+    const cx = w / 2, cy = h / 2;
+    const nodes   = sphereNodesRef.current;
+    const links   = sphereLinksRef.current;
+    const hov     = hovRef.current;
+    const matched = matchIds;
+    const dimmed  = matched ? matched.size > 0 : false;
+    const showLbls = showLabelsRef.current;
 
-    // ── Project all nodes into 3-D space ──────────────────────────────────
-    projCacheRef.current.clear();
-    for (const node of nodes) {
-      if (isNaN(node.x) || isNaN(node.y)) continue;
-      const z = nodeZRef.current.get(node.id) ?? 0;
-      projCacheRef.current.set(node.id, project3D(node.x, node.y, z, rx, ry));
-    }
-
+    // Background
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#0d1117';
     ctx.fillRect(0, 0, w * dpr, h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, tx * dpr, ty * dpr);
+    // ── Background stars ──────────────────────────────────────────────────
+    for (const star of bgStarsRef.current) {
+      const p = projectInsideSphere(star.theta, star.phi, camQuat, focal);
+      if (!p.visible) continue;
+      ctx.beginPath();
+      ctx.arc(cx + p.sx, cy + p.sy, star.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,215,235,${(star.alpha * Math.min(1, p.depth)).toFixed(3)})`;
+      ctx.fill();
+    }
 
-    const matched = matchIds;
-    const dimmed  = matched ? matched.size > 0 : false;
+    // ── Project all nodes ─────────────────────────────────────────────────
+    projCacheRef.current.clear();
+    for (const node of nodes) {
+      projCacheRef.current.set(node.id, projectInsideSphere(node.theta, node.phi, camQuat, focal));
+    }
+
+    // ── Ghost domain labels (only when no search active) ─────────────────
+    if (!searchRef.current.trim()) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const [domain, center] of domainCentersRef.current) {
+        const p = projectInsideSphere(center.theta, center.phi, camQuat, focal);
+        if (!p.visible || p.depth < 0.25) continue;
+        const hslEntry = DOMAIN_HSL[domain];
+        if (!hslEntry) continue;
+        const [bh, bs, bl] = hslEntry;
+        const rgb = hslToRgb(bh, bs, bl);
+        const parts = domain.split(' - ');
+        const lbl = (parts[parts.length - 1] || domain).toUpperCase();
+        ctx.font = `500 ${Math.round(10 + p.depth * 3)}px system-ui,sans-serif`;
+        ctx.shadowColor = '#0d1117';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = rgba(rgb, Math.min(0.42, 0.42 * p.depth));
+        ctx.fillText(lbl, cx + p.sx, cy + p.sy);
+        ctx.shadowBlur = 0;
+      }
+      ctx.textBaseline = 'alphabetic';
+    }
 
     // ── Links ─────────────────────────────────────────────────────────────
     for (const link of links) {
+      const sp = projCacheRef.current.get(link.source.id);
+      const tp = projCacheRef.current.get(link.target.id);
+      if (!sp?.visible || !tp?.visible) continue;
       const s = link.source, t = link.target;
-      const sp = projCacheRef.current.get(s.id);
-      const tp = projCacheRef.current.get(t.id);
-      if (!sp || !tp) continue;
-      const isDimmed = dimmed && !matched?.has(s.id) && !matched?.has(t.id);
-      const alpha = Math.min(1, (s.linkCount + t.linkCount) / 20);
-      const srcRgb = nodeRgb(s);
+      const isDimmed   = dimmed && !matched?.has(s.id) && !matched?.has(t.id);
+      const alpha      = Math.min(1, (s.linkCount + t.linkCount) / 20);
+      const avgDepth   = (sp.depth + tp.depth) / 2;
+      const isHovLink  = hov?.id === s.id || hov?.id === t.id;
       ctx.beginPath();
-      ctx.moveTo(sp.px, sp.py);
-      ctx.lineTo(tp.px, tp.py);
+      ctx.moveTo(cx + sp.sx, cy + sp.sy);
+      ctx.lineTo(cx + tp.sx, cy + tp.sy);
       ctx.strokeStyle = isDimmed
         ? 'rgba(60,60,70,0.07)'
-        : rgba(srcRgb, alpha * 0.28 + (hov?.id === s.id || hov?.id === t.id ? 0.35 : 0));
-      ctx.lineWidth = (0.4 + alpha * 0.5) / scale;
+        : rgba(nodeRgb(s), alpha * 0.28 * avgDepth + (isHovLink ? 0.32 : 0));
+      ctx.lineWidth = 0.5 + alpha * 0.5;
       ctx.stroke();
     }
 
-    // ── Nodes (back-to-front painter's sort) ──────────────────────────────
-    const sortedNodes = [...nodes].sort((a, b) => {
-      const psa = projCacheRef.current.get(a.id)?.ps ?? 1;
-      const psb = projCacheRef.current.get(b.id)?.ps ?? 1;
-      return psa - psb; // smaller ps = further away = draw first
+    // ── Nodes (back-to-front by depth) ────────────────────────────────────
+    const sorted = [...nodes].sort((a, b) => {
+      const da = projCacheRef.current.get(a.id)?.depth ?? 0;
+      const db = projCacheRef.current.get(b.id)?.depth ?? 0;
+      return da - db;
     });
 
-    for (const node of sortedNodes) {
+    for (const node of sorted) {
       const proj = projCacheRef.current.get(node.id);
-      if (!proj) continue;
-      const { px, py, ps } = proj;
-      const isConn     = connectedIds.has(node.id);
-      const isHov      = hov?.id === node.id;
-      const isMatched  = matched?.has(node.id) ?? true;
-      const isDimmed   = dimmed && !isMatched;
-      const isHub      = isConn && node.linkCount >= 6;
-      const rgb        = nodeRgb(node);
+      if (!proj?.visible) continue;
+      const { sx, sy, depth } = proj;
+      const nx = cx + sx, ny = cy + sy;
+      const isConn   = connectedIds.has(node.id);
+      const isHov    = hov?.id === node.id;
+      const isMatch  = matched?.has(node.id) ?? true;
+      const isDimmed = dimmed && !isMatch;
+      const isHub    = isConn && node.linkCount >= 3;
+      const rgb      = nodeRgb(node);
+      const depthFade = Math.max(0.3, depth);
+      const szMul   = nodeSizeRef.current / 5;
 
-      // Node radius — scaled by nodeSize slider + perspective scale
-      const szMul = nodeSizeRef.current / 5;
-      const r = (isConn
-        ? Math.max(3, Math.min(20, (4 + 2.5 * node.linkCount) * szMul))
-        : Math.max(2, Math.min(8, (2.5 + node.size / 10000) * szMul))) * ps;
+      const baseR = isConn
+        ? Math.max(4, Math.min(24, (4 + 2.5 * node.linkCount) * szMul))
+        : Math.max(2, 3 * szMul);
+      const r = baseR * (0.65 + 0.35 * depthFade);
 
-      // Glow for hubs and hovered
+      // Glow
       if ((isHub || isHov) && !isDimmed) {
-        const glowR = r + (isHub ? 6 : 0) + (isHov ? 8 : 0);
-        const g = ctx.createRadialGradient(px, py, r * 0.3, px, py, glowR);
-        g.addColorStop(0, rgba(rgb, isHov ? 0.4 : 0.2));
+        const glowR = r + (isHub ? 7 : 0) + (isHov ? 9 : 0);
+        const g = ctx.createRadialGradient(nx, ny, r * 0.3, nx, ny, glowR);
+        g.addColorStop(0, rgba(rgb, isHov ? 0.38 : 0.18));
         g.addColorStop(1, 'transparent');
         ctx.beginPath();
-        ctx.arc(px, py, glowR, 0, Math.PI * 2);
+        ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
         ctx.fillStyle = g;
         ctx.fill();
       }
 
       // Fill
       ctx.beginPath();
-      ctx.arc(px, py, isHov ? r * 1.18 : r, 0, Math.PI * 2);
-      ctx.fillStyle = isDimmed ? rgba(rgb, 0.1) : rgba(rgb, isConn ? (node.isPhase ? 0.7 : 0.9) : 0.45);
+      ctx.arc(nx, ny, isHov ? r * 1.18 : r, 0, Math.PI * 2);
+      const fillAlpha = isDimmed ? 0.08 : (isConn ? (node.isPhase ? 0.7 : 0.9) : 0.45) * depthFade;
+      ctx.fillStyle = rgba(rgb, fillAlpha);
       ctx.fill();
 
-      // Hub outer ring
+      // Hub ring
       if (isHub && !isDimmed) {
         ctx.beginPath();
-        ctx.arc(px, py, r + 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = rgba(rgb, 0.45);
-        ctx.lineWidth = 1.2 / scale;
+        ctx.arc(nx, ny, r + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(rgb, 0.4 * depthFade);
+        ctx.lineWidth = 1.2;
         ctx.stroke();
       }
 
-      // Phase inner ring
+      // Phase ring
       if (node.isPhase && !isDimmed) {
         ctx.beginPath();
-        ctx.arc(px, py, r - 1.5, 0, Math.PI * 2);
-        ctx.strokeStyle = rgba(rgb, 0.6);
-        ctx.lineWidth = 1 / scale;
+        ctx.arc(nx, ny, Math.max(1, r - 1.5), 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(rgb, 0.55 * depthFade);
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
 
-      // Labels
-      if (showLabels && !isDimmed) {
-        const showLabel = isHub ? scale >= 0.15 : (scale >= 0.55 || isHov);
-        if (showLabel) {
-          const lbl = node.label.length > 24 ? node.label.slice(0, 24) + '…' : node.label;
-          ctx.font = `${isHub ? 600 : 400} ${Math.max(9, 11 / scale)}px system-ui,sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.shadowColor = '#0d1117';
-          ctx.shadowBlur = 4 / scale;
-          ctx.fillStyle = isHov ? '#e6edf3' : rgba(rgb, isHub ? 0.95 : 0.7);
-          ctx.fillText(lbl, px, py + r + 4 / scale);
-          ctx.shadowBlur = 0;
-          ctx.textBaseline = 'alphabetic';
-        }
+      // Labels — always for hubs, always for hovered, optionally for connected nodes
+      const showThisLabel = showLbls && !isDimmed && (isHub || isHov || (isConn && depth > 0.7));
+      if (showThisLabel) {
+        const lbl = node.label.length > 28 ? node.label.slice(0, 28) + '…' : node.label;
+        const fontSize = isHub ? 13 : 11;
+        ctx.font = `${isHub ? 600 : 400} ${fontSize}px system-ui,sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = '#0d1117';
+        ctx.shadowBlur = 6;
+        const labelAlpha = isHov ? 1 : (isHub ? 0.95 : 0.82) * depthFade;
+        ctx.fillStyle = isHov ? '#e6edf3' : rgba(rgb, labelAlpha);
+        ctx.fillText(lbl, nx, ny + r + 3);
+        ctx.shadowBlur = 0;
+        ctx.textBaseline = 'alphabetic';
       }
     }
 
-    // ── Hand cursor (gesture-aware) ────────────────────────────────────────
-    // Use CSS-pixel transform so cursor positions stay device-independent
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const gesture    = gestureTypeRef.current;
-    const idxCursor  = indexCursorRef.current;
-    const plmCursor  = palmCursorRef.current;
-    // Point: show index fingertip. Everything else: show palm centre.
-    const cursor = gesture === 'point' ? idxCursor : plmCursor;
+    // ── Hand cursor ───────────────────────────────────────────────────────
+    const gesture   = gestureTypeRef.current;
+    const idxCursor = indexCursorRef.current;
+    const plmCursor = palmCursorRef.current;
+    const cursor    = gesture === 'point' ? idxCursor : plmCursor;
 
     if (cursor) {
-      const { x: cx, y: cy } = cursor;
-      // Colour per gesture
+      const { x: ccx, y: ccy } = cursor;
       const col = gesture === 'point'  ? '255,255,255'
                 : gesture === 'pinch'  ? '255,214,10'
                 : gesture === 'gun'    ? '255,159,10'
                 : gesture === 'peace'  ? '68,147,248'
                 : gesture === 'fist'   ? '255,69,58'
-                : '0,220,180'; // palm / default
+                : '0,220,180';
       const glowR = gesture === 'palm' || gesture === 'fist' ? 28 : 18;
       const dotR  = gesture === 'palm' ? 6 : 4;
 
-      // Glow halo
-      const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      const cg = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, glowR);
       cg.addColorStop(0, `rgba(${col},0.28)`);
       cg.addColorStop(1, 'transparent');
       ctx.beginPath();
-      ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+      ctx.arc(ccx, ccy, glowR, 0, Math.PI * 2);
       ctx.fillStyle = cg;
       ctx.fill();
 
-      // Centre dot
       ctx.beginPath();
-      ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
+      ctx.arc(ccx, ccy, dotR, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${col},0.92)`;
       ctx.fill();
 
-      // Dwell progress ring (point mode)
       const dwell = dwellRef.current;
       if (gesture === 'point' && dwell) {
         const progress = Math.min(1, (Date.now() - dwell.startTime) / DWELL_MS);
         ctx.beginPath();
-        ctx.arc(cx, cy, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.arc(ccx, ccy, 22, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
         ctx.strokeStyle = 'rgba(0,220,180,0.9)';
         ctx.lineWidth = 2.5;
         ctx.stroke();
-        if (progress < 1) dirtyRef.current = true; // keep animating
+        if (progress < 1) dirtyRef.current = true;
       }
 
-      // Fist countdown ring (stop-tracking timer)
       const fistStart = fistStartRef.current;
       if (gesture === 'fist' && fistStart) {
         const progress = Math.min(1, (Date.now() - fistStart) / 1000);
         ctx.beginPath();
-        ctx.arc(cx, cy, 26, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+        ctx.arc(ccx, ccy, 26, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
         ctx.strokeStyle = 'rgba(255,69,58,0.9)';
         ctx.lineWidth = 2.5;
         ctx.stroke();
@@ -469,38 +612,35 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     }
 
     dirtyRef.current = false;
-  }, [connectedIds, matchIds, showLabels]);
+  }, [connectedIds, matchIds]);
 
-  // ── RAF loop ───────────────────────────────────────────────────────────────
-
+  // ── RAF loop ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let running = true;
     const loop = () => {
       if (!running) return;
       rafRef.current = requestAnimationFrame(loop);
 
-      // Smooth camera lerp — 0.2 feels responsive without being jittery
-      const cur = xfRef.current, tgt = xfTargetRef.current;
-      const dx = tgt.x - cur.x, dy = tgt.y - cur.y, dk = tgt.k - cur.k;
-      if (Math.abs(dx) > 0.02 || Math.abs(dy) > 0.02 || Math.abs(dk) > 0.0002) {
-        xfRef.current = { x: cur.x + dx * 0.2, y: cur.y + dy * 0.2, k: cur.k + dk * 0.2 };
+      // Camera slerp
+      const cam = camQuatRef.current, tgt = camQuatTargetRef.current;
+      const dot = cam[0]*tgt[0] + cam[1]*tgt[1] + cam[2]*tgt[2] + cam[3]*tgt[3];
+      if (Math.abs(dot) < 0.99999) {
+        camQuatRef.current = qSlerp(cam, tgt, 0.15);
         dirtyRef.current = true;
       }
 
-      // Orbit angle lerp — 0.12 feels responsive under live hand control
-      const orb = orbitRef.current, orbTgt = orbitTargetRef.current;
-      const drx = orbTgt.rx - orb.rx, dry = orbTgt.ry - orb.ry;
-      if (Math.abs(drx) > 0.0003 || Math.abs(dry) > 0.0003) {
-        orbitRef.current = { rx: orb.rx + drx * 0.12, ry: orb.ry + dry * 0.12 };
+      // FOV lerp
+      const dFov = fovTargetRef.current - fovRef.current;
+      if (Math.abs(dFov) > 0.01) {
+        fovRef.current += dFov * 0.15;
         dirtyRef.current = true;
       }
 
-      // Auto-drift: gentle sinusoidal orbit when idle > 4s
+      // Auto-drift when idle > 4s: gentle constant rotation around world Y
       const idleSec = (Date.now() - lastInteractRef.current) / 1000;
       if (idleSec > 4) {
-        const t = Date.now() / 12000;
-        orbTgt.rx = 0.15 + Math.sin(t * 3.5) * 0.07;
-        orbTgt.ry = Math.sin(t * 1.0) * 0.38;
+        const driftQ = qAxisAngle(0, 1, 0, 0.0004);
+        camQuatTargetRef.current = qNorm(qMul(driftQ, camQuatTargetRef.current));
         dirtyRef.current = true;
       }
 
@@ -510,16 +650,14 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     return () => { running = false; cancelAnimationFrame(rafRef.current); };
   }, [draw]);
 
-  // ── ResizeObserver ─────────────────────────────────────────────────────────
-
+  // ── ResizeObserver ────────────────────────────────────────────────────────
   useEffect(() => {
     const obs = new ResizeObserver(() => { resizeCanvas(); dirtyRef.current = true; });
     if (wrapRef.current) obs.observe(wrapRef.current);
     return () => obs.disconnect();
   }, [resizeCanvas]);
 
-  // ── Fetch + init simulation ────────────────────────────────────────────────
-
+  // ── Fetch graph data ───────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     fetch('/api/onyx/vault-graph').then(r => r.json()).then(
@@ -533,169 +671,53 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Rebuild simulation when nodes/links/spread change ─────────────────────
+  // ── Background stars (generated once) ─────────────────────────────────────
+  useEffect(() => {
+    const stars: BgStar[] = [];
+    for (let i = 0; i < BG_STAR_COUNT; i++) {
+      stars.push({
+        theta: Math.random() * Math.PI * 2,
+        phi:   Math.asin(Math.random() * 2 - 1),  // uniform on sphere
+        size:  0.4 + Math.random() * 1.3,
+        alpha: 0.06 + Math.random() * 0.28,
+      });
+    }
+    bgStarsRef.current = stars;
+  }, []);
 
+  // ── Rebuild sphere layout when nodes/links/spacing change ─────────────────
   useEffect(() => {
     if (!activeNodes.length) return;
-    simRef.current?.stop();
-
-    const { w, h } = sizeRef.current;
-    const cx = w / 2 || 400, cy = h / 2 || 300;
-    const { charge, linkDist, collide, centerStr } = spreadParams(spread);
-
-    // Sector angles per top folder for fan-out initial positions
-    const domains = [...new Set(activeNodes.map(n => n.topFolder))];
-    const sectorAngle = new Map(domains.map((d, i) => [d, (i / domains.length) * Math.PI * 2]));
-    const sectorCount = new Map<string, number>();
-    const sectorIdx   = new Map<string, number>();
-
-    for (const n of activeNodes) {
-      const c = sectorCount.get(n.topFolder) ?? 0;
-      sectorCount.set(n.topFolder, c + 1);
-    }
-
-    // Build D3 nodes (with initial positions)
-    const prev = new Map(nodesRef.current.map(n => [n.id, n]));
-    const d3nodes: D3Node[] = activeNodes.map(n => {
-      const p = prev.get(n.id);
-      if (p && !isNaN(p.x)) return { ...n, x: p.x, y: p.y, vx: p.vx ?? 0, vy: p.vy ?? 0 };
-      // Initial position: radial fan-out by domain
-      const angle = sectorAngle.get(n.topFolder) ?? 0;
-      const total = sectorCount.get(n.topFolder) ?? 1;
-      const idx   = sectorIdx.get(n.topFolder) ?? 0;
-      sectorIdx.set(n.topFolder, idx + 1);
-      const subA  = angle + (total > 1 ? (idx / (total - 1) - 0.5) * 0.75 : 0);
-      const radius = connectedIds.has(n.id)
-        ? 120 + 15 * n.linkCount
-        : 250 + 120 * Math.random();
-      return {
-        ...n,
-        x: Math.cos(subA) * radius + (Math.random() - 0.5) * 30,
-        y: Math.sin(subA) * radius + (Math.random() - 0.5) * 30,
-        vx: 0, vy: 0,
-      };
-    });
-
-    const idToNode = new Map(d3nodes.map(n => [n.id, n]));
-
-    // Build D3 links
-    const d3links: D3Link[] = activeLinks
-      .map(l => ({ source: idToNode.get(l.source)!, target: idToNode.get(l.target)! }))
+    const { sphereNodes, domainCenters } = layoutOnSphere(activeNodes, spacing, bundleSep);
+    const idMap = new Map(sphereNodes.map(n => [n.id, n]));
+    const sphereLinks: SphereLink[] = activeLinks
+      .map(l => ({ source: idMap.get(l.source)!, target: idMap.get(l.target)! }))
       .filter(l => l.source && l.target);
-
-    nodesRef.current = d3nodes;
-    linksRef.current = d3links;
-
-    // Assign Z-depth per node for 3-D layering:
-    // hubs (≥6 links) at front, connected at mid, leaves at back
-    const zMap = nodeZRef.current;
-    zMap.clear();
-    for (const n of d3nodes) {
-      const base   = n.linkCount >= 6 ? 130 : connectedIds.has(n.id) ? 0 : -130;
-      const jitter = ((hashStr(n.id) % 91) - 45) * 0.8;
-      zMap.set(n.id, base + jitter);
-    }
-
-    const sim = forceSimulation<D3Node, D3Link>(d3nodes)
-      .force('link', forceLink<D3Node, D3Link>(d3links).id(n => n.id).distance(linkDist).strength(0.4))
-      .force('charge', forceManyBody<D3Node>().strength(n => charge * (connectedIds.has(n.id) ? 1 + 0.15 * n.linkCount : 0.4)))
-      .force('center', forceCenter<D3Node>(cx, cy).strength(centerStr))
-      .force('collide', forceCollide<D3Node>().radius(n => collide + (connectedIds.has(n.id) ? n.linkCount * 0.5 : 0)).strength(0.6))
-      .force('x', forceX<D3Node>(cx).strength(0.02))
-      .force('y', forceY<D3Node>(cy).strength(0.02))
-      .alphaDecay(0.022)
-      .on('tick', () => { dirtyRef.current = true; })
-      .on('end', () => { fitView(); });
-
-    simRef.current = sim;
+    sphereNodesRef.current   = sphereNodes;
+    sphereLinksRef.current   = sphereLinks;
+    domainCentersRef.current = domainCenters;
     dirtyRef.current = true;
+  }, [activeNodes, activeLinks, spacing, bundleSep]);
 
-    return () => { sim.stop(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNodes, activeLinks, spread]);
+  useEffect(() => { dirtyRef.current = true; }, [matchIds, connOnly]);
 
-  // Force redraw when filter/search changes
-  useEffect(() => { dirtyRef.current = true; }, [matchIds, showLabels, connOnly]);
-
-  // ── Pointer helpers ───────────────────────────────────────────────────────
-
-  const toWorld = (cx: number, cy: number) => {
-    const { x, y, k } = xfRef.current;
-    return { x: (cx - x) / k, y: (cy - y) / k };
-  };
-
-  const hitTest = (wx: number, wy: number): D3Node | undefined => {
-    let best: D3Node | undefined;
-    let bestD2 = Infinity;
-    const szMul = nodeSizeRef.current / 5;
-    for (const n of nodesRef.current) {
-      const proj = projCacheRef.current.get(n.id);
-      if (!proj) continue;
-      const { px, py, ps } = proj;
-      const isConn = connectedIds.has(n.id);
-      const r = (isConn ? Math.max(3, Math.min(20, (4 + 2.5 * n.linkCount) * szMul)) : Math.max(2, Math.min(8, (2.5 + n.size / 10000) * szMul))) * ps;
-      const d2 = (px - wx) ** 2 + (py - wy) ** 2;
-      const hitR = (r + 6) ** 2;
-      if (d2 <= hitR && d2 < bestD2) { bestD2 = d2; best = n; }
-    }
-    return best;
-  };
-
-  // ── Mouse wheel zoom ──────────────────────────────────────────────────────
-
+  // ── Wheel → FOV ───────────────────────────────────────────────────────────
   const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => {
     e.preventDefault();
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-
-    // Normalize delta: trackpad sends small pixel deltas, mouse wheel sends 100+
-    // Use exponential scaling so both feel proportional
-    const rawDelta = e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY; // line → pixel
-    const clampedDelta = Math.sign(rawDelta) * Math.min(Math.abs(rawDelta), 200);
-    const factor = Math.exp(-clampedDelta * 0.0025); // ~0.78–1.28 per step
-
-    const { x: tx, y: ty, k } = xfTargetRef.current;
-    const nk = Math.max(0.05, Math.min(10, k * factor));
-    xfTargetRef.current = {
-      x: mx - (mx - tx) * (nk / k),
-      y: my - (my - ty) * (nk / k),
-      k: nk,
-    };
+    lastInteractRef.current = Date.now();
+    camQuatTargetRef.current = [...camQuatRef.current] as Quat; // freeze drift
+    const rawDelta = e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY;
+    const clamped  = Math.sign(rawDelta) * Math.min(Math.abs(rawDelta), 200);
+    fovTargetRef.current = Math.max(15, Math.min(150, fovTargetRef.current + clamped * 0.05));
   }, []);
 
   // ── Mouse events ──────────────────────────────────────────────────────────
-
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     lastInteractRef.current = Date.now();
-    orbitTargetRef.current = { ...orbitRef.current }; // freeze auto-drift
     downPosRef.current = { x: e.clientX, y: e.clientY };
     didMoveRef.current = false;
-
-    // Alt+drag = orbit the 3-D scene
-    if (e.altKey) {
-      orbitDragRef.current = {
-        active: true, sx: e.clientX, sy: e.clientY,
-        srx: orbitRef.current.rx, sry: orbitRef.current.ry,
-      };
-      if (canvasRef.current) canvasRef.current.style.cursor = 'crosshair';
-      return;
-    }
-
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const wp  = toWorld(e.clientX - rect.left, e.clientY - rect.top);
-    const hit = hitTest(wp.x, wp.y);
-    if (hit) {
-      hit.fx = hit.x; hit.fy = hit.y;
-      dragRef.current = { node: hit, ox: wp.x - hit.x, oy: wp.y - hit.y };
-      if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
-      simRef.current?.alphaTarget(0.3).restart();
-    } else {
-      panRef.current = { active: true, sx: e.clientX, sy: e.clientY, stx: xfRef.current.x, sty: xfRef.current.y };
-      if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    lookDragRef.current = { active: true, px: e.clientX, py: e.clientY };
+    if (canvasRef.current) canvasRef.current.style.cursor = 'grabbing';
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -703,44 +725,28 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     if (!rect) return;
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
 
-    // Track drag movement for click-vs-drag detection
     const moveX = e.clientX - downPosRef.current.x;
     const moveY = e.clientY - downPosRef.current.y;
-    if (Math.sqrt(moveX * moveX + moveY * moveY) > 4) didMoveRef.current = true;
+    if (moveX * moveX + moveY * moveY > 16) didMoveRef.current = true;
 
-    // Alt+orbit drag
-    if (orbitDragRef.current?.active) {
+    if (lookDragRef.current?.active) {
       const { w, h } = sizeRef.current;
-      const dxN = (e.clientX - orbitDragRef.current.sx) / w;
-      const dyN = (e.clientY - orbitDragRef.current.sy) / h;
-      orbitTargetRef.current = {
-        rx: Math.max(-0.55, Math.min(0.55, orbitDragRef.current.srx + dyN * Math.PI)),
-        ry: orbitDragRef.current.sry + dxN * Math.PI * 2,
-      };
+      const dx = e.clientX - lookDragRef.current.px;
+      const dy = e.clientY - lookDragRef.current.py;
+      lookDragRef.current.px = e.clientX;
+      lookDragRef.current.py = e.clientY;
+      let q = camQuatRef.current;
+      q = qMul(qAxisAngle(0, 1, 0, dx * Math.PI * 1.6 / Math.max(w, 1)), q);
+      q = qMul(q, qAxisAngle(1, 0, 0, dy * Math.PI / Math.max(h, 1)));
+      q = qNorm(q);
+      camQuatRef.current       = q;
+      camQuatTargetRef.current = q;
       lastInteractRef.current = Date.now();
       dirtyRef.current = true;
       return;
     }
 
-    if (dragRef.current?.node) {
-      const wp = toWorld(mx, my);
-      dragRef.current.node.fx = wp.x - dragRef.current.ox;
-      dragRef.current.node.fy = wp.y - dragRef.current.oy;
-      dirtyRef.current = true;
-      return;
-    }
-
-    if (panRef.current.active) {
-      const nx = panRef.current.stx + (e.clientX - panRef.current.sx);
-      const ny = panRef.current.sty + (e.clientY - panRef.current.sy);
-      xfRef.current.x = nx; xfRef.current.y = ny;
-      xfTargetRef.current.x = nx; xfTargetRef.current.y = ny;
-      dirtyRef.current = true;
-      return;
-    }
-
-    const wp  = toWorld(mx, my);
-    const hit = hitTest(wp.x, wp.y);
+    const hit = hitTestFnRef.current(mx, my);
     if (hit?.id !== hovRef.current?.id) {
       hovRef.current = hit ?? null;
       if (canvasRef.current) canvasRef.current.style.cursor = hit ? 'pointer' : 'grab';
@@ -752,87 +758,44 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     } else {
       setTooltip(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMouseUp = useCallback(() => {
-    orbitDragRef.current = null;
-    if (dragRef.current?.node) {
-      dragRef.current.node.fx = null;
-      dragRef.current.node.fy = null;
-      simRef.current?.alphaTarget(0).restart();
-    }
-    dragRef.current = null;
-    panRef.current = { active: false, sx: 0, sy: 0, stx: 0, sty: 0 };
+    lookDragRef.current = null;
     if (canvasRef.current) canvasRef.current.style.cursor = hovRef.current ? 'pointer' : 'grab';
     dirtyRef.current = true;
   }, []);
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Suppress click if the pointer moved enough to be a drag
     if (didMoveRef.current) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const wp = toWorld(e.clientX - rect.left, e.clientY - rect.top);
-    const hit = hitTest(wp.x, wp.y);
-    if (hit) onOpenFile(hit.id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onOpenFile]);
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const hit = hitTestFnRef.current(mx, my);
+    if (hit) onOpenFileRef.current(hit.id);
+  }, []);
 
   const handleLeave = useCallback(() => {
-    orbitDragRef.current = null;
-    // Unpin any dragged node before clearing the drag ref
-    if (dragRef.current?.node) {
-      dragRef.current.node.fx = undefined;
-      dragRef.current.node.fy = undefined;
-    }
-    panRef.current = { active: false, sx: 0, sy: 0, stx: 0, sty: 0 };
-    dragRef.current = null;
+    lookDragRef.current = null;
     hovRef.current = null;
     setTooltip(null);
     dirtyRef.current = true;
     if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
   }, []);
 
-  const fitView = useCallback(() => {
-    const nodes = nodesRef.current.filter(n => !isNaN(n.x) && !isNaN(n.y));
-    if (!nodes.length) return;
-    const { w, h } = sizeRef.current;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) {
-      if (n.x < minX) minX = n.x;
-      if (n.y < minY) minY = n.y;
-      if (n.x > maxX) maxX = n.x;
-      if (n.y > maxY) maxY = n.y;
-    }
-    const pad = 60;
-    const gw = maxX - minX + pad * 2;
-    const gh = maxY - minY + pad * 2;
-    const k = Math.max(0.05, Math.min(4, Math.min(w / gw, h / gh)));
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    xfTargetRef.current = { x: w / 2 - cx * k, y: h / 2 - cy * k, k };
+  const homeView = useCallback(() => {
+    camQuatTargetRef.current = qIdentity();
+    fovTargetRef.current     = 75;
+    lastInteractRef.current  = 0;
     dirtyRef.current = true;
   }, []);
 
   // ── Hand gesture handler ───────────────────────────────────────────────────
-  // Gesture map:
-  //   palm  → pan    |  point → cursor/select  |  pinch → zoom
-  //   peace → orbit  |  fist  → tap=close, hold=pause
-  //
-  // Quality principles:
-  //   • Hysteresis: require STABLE_FRAMES before committing a gesture change
-  //     so a single mis-classified frame never resets anchors/timers.
-  //   • EMA smoothing on palm position (removes tremor from pan).
-  //   • EMA smoothing on pinch distance (removes noise from zoom).
-  //   • Anchor-based zoom: ratio^1.3 mapped against entry-frame snapshot.
-  const STABLE_FRAMES = 5;
-
   const handleHandGesture = useCallback((state: HandGestureState) => {
     lastInteractRef.current = Date.now();
     const { w, h } = sizeRef.current;
 
-    // ── Hysteresis: accumulate candidate frames ────────────────────────
+    // Hysteresis: require STABLE_FRAMES consecutive frames before switching gesture
     const rawGesture = state.gesture;
     const cand = gestureCandidateRef.current;
     if (rawGesture === cand.type) {
@@ -840,12 +803,9 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     } else {
       gestureCandidateRef.current = { type: rawGesture, frames: 1 };
     }
-    // Only switch when the new gesture has been stable for STABLE_FRAMES
-    const gesture = (gestureCandidateRef.current.frames >= STABLE_FRAMES)
-      ? rawGesture
-      : gestureTypeRef.current;
+    const gesture = cand.frames >= STABLE_FRAMES ? rawGesture : gestureTypeRef.current;
 
-    // ── Update cursor positions (mirror X: webcam is selfie-flipped) ─────
+    // Update cursor positions (mirror X: webcam is selfie-flipped)
     if (state.detected) {
       indexCursorRef.current = { x: (1 - state.indexX) * w, y: state.indexY * h };
       palmCursorRef.current  = { x: (1 - state.palmX)  * w, y: state.palmY  * h };
@@ -858,126 +818,79 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
       smoothPinchRef.current = null;
     }
 
-    // ── If paused: any non-fist gesture resumes ───────────────────────
+    // Paused: any non-fist gesture resumes
     if (handPausedRef.current) {
       if (gesture !== gestureTypeRef.current) {
         gestureTypeRef.current = gesture;
         setActiveGesture(gesture);
       }
-      if (state.detected && gesture !== 'fist' && gesture !== 'none') {
-        setHandPaused(false);
-      }
+      if (state.detected && gesture !== 'fist' && gesture !== 'none') setHandPaused(false);
       dirtyRef.current = true;
       return;
     }
 
-    // ── Commit gesture change ─────────────────────────────────────────
+    // Commit gesture change
     if (gesture !== gestureTypeRef.current) {
       const prevType = gestureTypeRef.current;
-
       // Quick fist tap → close panel
-      if (prevType === 'fist' && fistStartRef.current) {
-        if (Date.now() - fistStartRef.current < 400) {
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        }
+      if (prevType === 'fist' && fistStartRef.current && Date.now() - fistStartRef.current < 400) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       }
-
       gestureTypeRef.current  = gesture;
       setActiveGesture(gesture);
       dwellRef.current        = null;
       fistStartRef.current    = null;
-      pinchAnchorRef.current  = null;
-      smoothPalmRef.current   = null;  // reset smoothing on gesture switch
+      smoothPalmRef.current   = null;
       smoothPinchRef.current  = null;
     }
 
-    if (!state.detected) {
-      prevGestureRef.current = state;
-      dirtyRef.current = true;
-      return;
-    }
+    if (!state.detected) { prevGestureRef.current = state; dirtyRef.current = true; return; }
 
     if (gesture === 'fist') {
-      // ── Fist: tap=close (handled above), hold=pause ───────────────────
-      orbitTargetRef.current = { ...orbitRef.current };
+      camQuatTargetRef.current = [...camQuatRef.current] as Quat; // freeze drift
       if (!fistStartRef.current) fistStartRef.current = Date.now();
       else if (Date.now() - fistStartRef.current >= 1000) {
         setHandPaused(true);
         fistStartRef.current = Date.now();
       }
 
-    } else if (gesture === 'palm') {
-      // ── Palm: pan ─────────────────────────────────────────────────────
-      // EMA-smooth palm position to absorb hand tremor.
-      // alpha=0.35: responsive enough to track intent, smooth enough to
-      // filter per-frame noise (~±0.005 in normalised coords).
-      orbitTargetRef.current = { ...orbitRef.current };
+    } else if (gesture === 'palm' || gesture === 'peace') {
+      // Look around: EMA-smooth palm delta → rotate camera
       const ALPHA = 0.35;
-      if (!smoothPalmRef.current) {
-        smoothPalmRef.current = { x: state.palmX, y: state.palmY };
-      }
+      if (!smoothPalmRef.current) smoothPalmRef.current = { x: state.palmX, y: state.palmY };
       const prev = smoothPalmRef.current;
       const sx = prev.x * (1 - ALPHA) + state.palmX * ALPHA;
       const sy = prev.y * (1 - ALPHA) + state.palmY * ALPHA;
-      const dx = sx - prev.x;
-      const dy = sy - prev.y;
+      const dx = sx - prev.x, dy = sy - prev.y;
       smoothPalmRef.current = { x: sx, y: sy };
 
-      // Dead zone: ignore sub-tremor movement (<0.003 norm)
       if (Math.abs(dx) > 0.002 || Math.abs(dy) > 0.002) {
-        xfTargetRef.current.x -= dx * w * 3.5;
-        xfTargetRef.current.y += dy * h * 3.5;
+        // Webcam mirror: dx < 0 → hand moved right → look right (world-Y yaw left-multiply)
+        let q = camQuatTargetRef.current;
+        q = qMul(qAxisAngle(0, 1, 0, -dx * 6), q);
+        q = qMul(q, qAxisAngle(1, 0, 0, -dy * 4));
+        camQuatTargetRef.current = qNorm(q);
       }
 
     } else if (gesture === 'pinch') {
-      // ── Pinch: zoom IN — tighter fingers = faster zoom in ─────────────
-      orbitTargetRef.current = { ...orbitRef.current };
+      // Pinch: zoom in (narrow FOV)
       const ALPHA = 0.2;
       smoothPinchRef.current = smoothPinchRef.current == null
         ? state.pinchDist
         : smoothPinchRef.current * (1 - ALPHA) + state.pinchDist * ALPHA;
-      // Tightness: 0 when fingers at max pinch range (0.13), 1 when fully closed
       const tightness = Math.max(0, 1 - smoothPinchRef.current / 0.13);
-      const rate = 0.008 + tightness * 0.022; // 0.008..0.030 per frame → ~1.3–2.5× per sec
-      const { x: tx, y: ty, k } = xfTargetRef.current;
-      const nk = Math.max(0.05, Math.min(10, k * (1 + rate)));
-      const cx = w / 2, cy = h / 2;
-      xfTargetRef.current = { x: cx - (cx - tx) * (nk / k), y: cy - (cy - ty) * (nk / k), k: nk };
+      fovTargetRef.current = Math.max(15, fovTargetRef.current - (0.12 + tightness * 0.35));
 
     } else if (gesture === 'gun') {
-      // ── Gun / L-shape: zoom OUT at constant rate ───────────────────────
-      orbitTargetRef.current = { ...orbitRef.current };
-      const { x: tx, y: ty, k } = xfTargetRef.current;
-      const nk = Math.max(0.05, Math.min(10, k * 0.978)); // ~2× per sec zoom out
-      const cx = w / 2, cy = h / 2;
-      xfTargetRef.current = { x: cx - (cx - tx) * (nk / k), y: cy - (cy - ty) * (nk / k), k: nk };
-
-    } else if (gesture === 'peace') {
-      // ── Peace: orbit 3-D ──────────────────────────────────────────────
-      // Use EMA-smoothed palm for orbit too.
-      const ALPHA = 0.35;
-      if (!smoothPalmRef.current) {
-        smoothPalmRef.current = { x: state.palmX, y: state.palmY };
-      }
-      const prev = smoothPalmRef.current;
-      const sx = prev.x * (1 - ALPHA) + state.palmX * ALPHA;
-      const sy = prev.y * (1 - ALPHA) + state.palmY * ALPHA;
-      const dx = sx - prev.x;
-      const dy = sy - prev.y;
-      smoothPalmRef.current = { x: sx, y: sy };
-
-      orbitTargetRef.current.ry -= dx * 5;
-      orbitTargetRef.current.rx = Math.max(-0.55, Math.min(0.55,
-        orbitTargetRef.current.rx + dy * 5,
-      ));
+      // L-shape: zoom out (widen FOV)
+      fovTargetRef.current = Math.min(150, fovTargetRef.current + 0.3);
 
     } else if (gesture === 'point') {
-      // ── Point: cursor + dwell-to-open; dwell on empty = close ─────────
-      orbitTargetRef.current = { ...orbitRef.current };
+      // Cursor + dwell-to-open
+      camQuatTargetRef.current = [...camQuatRef.current] as Quat; // freeze drift
       const cursor = indexCursorRef.current;
       if (cursor) {
-        const wp  = toWorld(cursor.x, cursor.y);
-        const hit = hitTest(wp.x, wp.y);
+        const hit = hitTestFnRef.current(cursor.x, cursor.y);
         hovRef.current = hit ?? null;
         const now = Date.now();
         if (hit) {
@@ -990,7 +903,6 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
             dwellRef.current = { nodeId: hit.id, startTime: now };
           }
         } else {
-          // Dwell on empty space = close open panel
           if (dwellRef.current?.nodeId === '__close__') {
             if (now - dwellRef.current.startTime >= DWELL_MS) {
               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -1008,22 +920,23 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Register wheel handler as non-passive so preventDefault() works
+  // Non-passive wheel listener
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const handler = (e: WheelEvent) => { handleWheel(e); };
+    const handler = (e: WheelEvent) => handleWheel(e);
     canvas.addEventListener('wheel', handler, { passive: false });
     return () => canvas.removeEventListener('wheel', handler);
   }, [handleWheel]);
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#0d1117', display: 'flex', flexDirection: 'column' }}>
-      {/* Controls bar */}
+
+      {/* Controls */}
       <div style={{ position: 'absolute', top: 10, left: 12, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search…"
           style={{
             width: 140, padding: '4px 9px', borderRadius: 5,
@@ -1032,22 +945,22 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
             backdropFilter: 'blur(6px)',
           }}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(22,27,34,0.85)', border: '1px solid rgba(48,54,61,0.8)', borderRadius: 5, padding: '3px 8px', backdropFilter: 'blur(4px)' }}>
-          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)' }}>Spread</span>
-          <input type="range" min={1} max={10} value={spread} onChange={e => setSpread(Number(e.target.value))}
-            style={{ width: 64, accentColor: '#4493f8', cursor: 'pointer' }}/>
-          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)', fontFamily: 'monospace', minWidth: 10 }}>{spread}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(22,27,34,0.85)', border: '1px solid rgba(48,54,61,0.8)', borderRadius: 5, padding: '3px 8px', backdropFilter: 'blur(4px)' }}>
-          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)' }}>Size</span>
-          <input type="range" min={1} max={10} value={nodeSize} onChange={e => setNodeSize(Number(e.target.value))}
-            style={{ width: 56, accentColor: '#4493f8', cursor: 'pointer' }}/>
-          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)', fontFamily: 'monospace', minWidth: 10 }}>{nodeSize}</span>
-        </div>
-        {[
+        {([
+          { key: 'between', label: 'Between', val: bundleSep, set: setBundleSep },
+          { key: 'within',  label: 'Within',  val: spacing,   set: setSpacing   },
+          { key: 'size',    label: 'Size',     val: nodeSize,  set: setNodeSize  },
+        ]).map(({ key, label, val, set }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(22,27,34,0.85)', border: '1px solid rgba(48,54,61,0.8)', borderRadius: 5, padding: '3px 8px', backdropFilter: 'blur(4px)' }}>
+            <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)' }}>{label}</span>
+            <input type="range" min={1} max={10} value={val} onChange={e => set(Number(e.target.value))}
+              style={{ width: 56, accentColor: '#4493f8', cursor: 'pointer' }}/>
+            <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)', fontFamily: 'monospace', minWidth: 10 }}>{val}</span>
+          </div>
+        ))}
+        {([
           { label: 'Labels',    active: showLabels, toggle: () => setShowLabels(l => !l) },
           { label: 'Connected', active: connOnly,   toggle: () => setConnOnly(c => !c) },
-        ].map(({ label, active, toggle }) => (
+        ] as const).map(({ label, active, toggle }) => (
           <button key={label} onClick={toggle} style={{
             padding: '4px 9px', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
             border: `1px solid ${active ? 'rgba(68,147,248,0.6)' : 'rgba(48,54,61,0.8)'}`,
@@ -1056,22 +969,20 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
             backdropFilter: 'blur(4px)',
           }}>{label}</button>
         ))}
-        <button onClick={() => { setHandMode(m => !m); setHandPaused(false); }} title="Toggle hand tracking" style={{
+        <button onClick={() => { setHandMode(m => !m); setHandPaused(false); }} style={{
           padding: '4px 9px', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
           border: `1px solid ${handMode ? (handPaused ? 'rgba(255,159,10,0.6)' : 'rgba(0,220,180,0.6)') : 'rgba(48,54,61,0.8)'}`,
           background: handMode ? (handPaused ? 'rgba(255,159,10,0.08)' : 'rgba(0,220,180,0.08)') : 'rgba(22,27,34,0.85)',
           color: handMode ? (handPaused ? 'rgba(255,159,10,0.9)' : 'rgba(0,220,180,0.9)') : 'rgba(139,148,158,0.8)',
           backdropFilter: 'blur(4px)',
         }}>{handMode ? (handPaused ? 'Hand ⏸' : 'Hand ●') : 'Hand'}</button>
-        <button onClick={fitView} title="Fit all nodes into view" style={{
+        <button onClick={homeView} style={{
           padding: '4px 9px', borderRadius: 5, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
-          border: '1px solid rgba(48,54,61,0.8)',
-          background: 'rgba(22,27,34,0.85)',
-          color: 'rgba(139,148,158,0.8)',
-          backdropFilter: 'blur(4px)',
-        }}>Fit</button>
+          border: '1px solid rgba(48,54,61,0.8)', background: 'rgba(22,27,34,0.85)',
+          color: 'rgba(139,148,158,0.8)', backdropFilter: 'blur(4px)',
+        }}>Home</button>
         {!loading && (
-          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.5)', backdropFilter: 'blur(4px)' }}>
+          <span style={{ fontSize: 10, color: 'rgba(139,148,158,0.5)' }}>
             {activeNodes.length} nodes · {activeLinks.length} links
           </span>
         )}
@@ -1084,13 +995,13 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
       )}
 
       <div ref={wrapRef} style={{ flex: 1, position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ display: 'block', cursor: 'grab', position: 'absolute', inset: 0 }}
+        <canvas ref={canvasRef}
+          style={{ display: 'block', cursor: 'grab', position: 'absolute', inset: 0 }}
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp} onMouseLeave={handleLeave} onClick={handleClick}
         />
       </div>
 
-      {/* Tooltip */}
       {tooltip && (
         <div style={{
           position: 'absolute', left: tooltip.x, top: tooltip.y, pointerEvents: 'none', zIndex: 20,
@@ -1103,10 +1014,9 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
       )}
 
       <div style={{ position: 'absolute', bottom: 10, left: 12, fontSize: 10, color: 'rgba(139,148,158,0.4)', userSelect: 'none', pointerEvents: 'none' }}>
-        Scroll to zoom · drag to pan · alt+drag to orbit · click to open{handMode ? ' · hand tracking on' : ''}
+        Drag to look around · scroll to zoom · click to open{handMode ? ' · hand tracking on' : ''}
       </div>
 
-      {/* Gesture guide box — shown above camera preview when hand mode is on */}
       {handMode && (
         <div style={{
           position: 'absolute', bottom: 152, right: 16, zIndex: 45,
@@ -1118,17 +1028,15 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
             <div style={{ fontSize: 9, color: 'rgba(139,148,158,0.6)', fontFamily: 'monospace', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Hand Gestures
             </div>
-            {handPaused && (
-              <div style={{ fontSize: 9, color: 'rgba(255,159,10,0.9)', fontFamily: 'monospace', fontWeight: 600 }}>PAUSED</div>
-            )}
+            {handPaused && <div style={{ fontSize: 9, color: 'rgba(255,159,10,0.9)', fontFamily: 'monospace', fontWeight: 600 }}>PAUSED</div>}
           </div>
           {([
-            { icon: '🖐', label: 'Open palm', desc: 'Pan graph',                    g: 'palm'  },
-            { icon: '☝️', label: 'Point',     desc: 'Dwell=open · empty=close',    g: 'point' },
-            { icon: '🤏', label: 'Pinch',     desc: 'Hold to zoom in',             g: 'pinch' },
-            { icon: '🤙', label: 'L-shape',   desc: 'Hold to zoom out',            g: 'gun'   },
-            { icon: '✌️', label: 'Peace',     desc: 'Orbit 3D view',               g: 'peace' },
-            { icon: '✊', label: 'Fist',      desc: 'Tap=close · hold=pause',      g: 'fist'  },
+            { icon: '🖐', label: 'Open palm', desc: 'Look around',              g: 'palm'  },
+            { icon: '☝️', label: 'Point',     desc: 'Dwell=open · empty=close', g: 'point' },
+            { icon: '🤏', label: 'Pinch',     desc: 'Hold to zoom in',          g: 'pinch' },
+            { icon: '🤙', label: 'L-shape',   desc: 'Hold to zoom out',         g: 'gun'   },
+            { icon: '✌️', label: 'Peace',     desc: 'Look around (orbit)',       g: 'peace' },
+            { icon: '✊', label: 'Fist',      desc: 'Tap=close · hold=pause',   g: 'fist'  },
           ] as { icon: string; label: string; desc: string; g: GestureType }[]).map(({ icon, label, desc, g }) => {
             const isActive = !handPaused && activeGesture === g;
             return (

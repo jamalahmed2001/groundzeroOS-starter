@@ -5,6 +5,7 @@ import { spawnCursor } from './cursorSpawn.js';
 export interface AgentRequest {
   prompt: string;
   repoPath: string;
+  addDirs?: string[];      // explicit --add-dir list; if set, used instead of repoPath for file access
   context?: string;        // phase note content + knowledge snippets
   systemPrompt?: string;   // standing operating contract passed via --append-system-prompt
   timeoutMs?: number;      // default: 600000 (10 min)

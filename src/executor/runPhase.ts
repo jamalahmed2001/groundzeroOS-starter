@@ -31,17 +31,32 @@ interface ContextPaths {
   decisionsPath: string;
   researchPath: string;
   checkpointPath: string;
+  bundleDir: string;
+  profileName: string;      // resolved profile name ('engineering' if not set)
+  profilePath: string;      // abs path to profile .md file, or '' if not found
+  requiredFields: string[]; // from profile frontmatter (default: ['repo_path'])
+  directivePath: string;    // abs path to directive .md file, or ''
+  addDirs: string[];        // dirs passed to --add-dir (bundleDir always; repoPath if valid+distinct)
 }
 
 // Resolve paths to vault context files. Agent reads them natively — we just point it there.
-function resolveContextPaths(projectId: string, bundleDir: string, phaseNum: string, phaseLabel: string): ContextPaths {
+function resolveContextPaths(
+  projectId: string,
+  bundleDir: string,
+  phaseNum: string,
+  phaseLabel: string,
+  vaultRoot: string,
+  phaseFrontmatter: Record<string, unknown>
+): ContextPaths {
   let repoPath = '';
   let repoPathValid = false;
 
   // repo_path from Overview frontmatter
   const ovPath = path.join(bundleDir, `${projectId} - Overview.md`);
+  let overviewFrontmatter: Record<string, unknown> = {};
   if (fs.existsSync(ovPath)) {
     const ov = readPhaseNode(ovPath);
+    overviewFrontmatter = ov.frontmatter;
     const frontmatterRepoPath = String(ov.frontmatter['repo_path'] ?? '');
     if (frontmatterRepoPath && fs.existsSync(frontmatterRepoPath)) {
       repoPath = frontmatterRepoPath;
@@ -49,6 +64,62 @@ function resolveContextPaths(projectId: string, bundleDir: string, phaseNum: str
     } else if (frontmatterRepoPath) {
       repoPath = frontmatterRepoPath; // exists in frontmatter but path doesn't exist on disk
     }
+  }
+
+  // Profile resolution
+  const profileName = String(overviewFrontmatter['profile'] ?? 'engineering').trim() || 'engineering';
+  const profileFilePath = path.join(vaultRoot, '08 - System', 'Profiles', `${profileName}.md`);
+  let profilePath = '';
+  let requiredFields: string[] = ['repo_path']; // engineering default
+  if (fs.existsSync(profileFilePath)) {
+    profilePath = profileFilePath;
+    const profileMatter = readPhaseNode(profileFilePath);
+    const rf = profileMatter.frontmatter['required_fields'];
+    if (Array.isArray(rf)) requiredFields = rf.map(String);
+  } else if (profileName !== 'engineering') {
+    console.warn(`[onyx] profile "${profileName}" not found at ${profileFilePath} — using engineering defaults`);
+  }
+
+  // Directive resolution: project-local Directives/ first, system-level fallback
+  const directiveName = String(phaseFrontmatter['directive'] ?? '').trim();
+  let directivePath = '';
+
+  // Helper: resolve a directive name to an absolute path (local bundle first, then system)
+  const resolveDirective = (name: string): string => {
+    const localDir  = path.join(bundleDir, 'Directives', `${name}.md`);
+    const systemDir = path.join(vaultRoot, '08 - System', 'Agent Directives', `${name}.md`);
+    if (fs.existsSync(localDir))  return localDir;
+    if (fs.existsSync(systemDir)) return systemDir;
+    return '';
+  };
+
+  if (directiveName) {
+    directivePath = resolveDirective(directiveName);
+    if (!directivePath) console.warn(`[onyx] directive "${directiveName}" not found (checked bundle + system) — skipping`);
+  }
+
+  // Auto-wire directive from cycle_type for experimenter profile phases
+  // Only kicks in when no explicit directive is set
+  if (!directivePath && profileName === 'experimenter') {
+    const cycleType = String(phaseFrontmatter['cycle_type'] ?? '').trim();
+    const cycleMap: Record<string, string> = {
+      learn:      'experimenter-researcher',
+      design:     'experimenter-researcher',
+      experiment: 'experimenter-engineer',
+      analyze:    'experimenter-analyzer',
+    };
+    const autoDirective = cycleMap[cycleType];
+    if (autoDirective) {
+      directivePath = resolveDirective(autoDirective);
+      if (directivePath) console.log(`[onyx] auto-wired directive: ${autoDirective} (cycle_type: ${cycleType})`);
+    }
+  }
+
+  // addDirs: bundleDir always (agent can read Source Context, Directives, etc.);
+  // repoPath added only if valid and distinct from bundleDir
+  const addDirs: string[] = [bundleDir];
+  if (repoPathValid && path.resolve(repoPath) !== path.resolve(bundleDir)) {
+    addDirs.push(repoPath);
   }
 
   const knowledgePath = path.join(bundleDir, `${projectId} - Knowledge.md`);
@@ -64,6 +135,12 @@ function resolveContextPaths(projectId: string, bundleDir: string, phaseNum: str
     decisionsPath: fs.existsSync(decisionsPath) ? decisionsPath : '',
     researchPath: fs.existsSync(researchPath) ? researchPath : '',
     checkpointPath: fs.existsSync(checkpointPath) ? checkpointPath : '',
+    bundleDir,
+    profileName,
+    profilePath,
+    requiredFields,
+    directivePath,
+    addDirs,
   };
 }
 
@@ -121,16 +198,27 @@ function preflightCheck(phaseNode: PhaseNode, ctx: ContextPaths, allPhases: Phas
     warnings.push('No task checkboxes found in phase note — run `onyx plan "<project>" <n>` to atomise tasks');
   }
 
-  // 2. Repo path set and valid?
-  if (!ctx.repoPathValid) {
-    const reason = !ctx.repoPath
-      ? `No repo_path set in the Overview note. Add repo_path to the frontmatter pointing to the code repository.\nWithout it, the agent has nowhere to write code.`
-      : `Repo path does not exist: ${ctx.repoPath}\nCreate the directory or fix repo_path in the Overview note.`;
-    return {
-      warnings,
-      fatal: true,
-      fatalReason: reason,
-    };
+  // 2. Profile-driven required field validation
+  //    Engineering default: ['repo_path']. Other profiles define their own required fields.
+  {
+    const ovFrontmatter = (() => { try { return readPhaseNode(ctx.overviewPath).frontmatter; } catch { return {} as Record<string, unknown>; } })();
+    for (const field of ctx.requiredFields) {
+      const val = String(ovFrontmatter[field] ?? '').trim();
+      if (!val) {
+        return {
+          warnings,
+          fatal: true,
+          fatalReason: `Missing required field "${field}" in Overview.md (required by profile: ${ctx.profileName})\nAdd ${field} to the project Overview frontmatter.`,
+        };
+      }
+      if (field === 'repo_path' && !fs.existsSync(val)) {
+        return {
+          warnings,
+          fatal: true,
+          fatalReason: `repo_path does not exist: ${val}\nCreate the directory or fix repo_path in the Overview note.`,
+        };
+      }
+    }
   }
 
   // 3. depends_on phases all completed?
@@ -205,7 +293,7 @@ export async function runPhase(
   await notify({ event: 'lock_acquired', projectId, phaseLabel, runId }, config);
   appendToLog(phaseNode.path, { runId, event: 'lock_acquired' });
 
-  const ctx = resolveContextPaths(projectId, bundleDir, phaseNum, phaseLabel);
+  const ctx = resolveContextPaths(projectId, bundleDir, phaseNum, phaseLabel, config.vaultRoot, phaseNode.frontmatter);
 
   // Pre-flight: warn on common setup mistakes before spawning any agent
   {
@@ -344,8 +432,9 @@ export async function runPhase(
 
     const agentResult = await runAgent(driver, {
       prompt,
-      systemPrompt: config.prompts?.executor ?? buildSystemPrompt(projectId, ctx.repoPath),
-      repoPath: ctx.repoPath,
+      systemPrompt: config.prompts?.executor ?? buildSystemPrompt(projectId, ctx.repoPath, ctx.profileName),
+      repoPath: ctx.repoPath || ctx.bundleDir,
+      addDirs: ctx.addDirs,
       timeoutMs,
       model: effectiveModel,
     });
@@ -492,17 +581,18 @@ function extractAcceptanceCriteria(raw: string): string {
 }
 
 // Standing system prompt — operating contract for the Claude Code agent
-function buildSystemPrompt(projectId: string, repoPath: string): string {
+function buildSystemPrompt(projectId: string, repoPath: string, profileName: string = 'engineering'): string {
+  const isEngineering = profileName === 'engineering' || profileName === 'trading';
   return [
-    `You are an autonomous coding agent working on project "${projectId}".`,
-    `Working directory: ${repoPath}`,
+    `You are an autonomous ${profileName} agent working on project "${projectId}".`,
+    isEngineering && repoPath ? `Working directory: ${repoPath}` : `Domain: ${profileName} — read your profile file for domain rules and acceptance criteria.`,
     `Rules:`,
     `- Complete ONLY the assigned task. No scope creep.`,
-    `- Work entirely within ${repoPath}.`,
+    isEngineering && repoPath ? `- Work entirely within ${repoPath}.` : `- Write output to the designated location in the phase spec.`,
     `- Commit with the exact message in INSTRUCTIONS.`,
     `- If blocked: output exactly BLOCKED: <clear reason>`,
     `- No destructive commands without explicit instruction.`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 // Lean prompt: point the agent at vault files, let it read them natively.
@@ -523,10 +613,12 @@ function buildPrompt(opts: {
   const { projectId, phaseNum, phaseLabel, nextTask, phaseNotePath, ctx, failureContext, attemptNumber, checkpoint, acceptanceCriteria, relevantKnowledge } = opts;
 
   const sep = '─'.repeat(40);
-  const contextFiles: string[] = [
-    `- Phase note: ${phaseNotePath}`,
-    `- Project overview: ${ctx.overviewPath}`,
-  ];
+  const contextFiles: string[] = [];
+  // Directive and profile first — agent reads its identity before its task
+  if (ctx.directivePath) contextFiles.push(`- Directive (your role + constraints): ${ctx.directivePath}`);
+  if (ctx.profilePath)   contextFiles.push(`- Profile (domain rules + acceptance criteria): ${ctx.profilePath}`);
+  contextFiles.push(`- Phase note: ${phaseNotePath}`);
+  contextFiles.push(`- Project overview: ${ctx.overviewPath}`);
   if (ctx.knowledgePath) contextFiles.push(`- Knowledge (learnings, gotchas): ${ctx.knowledgePath}`);
   if (ctx.decisionsPath) contextFiles.push(`- Decisions register: ${ctx.decisionsPath}`);
   if (ctx.researchPath)  contextFiles.push(`- Research notes: ${ctx.researchPath}`);

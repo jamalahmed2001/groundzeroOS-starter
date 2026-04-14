@@ -1,17 +1,15 @@
 # ONYX
 
-> **The orchestration layer for Obsidian.** Turn your vault into an autonomous execution surface for AI agents — engineering, content, research, or anything else.
+> **The orchestration layer for Obsidian.** Turn your vault into an autonomous execution surface for AI agents — code, content, research, trading, or anything in between.
 
 ---
 
 ## What is ONYX?
 
-ONYX is a CLI + vault convention that makes your Obsidian vault the **single source of truth** for project state, decisions, and execution history. A controller loop reads phase notes, dispatches AI agents (Claude Code, Cursor, or custom), writes results back to the vault, and compounds learnings in Knowledge notes.
-
-Not a SaaS. Not a framework. A local CLI + a naming convention + a markdown state machine.
+ONYX is a local CLI + vault convention. Phase notes in your Obsidian vault hold state. A controller loop reads state, dispatches AI agents, writes results back, and compounds learnings. No SaaS. No database. No framework. Just markdown, frontmatter, and a deterministic state machine.
 
 ```
-read vault → heal → discover → route → act → write vault → consolidate → repeat
+read vault → heal → discover → route → dispatch agent → write vault → consolidate → repeat
 ```
 
 ---
@@ -19,21 +17,20 @@ read vault → heal → discover → route → act → write vault → consolida
 ## Why it exists
 
 Knowledge work has no operating layer. You have:
-- **Project tools** (Jira, Linear, Notion) — track work, but don't execute it
-- **AI agents** (Claude, Cursor) — execute work, but forget everything between sessions
-- **Knowledge bases** (Obsidian, wikis) — store facts, but don't do anything
+- **Project tools** (Jira, Linear, Notion) — track work but don't execute it
+- **AI agents** (Claude, Cursor) — execute work but forget everything between sessions
+- **Knowledge bases** (Obsidian) — store facts but don't do anything
 
-ONYX is the thinnest possible layer that connects all three. Plans live in the vault. Agents read the plans, do the work, write results back. Knowledge compounds automatically.
+ONYX is the thinnest possible layer that connects all three. Plans live in the vault. Agents read plans, do the work, write results back. Knowledge compounds automatically.
 
 ---
 
-## The three ideas
+## The four ideas
 
-**1. The vault is the only state.** Phase tags are the FSM. Frontmatter fields are the lock. Log notes are the audit trail. No external databases, no sidecar files, no SaaS dependencies. If it's not in the vault, ONYX doesn't know about it.
-
-**2. The phase is sacred.** Every project — code, content, research, ops — decomposes into phases: the smallest reviewable execution unit with explicit goals, tasks, acceptance criteria, and a linked log. Same structure everywhere.
-
-**3. Profiles specialize without fragmenting.** One execution model. Different domains add extra frontmatter keys and verification strategies. Engineering adds `repo_path` and test commands. Content adds `voice_profile` and safety rules. Research adds citation requirements. The core phase lifecycle never changes.
+1. **The vault is the only state.** No external databases. Vault frontmatter = truth. If it's not in the vault, it didn't happen.
+2. **The phase is sacred.** Every project decomposes into phases — smallest reviewable unit with goals, tasks, acceptance criteria, and a linked log. Same structure everywhere.
+3. **Profiles specialise the scaffold.** Domain extensions that tell ONYX how to handle a project type mechanically: extra required fields, templates, acceptance gate.
+4. **Directives specialise the agent.** Per-phase instructions that tell the agent who it is, what to load, what constraints to operate under.
 
 ---
 
@@ -42,11 +39,13 @@ ONYX is the thinnest possible layer that connects all three. Plans live in the v
 | Capability | Mechanism |
 |---|---|
 | **Autonomous phase execution** | `onyx run` loops over all `phase-ready` phases, spawns agents, verifies acceptance |
-| **Safe multi-project coordination** | Per-phase locks prevent collisions across agents and projects |
-| **Compounding knowledge** | Consolidator extracts learnings/decisions/gotchas after every completed phase |
-| **Self-healing vault** | `onyx heal` fixes stale locks, normalizes drift, repairs broken links |
+| **Multi-agent pipelines** | Phases chain via `depends_on`. Vault is the coordination layer — no message brokers |
+| **Domain specialisation** | 6 profiles (engineering, content, research, operations, trading, experimenter) |
+| **Agent identity** | Directives give each phase a role, context rules, and safety constraints |
+| **Compounding knowledge** | Consolidator extracts learnings after every phase into `Knowledge.md` |
+| **Self-healing vault** | `onyx heal` fixes stale locks, frontmatter drift, orphaned phases |
 | **Observable by default** | Everything visible in Obsidian — no special tooling required |
-| **Agent-agnostic** | Swap Claude Code for Cursor for a custom binary. Vault doesn't care |
+| **Agent-agnostic** | Swap Claude Code for Cursor for a custom binary. Vault doesn't care. |
 
 ---
 
@@ -58,133 +57,201 @@ cd onyx
 npm install                       # builds automatically via postinstall
 cp .env.example .env              # set ONYX_VAULT_ROOT + OPENROUTER_API_KEY
 onyx doctor                       # verify every dependency
-onyx init "My First Project"      # create a bundle in your vault
+onyx init "My First Project"      # create a bundle (prompts for profile)
 onyx run                          # execute phase-ready phases
 ```
 
-Full setup: [`GETTING_STARTED.md`](./GETTING_STARTED.md)
+Full setup: [`CLAUDE.md`](./CLAUDE.md)
 
 ---
 
-## Core concepts
+## Six profiles
 
-- **Project bundle** — a folder in your vault with `Overview`, `Knowledge`, `Kanban`, `Agent Log Hub`, `Phases/`, `Logs/`, `Docs/`
-- **Phase** — the smallest reviewable execution unit with goals, tasks, acceptance criteria, and a linked log
-- **Log note** — append-only timestamped record of phase execution
-- **Knowledge note** — accumulated learnings, decisions, and gotchas (the compounding layer)
-- **Profile** — a string field on Overview (`engineering`, `content`, `research`, ...) that selects extra frontmatter keys, templates, and verification strategy
+One profile per project — set `profile:` in the project's `Overview.md`. Each profile defines required fields, the bundle structure, and the acceptance gate.
+
+| Profile | Use for | Key required fields | Acceptance gate |
+|---|---|---|---|
+| `engineering` | Software projects with a git repo | `repo_path`, `test_command` | test command exits 0 |
+| `content` | Podcast, video, newsletter, social pipelines | `voice_profile`, `pipeline_stage` | safety filter + voice check |
+| `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | source count + confidence |
+| `operations` | System ops, monitoring, incident response | `monitored_systems`, `runbook_path` | runbook followed + outcome documented |
+| `trading` | Algorithmic trading, strategy development | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | backtest passes + risk compliance |
+| `experimenter` | A/B testing, prompt engineering, ML experiments | `hypothesis`, `success_metric`, `baseline_value` | result recorded + Cognition Store updated |
+
+```bash
+onyx init "KrakenBot" --profile trading
+onyx init "ManiPlus"  --profile content
+onyx init "Prompt Lab" --profile experimenter
+```
 
 ---
 
-## Lifecycle (the FSM)
+## Directives
+
+A directive is a markdown file prepended to the agent's context before it reads its phase. It tells the agent **who it is** — role, what to read, behavioural constraints, output format.
+
+```yaml
+# In phase frontmatter
+directive: maniplus-script-writer
+```
+
+**Resolution:** `My Project/Directives/<name>.md` → `08 - System/Agent Directives/<name>.md`
+
+**Context injection order:**
+```
+1. Directive (who the agent is)
+2. Profile (domain rules + acceptance gate)
+3. Overview (project goals)
+4. Knowledge (all prior learnings)
+5. Context doc (Repo Context / Source Context / etc.)
+6. Phase file (what to do right now)
+```
+
+**Experimenter auto-wiring** — set `cycle_type:` on a phase, no `directive:` needed:
+```yaml
+cycle_type: experiment   # → auto-wires experimenter-engineer
+cycle_type: analyze      # → auto-wires experimenter-analyzer
+cycle_type: learn        # → auto-wires experimenter-researcher
+```
+
+---
+
+## Phase lifecycle
 
 ```
 backlog → planning → ready → active → completed
-                                ↘ blocked → planning
+                               ↘ blocked → (human resolves) → ready
 ```
 
-- `backlog` — phase exists, no tasks yet
-- `planning` — atomiser generating task plan (transient)
-- `ready` — approved for execution; `onyx run` picks these up
-- `active` — agent holds the lock, executing
-- `completed` — all acceptance criteria passed; learnings consolidated
-- `blocked` — agent hit a blocker; `## Human Requirements` written
+| State | Meaning |
+|---|---|
+| `backlog` | Phase exists, no tasks yet |
+| `planning` | Atomiser generating tasks (transient) |
+| `ready` | Approved; `onyx run` picks this up |
+| `active` | Agent holds lock, executing right now |
+| `completed` | Acceptance passed, learnings consolidated |
+| `blocked` | Agent hit a wall; `## Human Requirements` written |
+
+**Scheduling:** phases sort by `priority` (0–10, default 5, higher = first) → risk → phase number.
 
 ---
 
-## Example use cases
+## Multi-agent pipelines
 
-**Software engineering.** Profile: `engineering`. Agent builds features phase by phase, runs tests as verification. Knowledge accumulates architecture decisions.
+The vault is the coordination layer. No message broker. Agent A completes its phase. Agent B's `depends_on: [A]` prevents it from running until A is complete.
 
-**Content production.** Profile: `content`. Agent follows a pipeline (research → script → audio → video → publish), enforces voice and safety rules. Knowledge accumulates audience insights.
+```
+Phase A (researcher)  → writes findings to vault
+Phase B (writer)      → reads findings → writes script
+Phase C (distributor) → reads script → publishes
+```
 
-**Research & synthesis.** Profile: `research`. Agent gathers sources under explicit constraints, declares confidence gaps, produces structured memos. Knowledge accumulates methodology improvements.
-
-**Operations & monitoring.** Profile: `operations`. Agent follows runbooks, documents incidents, escalates when needed. Knowledge accumulates operational patterns.
-
-**Long-running specialized agents.** Early phases use generic agents to build a project-specific CLI tool. Later phases use that CLI as the agent. The vault is the shared memory between the generic phase and the specialized phase.
+Every phase can have a different directive (different agent identity). Same vault, same CLI, different expertise per stage.
 
 ---
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `onyx run` | Autonomous loop — heal, discover, route, execute, consolidate |
-| `onyx run --once` | Single iteration then exit (for cron) |
-| `onyx run --project <name>` | Scope to one project |
-| `onyx plan <project>` | Create phases from Overview, or atomise backlog phases |
-| `onyx plan <project> --extend` | Add new phases based on current scope |
-| `onyx init <name>` | Create a new project bundle |
-| `onyx status` | Show all projects, phases, states |
-| `onyx heal` | Fix stale locks, drift, broken links |
-| `onyx doctor` | Pre-flight dependency check |
-| `onyx consolidate` | Archive completed phases, extract learnings |
-| `onyx logs [phase]` | Show execution logs |
+```bash
+# Execution
+onyx run                          # autonomous loop across all projects
+onyx run --project "My Project"   # scope to one project
+onyx run --once                   # single iteration (safe for first use)
+onyx run --dry-run                # preview without executing
+
+# Observability
+onyx status                       # all projects + phase states
+onyx explain                      # plain English: what's active, who is the agent, what's next
+onyx explain "My Project"         # one project, detailed view
+onyx logs "My Project"            # execution logs
+
+# Planning
+onyx init "My Project"            # create bundle (prompts for profile)
+onyx plan "My Project"            # decompose Overview → phases → tasks
+onyx plan "My Project" --extend   # add new phases to existing project
+
+# Maintenance
+onyx doctor                       # pre-flight: config, vault, API keys, claude CLI
+onyx heal                         # fix stale locks, frontmatter drift
+onyx reset "My Project"           # unblock → ready (after fixing a blocked phase)
+```
 
 ---
 
 ## Configuration
 
-Two files:
-- **`.env`** — secrets (`OPENROUTER_API_KEY`, `ONYX_VAULT_ROOT`)
-- **`onyx.config.json`** — behavior (`agent_driver`, `model_tiers`, `projects_glob`)
+**`.env`** — secrets:
+```
+ONYX_VAULT_ROOT=/absolute/path/to/your/obsidian/vault
+OPENROUTER_API_KEY=sk-or-...
+```
 
-See [`GETTING_STARTED.md`](./GETTING_STARTED.md) for details.
+**`onyx.config.json`** — behaviour:
+```json
+{
+  "vault_root": "/absolute/path/to/your/obsidian/vault",
+  "agent_driver": "claude-code",
+  "projects_glob": "{01 - Projects/**,02 - Work/**}",
+  "model_tiers": {
+    "planning":  "anthropic/claude-opus-4-6",
+    "standard":  "anthropic/claude-sonnet-4-6",
+    "light":     "anthropic/claude-haiku-4-5-20251001",
+    "heavy":     "anthropic/claude-opus-4-6"
+  },
+  "max_iterations": 20,
+  "stale_lock_threshold_ms": 300000
+}
+```
 
 ---
 
-## Architecture (three layers)
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   ONYX Core                          │
-│  Shared: phase lifecycle, logging, knowledge, FSM,   │
-│  healing, discovery, consolidation                   │
-└─────────────────────────────────────────────────────┘
-               ▲               ▲              ▲
-      ┌────────┴────┐  ┌───────┴────┐  ┌──────┴─────┐
-      │ Engineering │  │  Content   │  │  Research  │
-      │  Profile    │  │  Profile   │  │  Profile   │
-      └────────┬────┘  └───────┬────┘  └──────┬─────┘
-               ▼               ▼              ▼
-       ┌──────────┐     ┌──────────┐   ┌──────────┐
-       │ Bundles  │     │ Bundles  │   │ Bundles  │
-       │(projects)│     │(projects)│   │(projects)│
-       └──────────┘     └──────────┘   └──────────┘
-```
+┌─────────────────────────────────────┐
+│  Intelligence Layer (Claude)        │  Reasoning, planning, decision-making
+├─────────────────────────────────────┤
+│  Runtime Layer (TypeScript)         │  FSM, routing, file I/O, agent spawning
+├─────────────────────────────────────┤
+│  State Layer (Vault)                │  Persistent state, history, config
+└─────────────────────────────────────┘
 
-- **Core** — shared execution model; never changes across domains
-- **Profile** — named extension: extra frontmatter keys + templates + verification
-- **Bundle** — instantiated project folder in the vault
+ONYX Core    = the nervous system (universal)
+Profiles     = how ONYX handles each domain (mechanical)
+Directives   = who the agent is for each phase (instructional)
+Bundles      = instantiated projects in the vault
+```
 
 ---
 
 ## First principles
 
 1. **Vault is the only state.** If it's not in the vault, it didn't happen.
-2. **Phase is sacred.** Smallest reviewable execution unit. No profile redefines it.
-3. **Profiles are thin.** Extra fields, extra templates, extra verification. Nothing more.
-4. **Knowledge compounds.** Every completed phase teaches the next one.
-5. **Agents are disposable.** Swap the driver; the vault doesn't care.
-6. **Human in the loop.** Blocked phases surface requirements. The system asks instead of guessing.
-7. **Observable by default.** Everything visible in Obsidian.
-8. **Convention over configuration.** Name things right, the system finds them.
-9. **Domain agnostic.** Engineering is not special. The execution model is universal.
-10. **Least mechanism.** A string in frontmatter beats a profile service. A markdown file beats a database table.
+2. **Phase is sacred.** Smallest reviewable unit. No profile or directive redefines it.
+3. **Profiles are thin.** Extra fields, templates, verification. Nothing more.
+4. **Directives are instructions.** Text the agent reads — not config ONYX parses.
+5. **Knowledge compounds.** Every phase teaches the next. Cross-session, cross-agent.
+6. **Agents are disposable.** Swap the driver. Vault doesn't care.
+7. **Human in the loop.** Blocked phases surface requirements. System asks instead of guessing.
+8. **Observable by default.** Everything visible in Obsidian without special tooling.
+9. **Convention over configuration.** Name things right, the system finds them.
+10. **Domain agnostic.** Engineering is not special. The model is universal.
+11. **Least mechanism.** Markdown file beats database table.
 
 ---
 
 ## Documentation
 
-- **[`GETTING_STARTED.md`](./GETTING_STARTED.md)** — step-by-step setup + first project
-- **[`CLAUDE.md`](./CLAUDE.md)** — setup instructions for an AI agent doing the install
-- **Bundled vault** — open `./vault/` in Obsidian for the full interactive documentation
-  - `00 - Dashboard/What is ONYX.md` — intro
-  - `00 - Dashboard/Getting Started.md` — first project walkthrough
-  - `08 - System/ONYX - Summary.md` — one-page reference
-  - `08 - System/ONYX - Inner Workings.md` — complete technical reference
-  - `08 - System/ONYX — The Orchestration Layer for Obsidian.md` — philosophy + architecture
+Open `./vault/` in Obsidian for the full interactive docs:
+
+| File | What's in it |
+|---|---|
+| `00 - Dashboard/What is ONYX.md` | Intro and mental model |
+| `00 - Dashboard/Getting Started.md` | First project walkthrough |
+| `08 - System/ONYX - Quick Start.md` | **Step-by-step setup guide** |
+| `08 - System/ONYX - Reference.md` | **Complete reference** — profiles, directives, pipelines, commands, internals, laws |
+| `08 - System/Profiles/` | All 6 profile specs |
+| `08 - System/Agent Directives/` | All system directives |
 
 ---
 
@@ -194,4 +261,4 @@ MIT
 
 ---
 
-**ONYX Core = the nervous system. Profiles = specialized regions. Bundles = instantiated functional structures.**
+**One nervous system. Many specialisations. The vault does the coordination.**
