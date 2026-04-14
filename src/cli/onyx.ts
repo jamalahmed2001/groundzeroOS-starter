@@ -17,6 +17,8 @@ import { runDecompose, runAtomiseCommand, runPlanProject } from './plan-project.
 import { runLogs } from './logs.js';
 import { runRefreshContext } from './refresh-context.js';
 import { runLinearUplink } from './linear-uplink.js';
+import { runNext } from './next.js';
+import { runReady, runBlockPhase, runNewPhase, runCheck } from './phase-ops.js';
 import { loadConfig } from '../config/load.js';
 import { runLoop } from '../controller/loop.js';
 import { runAllHeals } from '../healer/index.js';
@@ -85,6 +87,11 @@ program.hook('preAction', () => {
   if (opts.verbose) setVerbose(true);
 });
 
+// Default action: no args → explain (show what's happening)
+program.action(async () => {
+  await runExplain(undefined);
+});
+
 // Helper to get global json flag inside actions
 function isJson(): boolean {
   return !!program.opts<{ json?: boolean }>().json;
@@ -95,7 +102,61 @@ program
   .command('init [name]')
   .description('Create a new project bundle')
   .option('--profile <name>', 'project profile: engineering | content | research | operations | trading | experimenter')
-  .action(async (name, opts) => { await runInit(name, (opts as { profile?: string }).profile); });
+  .option('--ready', 'automatically set P1 to ready after creation')
+  .action(async (name, opts) => {
+    await runInit(name, (opts as { profile?: string; ready?: boolean }).profile);
+    // Hint: always show next step after init
+    if (!isJson()) {
+      console.log('\n  → Run your first phase: onyx next');
+    }
+  });
+
+// ── next ──────────────────────────────────────────────────────────────────
+program
+  .command('next [project]')
+  .description('Find the highest-priority ready phase and run it (with confirmation)')
+  .option('-y, --yes', 'skip confirmation prompt')
+  .action(async (project, opts) => { await runNext(project, { yes: !!opts.yes }); });
+
+// ── ready ─────────────────────────────────────────────────────────────────
+program
+  .command('ready <project> [phase]')
+  .description('Set a phase to ready (no YAML editing). Omit phase to auto-pick next.')
+  .action(async (project, phase) => {
+    await runReady(project, phase !== undefined ? parseInt(phase, 10) : undefined);
+  });
+
+// ── block ─────────────────────────────────────────────────────────────────
+program
+  .command('block <project> <reason>')
+  .description('Block the active/ready phase with a reason (writes Human Requirements)')
+  .option('--phase <n>', 'target a specific phase number', (v) => parseInt(v, 10))
+  .action(async (project, reason, opts) => {
+    await runBlockPhase(project, (opts as { phase?: number }).phase, reason);
+  });
+
+// ── new ───────────────────────────────────────────────────────────────────
+const newCmd = program.command('new').description('Create new vault objects');
+
+newCmd
+  .command('phase <project> <name>')
+  .description('Create a new phase file (no YAML editing)')
+  .option('--priority <n>', 'priority 0–10 (default 5)', (v) => parseInt(v, 10))
+  .option('--risk <level>', 'low | medium | high')
+  .option('--directive <name>', 'directive to wire to this phase')
+  .action(async (project, name, opts) => {
+    await runNewPhase(project, name, {
+      priority: (opts as { priority?: number }).priority,
+      risk: (opts as { risk?: string }).risk,
+      directive: (opts as { directive?: string }).directive,
+    });
+  });
+
+// ── check ─────────────────────────────────────────────────────────────────
+program
+  .command('check <project>')
+  .description('Validate vault state for a project (required fields, deps, directives)')
+  .action(async (project) => { await runCheck(project); });
 
 // ── explain ───────────────────────────────────────────────────────────────
 program
@@ -156,10 +217,11 @@ program
   .description('Fix stale locks, vault drift, graph links')
   .action(async () => {
     const config = loadConfig();
-    if (!isJson()) console.log('[onyx] Running healer...');
+    if (!isJson()) console.log('[onyx] Running healer...\n');
     const healResult = runAllHeals(config);
     const graphResult = await maintainVaultGraph(config);
     const consolidateResult = await consolidateVaultNodes(config);
+
     if (isJson()) {
       console.log(JSON.stringify({
         locksCleared: healResult.actions.filter(a => a.type === 'stale_lock_cleared' && a.applied).length,
@@ -171,13 +233,57 @@ program
         docsMerged: consolidateResult.docsMerged,
       }, null, 2));
     } else {
-      console.log(`  Healer: ${healResult.applied} applied, ${healResult.detected} detected`);
-      for (const a of healResult.actions) console.log(`    [${a.applied ? '✓' : '!'}] ${a.type}: ${a.description}`);
-      console.log(`  Graph: ${graphResult.repairs.length} link repairs, ${graphResult.wrongLinksRemoved} wrong links removed, ${graphResult.hubsSplit} hubs split`);
-      if (consolidateResult.actions.length > 0) {
-        console.log(`  Consolidate: ${consolidateResult.phasesArchived} phases archived, ${consolidateResult.docsMerged} docs merged`);
+      // --- Locks + drift ---
+      const lockActions = healResult.actions.filter(a => a.type === 'stale_lock_cleared');
+      const driftActions = healResult.actions.filter(a => a.type !== 'stale_lock_cleared');
+
+      if (lockActions.length > 0) {
+        console.log('  Locks:');
+        for (const a of lockActions) {
+          console.log(`    ${a.applied ? '✓' : '!'} ${a.description}`);
+        }
       }
-      console.log('[onyx] Vault is healthy.');
+      if (driftActions.length > 0) {
+        console.log('  Drift:');
+        for (const a of driftActions) {
+          console.log(`    ${a.applied ? '✓' : '!'} ${a.description}`);
+        }
+      }
+      if (lockActions.length === 0 && driftActions.length === 0) {
+        console.log('  Locks + drift: clean');
+      }
+
+      // --- Graph ---
+      const hubsSplitCount = Array.isArray(graphResult.hubsSplit) ? graphResult.hubsSplit.length : 0;
+      const totalGraphChanges = graphResult.repairs.length + graphResult.wrongLinksRemoved + hubsSplitCount;
+      if (totalGraphChanges > 0) {
+        console.log('  Graph:');
+        if (graphResult.repairs.length > 0)    console.log(`    ✓ ${graphResult.repairs.length} nav links repaired`);
+        if (graphResult.wrongLinksRemoved > 0) console.log(`    ✓ ${graphResult.wrongLinksRemoved} stale links removed`);
+        if (hubsSplitCount > 0)                console.log(`    ✓ ${hubsSplitCount} phase groups split (>8 phases)`);
+        for (const r of graphResult.repairs.slice(0, 5)) {
+          const file = path.basename(r.file ?? '');
+          if (file) console.log(`      · ${file}`);
+        }
+        if (graphResult.repairs.length > 5) console.log(`      · …and ${graphResult.repairs.length - 5} more`);
+      } else {
+        console.log('  Graph: clean');
+      }
+
+      // --- Node consolidation ---
+      if (consolidateResult.phasesArchived > 0 || consolidateResult.docsMerged > 0) {
+        console.log('  Consolidation:');
+        if (consolidateResult.phasesArchived > 0) console.log(`    ✓ ${consolidateResult.phasesArchived} phases archived`);
+        if (consolidateResult.docsMerged > 0)     console.log(`    ✓ ${consolidateResult.docsMerged} docs merged`);
+      }
+
+      const totalActions = healResult.applied + totalGraphChanges + consolidateResult.phasesArchived + consolidateResult.docsMerged;
+      console.log('');
+      if (totalActions > 0) {
+        console.log(`[onyx] Vault repaired. ${totalActions} change(s) applied.`);
+      } else {
+        console.log('[onyx] Vault is healthy. Nothing to fix.');
+      }
     }
   });
 
@@ -278,6 +384,21 @@ program
         // Then ungrouped phases
         for (const phase of ungrouped) {
           renderPhaseLine(phase, '  ');
+        }
+
+        // Recommended action per project
+        const activeP  = projectPhases.filter(p => stateFromFrontmatter(p.frontmatter) === 'active');
+        const readyP   = projectPhases.filter(p => stateFromFrontmatter(p.frontmatter) === 'ready');
+        const blockedP = projectPhases.filter(p => stateFromFrontmatter(p.frontmatter) === 'blocked');
+
+        if (activeP.length > 0) {
+          console.log(`  → monitoring: onyx logs "${project}" --follow`);
+        } else if (blockedP.length > 0) {
+          console.log(`  → blocked phase needs attention: onyx check "${project}"`);
+        } else if (readyP.length > 0) {
+          console.log(`  → onyx next "${project}"`);
+        } else if (completedPhases < totalPhases) {
+          console.log(`  → activate next: onyx ready "${project}"`);
         }
 
         console.log(`  — ${completedPhases}/${totalPhases} phases complete`);
