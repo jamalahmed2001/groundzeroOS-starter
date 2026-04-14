@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, CheckSquare, Square, Play, ChevronRight, Square as StopIcon, RefreshCw, CheckCircle } from 'lucide-react';
+import { X, CheckSquare, Square, Play, ChevronRight, Square as StopIcon, RefreshCw, CheckCircle, ChevronDown, Plus } from 'lucide-react';
 import { toast } from './Toast';
 import { statusColor as sc } from '@/lib/colors';
 import type { GZPhase, GZProject } from '@/lib/types';
@@ -9,12 +9,11 @@ import type { GZPhase, GZProject } from '@/lib/types';
 interface PhaseFile { name: string; path: string }
 interface ParsedTask { text: string; done: boolean; rawLineIndex: number }
 
-type Tab = 'tasks' | 'files' | 'logs' | 'chat';
-
 interface Props {
   phase: GZPhase & { projectId: string; projectRef: GZProject };
   onClose: () => void;
   onRunCLI: (cmd: string, args?: string[]) => void;
+  onDiff?: () => void;
 }
 
 function parseTasks(raw: string): ParsedTask[] {
@@ -71,24 +70,26 @@ function MarkdownBlock({ raw }: { raw: string }) {
   );
 }
 
-export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
-  const [tab, setTab] = useState<Tab>('tasks');
+export default function PhaseStudio({ phase, onClose, onRunCLI, onDiff }: Props) {
   const [raw, setRaw]   = useState<string | null>(null);
   const [tasks, setTasks] = useState<ParsedTask[]>([]);
   const [files, setFiles] = useState<PhaseFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [fileRaw, setFileRaw] = useState('');
-  const [chatMsgs, setChatMsgs] = useState<{ role: 'user' | 'sys'; text: string }[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [logContent, setLogContent] = useState<string | null>(null);
   const [logExists, setLogExists] = useState(false);
   const [logLoading, setLogLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const [noteText, setNoteText] = useState('');
+  const [addTaskText, setAddTaskText] = useState('') ;
+  const [filesExpanded, setFilesExpanded] = useState(false);
+  const [logExpanded, setLogExpanded] = useState(phase.status === 'active');
+
   const logEndRef = useRef<HTMLDivElement>(null);
   const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isActive = phase.status === 'active';
+  const isCompleted = phase.status === 'completed';
 
   useEffect(() => {
     setLoading(true);
@@ -96,16 +97,13 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
       fetch(`/api/onyx/vault-file?path=${encodeURIComponent(phase.path)}`).then(r => r.json()),
       fetch(`/api/onyx/phase-files?path=${encodeURIComponent(phase.path)}`).then(r => r.json()),
     ]).then(([fd, fsd]) => {
-      const content: string = fd.raw ?? '';
+      const content: string = (fd as { raw?: string }).raw ?? '';
       setRaw(content);
       setTasks(parseTasks(content));
-      setFiles(fsd.files ?? []);
+      setFiles((fsd as { files?: PhaseFile[] }).files ?? []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [phase.path]);
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMsgs]);
-  useEffect(() => { if (tab === 'logs') logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [logContent, tab]);
 
   const fetchLog = useCallback(async () => {
     setLogLoading(true);
@@ -117,18 +115,19 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
     finally { setLogLoading(false); }
   }, [phase.path]);
 
-  // Auto-poll logs every 3s when active
+  // Always-on log polling when active
   useEffect(() => {
-    if (tab !== 'logs') { if (logPollRef.current) { clearInterval(logPollRef.current); logPollRef.current = null; } return; }
     void fetchLog();
-    if (isActive) {
-      logPollRef.current = setInterval(() => void fetchLog(), 3000);
-    }
+    if (!isActive) return;
+    logPollRef.current = setInterval(() => void fetchLog(), 3000);
     return () => { if (logPollRef.current) { clearInterval(logPollRef.current); logPollRef.current = null; } };
-  }, [tab, isActive, fetchLog]);
+  }, [isActive, fetchLog]);
+
+  // Auto-scroll log to bottom
+  useEffect(() => { if (logExpanded) logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [logContent, logExpanded]);
 
   const killReset = async () => {
-    if (!confirm(`Kill the running agent and reset "${phase.phaseName}" back to ready?`)) return;
+    if (!confirm(`Stop the running agent and reset "${phase.phaseName}" back to ready?`)) return;
     try {
       await fetch(`/api/onyx/projects/${encodeURIComponent(phase.projectId)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -138,7 +137,7 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
       onRunCLI('heal');
       onClose();
     } catch {
-      toast('Kill failed — edit vault manually', 'error');
+      toast('Stop failed — edit vault manually', 'error');
     }
   };
 
@@ -165,7 +164,6 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
       ? lines[task.rawLineIndex].replace(/^(\s*)- \[x\]/i, '$1- [ ]')
       : lines[task.rawLineIndex].replace(/^(\s*)- \[ \]/, '$1- [x]');
     const next = lines.join('\n');
-    // Optimistic update
     setRaw(next);
     setTasks(parseTasks(next));
     try {
@@ -175,10 +173,48 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
       });
       if (!res.ok) throw new Error('save failed');
     } catch {
-      // Rollback on failure
       setRaw(raw);
       setTasks(parseTasks(raw));
       toast('Failed to save task — check vault connection', 'error');
+    }
+  };
+
+  const saveNote = async () => {
+    const note = noteText.trim();
+    if (!note || raw === null) return;
+    const ts = new Date().toLocaleTimeString();
+    const appended = raw + `\n\n> **Operator note (${ts}):** ${note}\n`;
+    setNoteText('');
+    try {
+      const res = await fetch(`/api/onyx/vault-file?path=${encodeURIComponent(phase.path)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: appended }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setRaw(appended);
+      toast('Note saved to phase file', 'success');
+    } catch {
+      toast('Note save failed', 'error');
+    }
+  };
+
+  const addTask = async () => {
+    const text = addTaskText.trim();
+    if (!text || raw === null) return;
+    const appended = raw.endsWith('\n') ? raw + `- [ ] ${text}\n` : raw + `\n- [ ] ${text}\n`;
+    setAddTaskText('');
+    setRaw(appended);
+    setTasks(parseTasks(appended));
+    try {
+      const res = await fetch(`/api/onyx/vault-file?path=${encodeURIComponent(phase.path)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: appended }),
+      });
+      if (!res.ok) throw new Error('save failed');
+    } catch {
+      setRaw(raw);
+      setTasks(parseTasks(raw));
+      toast('Failed to add task', 'error');
     }
   };
 
@@ -188,37 +224,9 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
     setFileRaw(data.raw ?? '');
   }, []);
 
-  // Auto-expand first file when Files tab opens
-  useEffect(() => {
-    if (tab === 'files' && files.length > 0 && !activeFile) {
-      void openFile(files[0]!);
-    }
-  }, [tab, files, activeFile, openFile]);
-
-  const sendChat = async () => {
-    const msg = chatInput.trim();
-    if (!msg || sending) return;
-    setChatInput('');
-    setSending(true);
-    setChatMsgs(m => [...m, { role: 'user', text: msg }]);
-    const appended = (raw ?? '') + `\n\n> **Agent note (${new Date().toLocaleTimeString()}):** ${msg}\n`;
-    try {
-      const res = await fetch(`/api/onyx/vault-file?path=${encodeURIComponent(phase.path)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: appended }),
-      });
-      if (!res.ok) throw new Error('save failed');
-      setRaw(appended);
-      setChatMsgs(m => [...m, { role: 'sys', text: '✓ Note saved to phase file. Hit Run to execute with agent.' }]);
-    } catch {
-      setChatMsgs(m => [...m, { role: 'sys', text: '✗ Failed to save note to vault. Check connection.' }]);
-      toast('Note save failed', 'error');
-    }
-    setSending(false);
-  };
-
   const doneCount = tasks.filter(t => t.done).length;
-  // sc imported from @/lib/colors
+  const driver = phase.projectRef.agentDriver;
+  const hasRepo = Boolean(phase.projectRef.repoPath);
 
   return (
     <>
@@ -233,12 +241,22 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', height: 54, borderBottom: '1px solid var(--glass-b)', flexShrink: 0 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: sc(phase.status), flexShrink: 0, boxShadow: phase.status === 'active' ? `0 0 6px ${sc(phase.status)}99` : 'none' }}/>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: sc(phase.status), flexShrink: 0, boxShadow: isActive ? `0 0 6px ${sc(phase.status)}99` : 'none' }}/>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.04em' }}>{phase.projectId}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.04em' }}>{phase.projectId}</span>
+              {driver && (
+                <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 600, padding: '1px 4px', borderRadius: 3, border: `1px solid ${driver === 'claude-code' ? 'var(--accent)' : 'var(--planning)'}44`, color: driver === 'claude-code' ? 'var(--accent)' : 'var(--planning)', letterSpacing: '0.03em' }}>
+                  {driver === 'claude-code' ? 'claude' : driver}
+                </span>
+              )}
+              {!hasRepo && (
+                <span style={{ fontSize: 8, fontFamily: 'monospace', color: 'var(--text-faint)', opacity: 0.7 }}>no repo</span>
+              )}
+            </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-str)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>P{phase.phaseNum} — {phase.phaseName}</div>
           </div>
-          {phase.status !== 'completed' && (
+          {!isCompleted && (
             <button onClick={() => void markComplete()} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--done)', border: '1px solid rgba(61,224,114,0.25)', background: 'rgba(61,224,114,0.06)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
               title="Mark this phase as completed">
               <CheckCircle size={9}/> Done
@@ -246,172 +264,181 @@ export default function PhaseStudio({ phase, onClose, onRunCLI }: Props) {
           )}
           {isActive ? (
             <button onClick={() => void killReset()} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--blocked)', border: '1px solid rgba(245,82,74,0.35)', background: 'rgba(245,82,74,0.08)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-              <StopIcon size={9}/> Kill & Reset
+              <StopIcon size={9}/> Stop
             </button>
-          ) : (
+          ) : !isCompleted && (
             <button onClick={() => onRunCLI('run', ['--project', phase.projectId])} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--ready)', border: '1px solid rgba(46,200,102,0.3)', background: 'rgba(46,200,102,0.06)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-              <Play size={9}/> Run agent
+              <Play size={9}/> Run
             </button>
           )}
           <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex' }}><X size={14}/></button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-b)', flexShrink: 0 }}>
-          {([['tasks', 'Tasks', `${doneCount}/${tasks.length}`], ['files', 'Files', String(files.length)], ['logs', 'Logs', isActive ? '●' : ''], ['chat', 'Chat', '']] as [Tab, string, string][]).map(([id, label, badge]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              padding: '9px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: 11, fontWeight: tab === id ? 600 : 400,
-              color: tab === id ? 'var(--text-str)' : id === 'logs' && isActive ? 'var(--active)' : 'var(--text-faint)',
-              borderBottom: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`,
-              display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit',
-            }}>
-              {label}
-              {badge && <span style={{ fontSize: 9, fontFamily: 'monospace', color: tab === id ? 'var(--accent)' : 'var(--text-faint)' }}>{badge}</span>}
-            </button>
-          ))}
-        </div>
-
-        {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: tab === 'chat' ? 0 : '12px 16px' }}>
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflow: 'auto' }}>
           {loading && <div style={{ padding: 16, color: 'var(--text-faint)', fontSize: 12 }}>Loading…</div>}
 
-          {/* ── Tasks ── */}
-          {!loading && tab === 'tasks' && (
-            tasks.length === 0
-              ? <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-faint)', fontSize: 12 }}>No task checkboxes found in this phase.</div>
-              : <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {tasks.map((task, i) => (
-                    <button key={i} onClick={() => void toggleTask(i)} style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 9, padding: '7px 8px',
-                      borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer',
-                      textAlign: 'left', width: '100%', fontFamily: 'inherit',
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--glass-hi)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      {task.done
-                        ? <CheckSquare size={13} style={{ color: 'var(--done)', flexShrink: 0, marginTop: 1 }}/>
-                        : <Square size={13} style={{ color: 'var(--text-faint)', flexShrink: 0, marginTop: 1 }}/>
-                      }
-                      <span style={{
-                        fontSize: 12, lineHeight: 1.45,
-                        color: task.done ? 'var(--text-faint)' : 'var(--text-str)',
-                        textDecoration: task.done ? 'line-through' : 'none',
-                      }} dangerouslySetInnerHTML={{ __html: renderInline(task.text) }}/>
-                    </button>
-                  ))}
-                </div>
-          )}
+          {!loading && (
+            <>
+              {/* ── Instructions ── */}
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--glass-b)' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Instructions</div>
+                <textarea
+                  value={noteText}
+                  onChange={e => setNoteText(e.target.value)}
+                  onBlur={() => { if (noteText.trim()) void saveNote(); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void saveNote(); } }}
+                  placeholder="Leave a note for the agent… (saves on blur, or ⌘Enter)"
+                  rows={3}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--glass-b)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-str)', fontSize: 12, fontFamily: 'inherit', resize: 'none', outline: 'none', lineHeight: 1.5, boxSizing: 'border-box' }}
+                />
+              </div>
 
-          {/* ── Files ── */}
-          {!loading && tab === 'files' && (
-            <div style={{ display: 'flex', gap: 12, height: '100%', minHeight: 0 }}>
-              <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {files.length === 0
-                  ? <div style={{ color: 'var(--text-faint)', fontSize: 11, padding: '8px 0' }}>No .md files in this directory.</div>
-                  : files.map(f => (
-                      <button key={f.path} onClick={() => void openFile(f)} style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        padding: '6px 8px', borderRadius: 6, border: 'none', textAlign: 'left',
-                        background: activeFile === f.path ? 'rgba(77,156,248,0.1)' : 'transparent',
-                        color: activeFile === f.path ? 'var(--accent)' : 'var(--text-dim)',
-                        borderLeft: `2px solid ${activeFile === f.path ? 'var(--accent)' : 'transparent'}`,
-                        cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', width: '100%',
+              {/* ── Tasks ── */}
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--glass-b)' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Tasks
+                  {tasks.length > 0 && (
+                    <span style={{ fontSize: 9, fontFamily: 'monospace', color: doneCount === tasks.length ? 'var(--done)' : 'var(--text-faint)' }}>{doneCount}/{tasks.length}</span>
+                  )}
+                </div>
+
+                {tasks.length === 0 ? (
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)', padding: '4px 0 8px' }}>No tasks yet.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 8 }}>
+                    {tasks.map((task, i) => (
+                      <button key={i} onClick={() => void toggleTask(i)} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 9, padding: '6px 8px',
+                        borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer',
+                        textAlign: 'left', width: '100%', fontFamily: 'inherit',
                       }}
-                        onMouseEnter={e => { if (activeFile !== f.path) e.currentTarget.style.background = 'var(--glass-hi)'; }}
-                        onMouseLeave={e => { if (activeFile !== f.path) e.currentTarget.style.background = 'transparent'; }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--glass-hi)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <ChevronRight size={9} style={{ flexShrink: 0, opacity: 0.5 }}/>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                        {task.done
+                          ? <CheckSquare size={13} style={{ color: 'var(--done)', flexShrink: 0, marginTop: 1 }}/>
+                          : <Square size={13} style={{ color: 'var(--text-faint)', flexShrink: 0, marginTop: 1 }}/>
+                        }
+                        <span style={{
+                          fontSize: 12, lineHeight: 1.45,
+                          color: task.done ? 'var(--text-faint)' : 'var(--text-str)',
+                          textDecoration: task.done ? 'line-through' : 'none',
+                        }} dangerouslySetInnerHTML={{ __html: renderInline(task.text) }}/>
                       </button>
-                    ))
-                }
-              </div>
-              <div style={{ flex: 1, overflow: 'auto', borderLeft: '1px solid var(--glass-b)', paddingLeft: 12 }}>
-                {activeFile
-                  ? <MarkdownBlock raw={fileRaw}/>
-                  : <div style={{ color: 'var(--text-faint)', fontSize: 12, paddingTop: 8 }}>← Select a file</div>
-                }
-              </div>
-            </div>
-          )}
-
-          {/* ── Logs ── */}
-          {!loading && tab === 'logs' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {isActive && <span style={{ fontSize: 9, color: 'var(--active)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--active)', display: 'inline-block' }}/> live · polling every 3s</span>}
-                <button onClick={() => void fetchLog()} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', marginLeft: 'auto' }}>
-                  <RefreshCw size={11} className={logLoading ? 'spin' : ''}/>
-                </button>
-              </div>
-              {logLoading && !logContent && <div style={{ color: 'var(--text-faint)', fontSize: 12 }}>Loading logs…</div>}
-              {!logExists && !logLoading && (
-                <div style={{ color: 'var(--text-faint)', fontSize: 12, padding: '24px 0', textAlign: 'center' }}>
-                  No log file found for this phase yet.<br/>
-                  <span style={{ fontSize: 10 }}>Logs are created when the agent runs.</span>
-                </div>
-              )}
-              {logExists && logContent && (
-                <pre style={{ flex: 1, overflow: 'auto', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6, margin: 0 }}>
-                  {logContent}
-                  <div ref={logEndRef}/>
-                </pre>
-              )}
-            </div>
-          )}
-
-          {/* ── Chat ── */}
-          {!loading && tab === 'chat' && (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {chatMsgs.length === 0 && (
-                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-faint)', fontSize: 12, lineHeight: 1.6 }}>
-                    Leave instructions for the agent on this phase.<br/>
-                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Notes are appended to the phase file and read on the next run.</span>
+                    ))}
                   </div>
                 )}
-                {chatMsgs.map((m, i) => (
-                  <div key={i} style={{
-                    padding: '8px 11px', borderRadius: 9,
-                    alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '88%',
-                    background: m.role === 'user' ? 'rgba(77,156,248,0.12)' : 'var(--glass)',
-                    border: `1px solid ${m.role === 'user' ? 'rgba(77,156,248,0.22)' : 'var(--glass-b)'}`,
-                    fontSize: 12, color: 'var(--text-str)', lineHeight: 1.45,
-                  }}>
-                    {m.text}
+
+                {/* Advance CTA — all tasks done but phase not yet marked complete */}
+                {doneCount === tasks.length && tasks.length > 0 && !isCompleted && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid rgba(61,224,114,0.3)', background: 'rgba(61,224,114,0.06)' }}>
+                    <span style={{ fontSize: 11, color: 'var(--done)', flex: 1 }}>All tasks complete</span>
+                    {onDiff && hasRepo && (
+                      <button onClick={onDiff} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(77,156,248,0.3)', background: 'transparent', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                        Review Diff
+                      </button>
+                    )}
+                    <button onClick={() => void markComplete()} style={{ fontSize: 10, color: 'var(--done)', border: '1px solid rgba(61,224,114,0.3)', background: 'transparent', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, fontWeight: 600 }}>
+                      Mark Done
+                    </button>
                   </div>
-                ))}
-                <div ref={chatEndRef}/>
-              </div>
-              <div style={{ padding: '10px 14px', borderTop: '1px solid var(--glass-b)', display: 'flex', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
-                <textarea
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendChat(); } }}
-                  placeholder="Add instruction for the agent… (Enter to send)"
-                  rows={2}
-                  style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid var(--glass-b)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-str)', fontSize: 12, fontFamily: 'inherit', resize: 'none', outline: 'none', lineHeight: 1.4 }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <button onClick={() => void sendChat()} disabled={sending || !chatInput.trim()} style={{
-                    padding: '5px 12px', borderRadius: 5, border: '1px solid var(--accent)', background: 'rgba(77,156,248,0.1)',
-                    cursor: chatInput.trim() && !sending ? 'pointer' : 'not-allowed',
-                    fontSize: 10, color: chatInput.trim() ? 'var(--accent)' : 'var(--text-faint)', fontFamily: 'inherit',
-                    opacity: chatInput.trim() && !sending ? 1 : 0.5,
-                  }}>Send</button>
-                  <button onClick={() => onRunCLI('run', ['--project', phase.projectId])} style={{
-                    padding: '5px 12px', borderRadius: 5, border: '1px solid rgba(46,200,102,0.3)', background: 'rgba(46,200,102,0.06)',
-                    cursor: 'pointer', fontSize: 10, color: 'var(--ready)', fontFamily: 'inherit',
-                    display: 'flex', alignItems: 'center', gap: 4,
-                  }}>
-                    <Play size={8}/> Run
+                )}
+
+                {/* Add task */}
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    value={addTaskText}
+                    onChange={e => setAddTaskText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && addTaskText.trim()) void addTask(); }}
+                    placeholder="Add a task…"
+                    style={{ flex: 1, padding: '5px 9px', borderRadius: 5, border: '1px solid var(--glass-b)', background: 'rgba(255,255,255,0.03)', color: 'var(--text-str)', fontSize: 11, fontFamily: 'inherit', outline: 'none' }}
+                  />
+                  <button onClick={() => void addTask()} disabled={!addTaskText.trim()}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 5, border: '1px solid var(--glass-b)', background: 'transparent', cursor: addTaskText.trim() ? 'pointer' : 'not-allowed', color: addTaskText.trim() ? 'var(--accent)' : 'var(--text-faint)', opacity: addTaskText.trim() ? 1 : 0.5 }}>
+                    <Plus size={12}/>
                   </button>
                 </div>
               </div>
-            </div>
+
+              {/* ── Log ── */}
+              {(logExists || isActive) && (
+                <div style={{ borderBottom: '1px solid var(--glass-b)' }}>
+                  <button onClick={() => setLogExpanded(v => !v)} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px',
+                    background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  }}>
+                    <ChevronDown size={10} style={{ color: 'var(--text-faint)', transform: logExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}/>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>Log</span>
+                    {isActive && <span style={{ fontSize: 9, color: 'var(--active)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--active)', display: 'inline-block' }}/> live</span>}
+                    <button onClick={e => { e.stopPropagation(); void fetchLog(); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex' }}>
+                      <RefreshCw size={10} className={logLoading ? 'spin' : ''}/>
+                    </button>
+                  </button>
+
+                  {logExpanded && (
+                    <div style={{ padding: '0 16px 14px' }}>
+                      {logLoading && !logContent && <div style={{ color: 'var(--text-faint)', fontSize: 12 }}>Loading…</div>}
+                      {!logExists && !logLoading && (
+                        <div style={{ color: 'var(--text-faint)', fontSize: 11, padding: '4px 0' }}>No log yet — created when the agent runs.</div>
+                      )}
+                      {logExists && logContent && (
+                        <pre style={{ maxHeight: 280, overflow: 'auto', fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6, margin: 0 }}>
+                          {logContent}
+                          <div ref={logEndRef}/>
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Files ── */}
+              <div>
+                <button onClick={() => setFilesExpanded(v => !v)} style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px',
+                  background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                }}>
+                  <ChevronDown size={10} style={{ color: 'var(--text-faint)', transform: filesExpanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s', flexShrink: 0 }}/>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>Files</span>
+                  {files.length > 0 && <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--text-faint)' }}>{files.length}</span>}
+                </button>
+
+                {filesExpanded && (
+                  <div style={{ padding: '0 16px 14px', display: 'flex', gap: 12, minHeight: 0 }}>
+                    <div style={{ width: 190, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {files.length === 0
+                        ? <div style={{ color: 'var(--text-faint)', fontSize: 11, padding: '4px 0' }}>No .md files in this directory.</div>
+                        : files.map(f => (
+                            <button key={f.path} onClick={() => void openFile(f)} style={{
+                              display: 'flex', alignItems: 'center', gap: 5,
+                              padding: '6px 8px', borderRadius: 6, border: 'none', textAlign: 'left',
+                              background: activeFile === f.path ? 'rgba(77,156,248,0.1)' : 'transparent',
+                              color: activeFile === f.path ? 'var(--accent)' : 'var(--text-dim)',
+                              borderLeft: `2px solid ${activeFile === f.path ? 'var(--accent)' : 'transparent'}`,
+                              cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', width: '100%',
+                            }}
+                              onMouseEnter={e => { if (activeFile !== f.path) e.currentTarget.style.background = 'var(--glass-hi)'; }}
+                              onMouseLeave={e => { if (activeFile !== f.path) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                              <ChevronRight size={9} style={{ flexShrink: 0, opacity: 0.5 }}/>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                            </button>
+                          ))
+                      }
+                    </div>
+                    {activeFile && (
+                      <div style={{ flex: 1, overflow: 'auto', borderLeft: '1px solid var(--glass-b)', paddingLeft: 12, maxHeight: 320 }}>
+                        <MarkdownBlock raw={fileRaw}/>
+                      </div>
+                    )}
+                    {!activeFile && files.length > 0 && (
+                      <div style={{ color: 'var(--text-faint)', fontSize: 12, paddingTop: 8, paddingLeft: 12 }}>← Select a file</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

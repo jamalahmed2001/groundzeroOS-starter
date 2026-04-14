@@ -120,6 +120,7 @@ function walkForProjects(dir: string, vaultRoot: string): GZProject[] {
           status: String(data.status || 'active'),
           phases,
           phaseCount: phases.length,
+          agentDriver: data.agent_driver ? String(data.agent_driver) as 'claude-code' | 'cursor' : undefined,
         });
         return results;
       }
@@ -161,6 +162,7 @@ function loadPhases(projectDir: string, vaultRoot: string): GZPhase[] {
         risk: data.risk ? String(data.risk) : undefined,
         dependsOn: Array.isArray(data.depends_on) ? data.depends_on.map(Number) : undefined,
         blockedReason: data.blocked_reason ? String(data.blocked_reason) : undefined,
+        phaseType: data.phase_type ? String(data.phase_type) : undefined,
       });
     } catch { /* skip */ }
   }

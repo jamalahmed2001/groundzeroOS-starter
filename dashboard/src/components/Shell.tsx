@@ -378,6 +378,17 @@ function FieldInput({ label, value, placeholder, onChange }: { label: string; va
   );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatElapsed(lockedAt: string | undefined): string {
+  if (!lockedAt) return '';
+  const ms = Date.now() - new Date(lockedAt).getTime();
+  if (ms < 0) return '';
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return m > 0 ? `${m}m` : `${s}s`;
+}
+
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 export default function Shell() {
@@ -483,6 +494,9 @@ export default function Shell() {
   const allPhases  = data?.projects.flatMap(p => p.phases) ?? [];
   const activeCount  = allPhases.filter(p => p.status === 'active').length;
   const blockedCount = allPhases.filter(p => p.status === 'blocked').length;
+  const activePhases = data?.projects.flatMap(p =>
+    p.phases.filter(ph => ph.status === 'active').map(ph => ({ ...ph, projectId: p.id }))
+  ) ?? [];
 
   // Debounced full-text vault search
   useEffect(() => {
@@ -509,6 +523,22 @@ export default function Shell() {
   useEffect(() => {
     if (detailProject) setChatProject(detailProject.id);
   }, [detailProject]);
+
+  // Load chat history from localStorage when project context changes
+  useEffect(() => {
+    const key = `onyx-chat-${chatProject ?? 'all'}`;
+    try {
+      const stored = localStorage.getItem(key);
+      setChatMessages(stored ? (JSON.parse(stored) as Array<{ role: 'user' | 'assistant'; content: string }>) : []);
+    } catch { setChatMessages([]); }
+  }, [chatProject]);
+
+  // Persist chat history to localStorage whenever messages change
+  useEffect(() => {
+    if (!chatOpen) return;
+    const key = `onyx-chat-${chatProject ?? 'all'}`;
+    try { localStorage.setItem(key, JSON.stringify(chatMessages)); } catch {}
+  }, [chatMessages, chatProject, chatOpen]);
 
   const sendChat = useCallback(async () => {
     const msg = chatInput.trim();
@@ -575,6 +605,12 @@ export default function Shell() {
               >
                 <Icon size={13} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}/>
                 <span className="onyx-nav-label" style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+                {id === 'kanban' && blockedCount > 0 && (
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--blocked)', flexShrink: 0 }}/>
+                )}
+                {id === 'runs' && activeCount > 0 && (
+                  <span className="pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--active)', display: 'inline-block', flexShrink: 0 }}/>
+                )}
                 <span className="onyx-nav-shortcut" style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{shortcut}</span>
               </button>
             );
@@ -655,6 +691,25 @@ export default function Shell() {
           </button>
         </header>
 
+        {/* Live Activity Strip */}
+        {activePhases.length > 0 && (
+          <div style={{ height: 28, borderBottom: '1px solid var(--glass-b)', background: 'rgba(77,156,248,0.04)', display: 'flex', alignItems: 'center', paddingLeft: 14, gap: 14, overflow: 'hidden', flexShrink: 0 }}>
+            <span style={{ fontSize: 8, fontFamily: 'monospace', color: 'var(--active)', fontWeight: 700, letterSpacing: '0.08em', flexShrink: 0 }}>ACTIVE</span>
+            <div style={{ display: 'flex', gap: 12, overflow: 'hidden' }}>
+              {activePhases.map(ph => (
+                <span key={ph.path} style={{ fontSize: 10, color: 'var(--text-dim)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span className="pulse" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--active)', display: 'inline-block', flexShrink: 0 }}/>
+                  <span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: 9, fontWeight: 600 }}>{ph.projectId}</span>
+                  P{ph.phaseNum} — {ph.phaseName}
+                  {ph.lockedAt && (
+                    <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace' }}>{formatElapsed(ph.lockedAt)}</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Content + Chat side-by-side */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
           {/* Main content area */}
@@ -721,7 +776,7 @@ export default function Shell() {
                   <option value="">All projects</option>
                   {(data?.projects ?? []).map(p => <option key={p.id} value={p.id}>{p.id}</option>)}
                 </select>
-                <button onClick={() => { setChatMessages([]); }} title="Clear chat"
+                <button onClick={() => { setChatMessages([]); try { localStorage.removeItem(`onyx-chat-${chatProject ?? 'all'}`); } catch {} }} title="Clear chat"
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 10 }}>clear</button>
                 <button onClick={() => setChatOpen(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 14, lineHeight: 1 }}>×</button>
               </div>

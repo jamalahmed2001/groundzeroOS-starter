@@ -14,6 +14,12 @@ dashboard/.next/
 dashboard/node_modules/
 dashboard/tsconfig.tsbuildinfo
 
+# Dashboard: hand-tracking assets (large binaries — run `npm run setup:hand`)
+dashboard/public/mediapipe/
+
+# Dashboard: local HTTPS certificates (run `npm run setup:hand` to generate)
+dashboard/certificates/
+
 # Vault viewer cache / generated
 vault-viewer.html
 

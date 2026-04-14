@@ -93,19 +93,24 @@ function PhaseCard({ phase, onOpen, onOpenStudio, onStatusAnchor, onOpenProject,
   return (
     <div style={{
       borderRadius: 'var(--r-md)',
-      border: `1px solid ${isActive ? 'rgba(77,156,248,0.25)' : isBlocked ? 'rgba(245,82,74,0.2)' : 'var(--glass-b)'}`,
+      border: `1px solid ${isActive ? 'rgba(77,156,248,0.4)' : isBlocked ? 'rgba(245,82,74,0.35)' : 'var(--glass-b)'}`,
       background: isActive ? 'rgba(77,156,248,0.04)' : isBlocked ? 'rgba(245,82,74,0.03)' : 'var(--glass)',
-      padding: '9px 10px', marginBottom: 5,
+      padding: '7px 9px', marginBottom: 3,
       display: 'flex', flexDirection: 'column', gap: 5,
       transition: 'border-color 0.15s, background 0.15s',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = isActive ? 'rgba(77,156,248,0.4)' : isBlocked ? 'rgba(245,82,74,0.35)' : 'var(--glass-b-hi)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = isActive ? 'rgba(77,156,248,0.25)' : isBlocked ? 'rgba(245,82,74,0.2)' : 'var(--glass-b)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = isActive ? 'rgba(77,156,248,0.6)' : isBlocked ? 'rgba(245,82,74,0.55)' : 'var(--glass-b-hi)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = isActive ? 'rgba(77,156,248,0.4)' : isBlocked ? 'rgba(245,82,74,0.35)' : 'var(--glass-b)'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <button onClick={() => onOpenProject(phase.projectRef)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', flex: 1 }}>
           <span style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.04em' }}>{phase.projectId}</span>
         </button>
+        {phase.phaseType && phase.phaseType !== 'slice' && (
+          <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 500, padding: '1px 4px', borderRadius: 3, border: '1px solid var(--text-faint)44', color: 'var(--text-faint)', letterSpacing: '0.03em', flexShrink: 0 }}>
+            {phase.phaseType}
+          </span>
+        )}
         {phase.lockedBy && (
           <span title={`Locked by: ${phase.lockedBy}`} style={{ display: 'flex', alignItems: 'center' }}>
             <Lock size={8} style={{ color: 'var(--blocked)', opacity: 0.7 }}/>
@@ -141,9 +146,9 @@ function PhaseCard({ phase, onOpen, onOpenStudio, onStatusAnchor, onOpenProject,
         {(phase.status === 'backlog' || phase.tasksTotal === 0) && phase.status !== 'completed' && phase.status !== 'active' && onPlanPhase && (
           <button onClick={e => { e.stopPropagation(); onPlanPhase(); }}
             style={{ border: '1px solid rgba(161,121,247,0.3)', background: 'rgba(161,121,247,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--planning)', display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 9 }}
-            title="Atomise: generate concrete tasks for this phase → mark ready"
+            title="Plan Phase: generate concrete tasks for this phase → mark ready"
           >
-            <Pencil size={9}/> Atomise
+            <Pencil size={9}/> Plan Phase
           </button>
         )}
 
@@ -151,9 +156,9 @@ function PhaseCard({ phase, onOpen, onOpenStudio, onStatusAnchor, onOpenProject,
         {phase.status === 'planning' && onPlanPhase && (
           <button onClick={e => { e.stopPropagation(); onPlanPhase(); }}
             style={{ border: '1px solid rgba(161,121,247,0.3)', background: 'rgba(161,121,247,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--planning)', display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 9 }}
-            title="Re-run atomiser for this phase"
+            title="Re-run planner for this phase"
           >
-            <Pencil size={9}/> Atomise
+            <Pencil size={9}/> Plan Phase
           </button>
         )}
 
@@ -161,9 +166,9 @@ function PhaseCard({ phase, onOpen, onOpenStudio, onStatusAnchor, onOpenProject,
         {phase.status === 'ready' && onExecute && (
           <button onClick={e => { e.stopPropagation(); onExecute(); }}
             style={{ border: '1px solid rgba(77,156,248,0.3)', background: 'rgba(77,156,248,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--ready)', display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 9 }}
-            title="Run agent executor for this phase"
+            title="Run agent for this phase"
           >
-            <Cpu size={9}/> Execute
+            <Cpu size={9}/> Run
           </button>
         )}
 
@@ -181,9 +186,9 @@ function PhaseCard({ phase, onOpen, onOpenStudio, onStatusAnchor, onOpenProject,
         {isActive && onKill && (
           <button onClick={e => { e.stopPropagation(); onKill(); }}
             style={{ border: '1px solid rgba(245,82,74,0.3)', background: 'rgba(245,82,74,0.06)', borderRadius: 4, cursor: 'pointer', color: 'var(--blocked)', display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', fontSize: 9 }}
-            title="Kill & reset to ready"
+            title="Stop agent & reset to ready"
           >
-            <StopIcon size={9}/> kill
+            <StopIcon size={9}/> Stop
           </button>
         )}
 
@@ -224,13 +229,24 @@ function NoPhaseCard({ project, onOpen, onAtomise }: { project: GZProject; onOpe
         {project.id}
       </button>
       <button onClick={onAtomise} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(77,156,248,0.25)', background: 'rgba(77,156,248,0.06)', borderRadius: 'var(--r-sm)', padding: '2px 9px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-        <Cpu size={9}/> Decompose
+        <Cpu size={9}/> Plan Project
       </button>
     </div>
   );
 }
 
 type ViewMode = 'phases' | 'projects';
+
+function DriverBadge({ driver }: { driver?: string }) {
+  if (!driver) return null;
+  const label = driver === 'claude-code' ? 'claude' : driver;
+  const color = driver === 'claude-code' ? 'var(--accent)' : 'var(--planning)';
+  return (
+    <span style={{ fontSize: 8, fontFamily: 'monospace', fontWeight: 600, padding: '1px 5px', borderRadius: 3, border: `1px solid ${color}44`, color, letterSpacing: '0.03em', textTransform: 'lowercase', flexShrink: 0 }}>
+      {label}
+    </span>
+  );
+}
 
 function ProjectCard({ project, onOpen, onPlan, onExtend, onRunNext, onSync }: {
   project: GZProject;
@@ -261,9 +277,12 @@ function ProjectCard({ project, onOpen, onPlan, onExtend, onRunNext, onSync }: {
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--glass-b-hi)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = active > 0 ? 'rgba(77,156,248,0.25)' : blocked > 0 ? 'rgba(245,82,74,0.2)' : 'var(--glass-b)'; }}
     >
-      <button onClick={onOpen} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-str)', lineHeight: 1.3 }}>{project.id}</div>
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <button onClick={onOpen} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, textAlign: 'left', flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-str)', lineHeight: 1.3 }}>{project.id}</div>
+        </button>
+        <DriverBadge driver={project.agentDriver}/>
+      </div>
 
       {totalPhases > 0 && (
         <>
@@ -295,27 +314,27 @@ function ProjectCard({ project, onOpen, onPlan, onExtend, onRunNext, onSync }: {
         {totalPhases === 0 && (
           <button onClick={e => { e.stopPropagation(); onPlan(); }}
             style={{ border: '1px solid rgba(161,121,247,0.3)', background: 'rgba(161,121,247,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--planning)', display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', fontSize: 10, fontFamily: 'inherit' }}
-            title="Decompose: break Overview into phases, then atomise each into tasks"
+            title="Plan Project: break Overview into phases, then generate tasks for each"
           >
-            <Pencil size={10}/> Decompose
+            <Pencil size={10}/> Plan Project
           </button>
         )}
         {/* Atomise — has backlog phases: generate concrete tasks for each */}
         {backlog > 0 && (
           <button onClick={e => { e.stopPropagation(); onPlan(); }}
             style={{ border: '1px solid rgba(161,121,247,0.3)', background: 'rgba(161,121,247,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--planning)', display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', fontSize: 10, fontFamily: 'inherit' }}
-            title={`Atomise: generate concrete tasks for ${backlog} backlog phase(s) → ready`}
+            title={`Plan Phase: generate tasks for ${backlog} backlog phase(s) → ready`}
           >
-            <Pencil size={10}/> Atomise {backlog}
+            <Pencil size={10}/> Plan Phase {backlog}
           </button>
         )}
         {/* Extend — always available on projects with phases: decompose new phases from updated Overview */}
         {totalPhases > 0 && (
           <button onClick={e => { e.stopPropagation(); onExtend(); }}
             style={{ border: '1px solid rgba(77,156,248,0.3)', background: 'rgba(77,156,248,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', fontSize: 10, fontFamily: 'inherit' }}
-            title="Extend: decompose new phases from updated Overview — next iteration, improvements, prod hardening"
+            title="Add Phases: decompose new phases from updated Overview — next iteration, improvements, prod hardening"
           >
-            <GitBranch size={10}/> Extend
+            <GitBranch size={10}/> Add Phases
           </button>
         )}
         {/* Run next — has ready phases */}
@@ -324,7 +343,7 @@ function ProjectCard({ project, onOpen, onPlan, onExtend, onRunNext, onSync }: {
             style={{ border: '1px solid rgba(46,200,102,0.3)', background: 'rgba(46,200,102,0.08)', borderRadius: 4, cursor: 'pointer', color: 'var(--ready)', display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', fontSize: 10, fontFamily: 'inherit' }}
             title="Run next ready phase"
           >
-            <Cpu size={10}/> Run next
+            <Cpu size={10}/> Run
           </button>
         )}
         {/* Linear sync — only for projects imported from Linear */}
@@ -346,6 +365,9 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
   const [view, setView] = useState<ViewMode>('phases');
   const [menu, setMenu] = useState<{ phase: PhaseWithProject; anchor: { x: number; y: number } } | null>(null);
   const [studioPhase, setStudioPhase] = useState<PhaseWithProject | null>(null);
+  const [collapsedCols, setCollapsedCols] = useState<Set<PhaseStatus>>(() => new Set(['completed']));
+  const [focusedPhaseIdx, setFocusedPhaseIdx] = useState<number | null>(null);
+  const orderedPhasesRef = useRef<PhaseWithProject[]>([]);
 
   const allPhases: PhaseWithProject[] = projects.flatMap(p =>
     p.phases.map(ph => ({ ...ph, projectId: p.id, projectRef: p }))
@@ -388,38 +410,68 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
   }, [onRunCLI]);
 
   const handleAtomise = useCallback((projectId: string) => {
-    toast(`Decomposing + atomising ${projectId}…`, 'info');
+    toast(`Planning ${projectId}…`, 'info');
     onRunCLI('plan', [projectId]);
-    setTimeout(() => onRefresh(), 5000);
-  }, [onRunCLI, onRefresh]);
+  }, [onRunCLI]);
 
   const handleExtend = useCallback((projectId: string) => {
-    toast(`Extending ${projectId} — decomposing new phases from Overview…`, 'info');
+    toast(`Adding phases to ${projectId} from Overview…`, 'info');
     onRunCLI('plan', [projectId, '--extend']);
-    setTimeout(() => onRefresh(), 8000);
-  }, [onRunCLI, onRefresh]);
+  }, [onRunCLI]);
 
   const handleSync = useCallback((projectId: string) => {
     toast(`Syncing ${projectId} to Linear…`, 'info');
     onRunCLI('linear-uplink', [projectId]);
-    setTimeout(() => onRefresh(), 5000);
-  }, [onRunCLI, onRefresh]);
+  }, [onRunCLI]);
 
   const handlePlanPhase = useCallback((phase: PhaseWithProject) => {
-    toast(`Atomising P${phase.phaseNum} — ${phase.phaseName}…`, 'info');
+    toast(`Planning P${phase.phaseNum} — ${phase.phaseName}…`, 'info');
     onRunCLI('plan', [phase.projectId, String(phase.phaseNum)]);
-    setTimeout(() => onRefresh(), 8000);
-  }, [onRunCLI, onRefresh]);
+  }, [onRunCLI]);
 
   const handleExecutePhase = useCallback((phase: PhaseWithProject) => {
-    toast(`Executing P${phase.phaseNum} — ${phase.phaseName}…`, 'info');
+    toast(`Running P${phase.phaseNum} — ${phase.phaseName}…`, 'info');
     onRunCLI('run', [phase.projectId, '--phase', String(phase.phaseNum)]);
-    setTimeout(() => onRefresh(), 5000);
-  }, [onRunCLI, onRefresh]);
+  }, [onRunCLI]);
 
   const filteredProjects = filter
     ? projects.filter(p => p.id.toLowerCase().includes(filter.toLowerCase()))
     : projects;
+
+  // Keep ref current for keyboard handler
+  orderedPhasesRef.current = COLUMNS.flatMap(col => filtered.filter(ph => ph.status === col.id));
+
+  // Keyboard navigation (phases view only; runs in capture to beat Shell.tsx)
+  useEffect(() => {
+    if (view !== 'phases') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (studioPhase || menu) return; // let overlays handle escape
+      const phases = orderedPhasesRef.current;
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault(); e.stopPropagation();
+        setFocusedPhaseIdx(i => i === null ? 0 : Math.min(i + 1, phases.length - 1));
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault(); e.stopPropagation();
+        setFocusedPhaseIdx(i => i === null ? 0 : Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        setFocusedPhaseIdx(i => {
+          if (i !== null && phases[i]) { setStudioPhase(phases[i]); }
+          return i;
+        });
+      } else if (e.key === 'Escape') {
+        setFocusedPhaseIdx(null);
+      } else if (e.key === 'r' && !e.metaKey && !e.ctrlKey) {
+        setFocusedPhaseIdx(i => {
+          if (i !== null && phases[i]?.status === 'ready') { handleExecutePhase(phases[i]); }
+          return i;
+        });
+        if (focusedPhaseIdx !== null) { e.stopPropagation(); }
+      }
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [view, studioPhase, menu, focusedPhaseIdx, handleExecutePhase]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -464,7 +516,7 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
                 onOpen={() => onOpenProject(p)}
                 onPlan={() => handleAtomise(p.id)}
                 onExtend={() => handleExtend(p.id)}
-                onRunNext={() => { onRunCLI('run', ['--project', p.id, '--once']); toast(`Running next ready phase for ${p.id}`, 'info'); setTimeout(() => onRefresh(), 5000); }}
+                onRunNext={() => { onRunCLI('run', ['--project', p.id, '--once']); toast(`Running next ready phase for ${p.id}`, 'info'); }}
                 onSync={() => handleSync(p.id)}
               />
             ))}
@@ -483,32 +535,56 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
           {COLUMNS.map(({ id, label }) => {
             const phases = byStatus(id);
             const showNoPhase = id === 'backlog' && filter === '';
+            const isCollapsed = collapsedCols.has(id);
+            const totalCount = phases.length + (showNoPhase ? noPhaseProjects.length : 0);
+            const colWidth = isCollapsed ? 44 : 214;
             return (
-              <div key={id} className="onyx-kanban-col" style={{ width: 214, minWidth: 214, flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc(id), flexShrink: 0 }}/>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
-                  <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', marginLeft: 'auto' }}>
-                    {phases.length + (showNoPhase ? noPhaseProjects.length : 0)}
-                  </span>
-                </div>
+              <div key={id} className="onyx-kanban-col" style={{ width: colWidth, minWidth: colWidth, flexShrink: 0, transition: 'width 0.15s' }}>
+                <button
+                  onClick={() => setCollapsedCols(prev => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
+                  title={isCollapsed ? `Expand ${label}` : `Collapse ${label}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0', textAlign: 'left' }}
+                >
+                  {isCollapsed ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 5 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc(id) }}/>
+                      <span style={{ fontSize: 8, fontFamily: 'monospace', color: 'var(--text-faint)', fontWeight: 600, letterSpacing: '0.04em' }}>{totalCount}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: sc(id), flexShrink: 0 }}/>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+                      <span style={{ fontSize: 9, color: 'var(--text-faint)', fontFamily: 'monospace', marginLeft: 'auto' }}>{totalCount}</span>
+                    </>
+                  )}
+                </button>
 
-                {showNoPhase && noPhaseProjects.map(p => (
+                {!isCollapsed && showNoPhase && noPhaseProjects.map(p => (
                   <NoPhaseCard key={p.id} project={p} onOpen={() => onOpenProject(p)} onAtomise={() => handleAtomise(p.id)}/>
                 ))}
 
-                {phases.map(ph => (
-                  <PhaseCard key={ph.path} phase={ph} onOpen={onOpenFile}
-                    onOpenStudio={setStudioPhase}
-                    onStatusAnchor={(ph, anchor) => setMenu({ phase: ph, anchor })}
-                    onOpenProject={onOpenProject}
-                    onDiff={onOpenProjectDiff}
-                    onPlanPhase={() => handlePlanPhase(ph)}
-                    onExecute={() => handleExecutePhase(ph)}
-                    onKill={() => void handleKill(ph)}/>
-                ))}
+                {!isCollapsed && phases.map(ph => {
+                  const globalIdx = orderedPhasesRef.current.indexOf(ph);
+                  const isFocused = globalIdx !== -1 && focusedPhaseIdx === globalIdx;
+                  return (
+                    <div key={ph.path} style={isFocused ? { outline: '2px solid rgba(77,156,248,0.6)', borderRadius: 'var(--r-md)' } : {}}>
+                      <PhaseCard phase={ph} onOpen={onOpenFile}
+                        onOpenStudio={setStudioPhase}
+                        onStatusAnchor={(ph, anchor) => setMenu({ phase: ph, anchor })}
+                        onOpenProject={onOpenProject}
+                        onDiff={onOpenProjectDiff}
+                        onPlanPhase={() => handlePlanPhase(ph)}
+                        onExecute={() => handleExecutePhase(ph)}
+                        onKill={() => void handleKill(ph)}/>
+                    </div>
+                  );
+                })}
 
-                {phases.length === 0 && !showNoPhase && (
+                {!isCollapsed && phases.length === 0 && !showNoPhase && (
                   <div style={{ border: '1px dashed var(--glass-b)', borderRadius: 'var(--r-md)', padding: '10px', fontSize: 10, color: 'var(--text-faint)', textAlign: 'center' }}>—</div>
                 )}
               </div>
@@ -524,7 +600,8 @@ export default function KanbanView({ projects, onOpenFile, onRefresh, onOpenProj
       )}
 
       {studioPhase && (
-        <PhaseStudio phase={studioPhase} onClose={() => setStudioPhase(null)} onRunCLI={onRunCLI}/>
+        <PhaseStudio phase={studioPhase} onClose={() => setStudioPhase(null)} onRunCLI={onRunCLI}
+          onDiff={onOpenProjectDiff ? () => onOpenProjectDiff(studioPhase.projectRef) : undefined}/>
       )}
     </div>
   );

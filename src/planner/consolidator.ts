@@ -27,6 +27,45 @@ Rules:
 - For blocked/failed phases: focus on gotchas and what caused the block
 - If a category has nothing worth capturing, return an empty array for it`;
 
+// Prompt used to evaluate whether new learnings add genuinely new knowledge to the cross-project principles file.
+// Returns a JSON array of new principles to add, or [] if everything is already covered.
+const CROSS_PROJECT_DEDUP_PROMPT = `You are maintaining a living principles document for a software engineering team.
+
+Given new learnings from a project phase, identify any that represent GENUINELY NEW principles not already captured in the existing document.
+
+EXISTING PRINCIPLES (do not repeat or rephrase these):
+---
+{EXISTING}
+---
+
+NEW LEARNINGS FROM {PROJECT}:
+{ITEMS}
+
+A new principle is worth adding if:
+- It names a failure mode or pattern NOT already covered above
+- It is universal enough to apply to a different project in a different domain
+- It would change how a future team member approaches a problem
+
+Do NOT add a principle if:
+- It is the same idea as an existing one, even if worded differently
+- It is too project-specific to generalise
+- It is a restatement of an obvious software practice (e.g., "write tests")
+
+Output ONLY a JSON array. Each object must have:
+{
+  "name": "5-7 word principle title",
+  "rule": "One sharp, universal sentence stating the principle",
+  "why": "The failure mode it prevents — what concretely goes wrong without it",
+  "first_seen": "{PROJECT} — brief one-line context of what happened"
+}
+
+If nothing is genuinely new, return exactly: []`;
+
+// Format a single principle for appending to the cross-project document.
+function formatPrinciple(p: { name: string; rule: string; why: string; first_seen: string }): string {
+  return `\n---\n\n### ${p.name}\n\n**Rule:** ${p.rule}\n\n**Why it matters:** ${p.why}\n\n**First seen:** ${p.first_seen}\n`;
+}
+
 // P3: read phase log, summarise learnings via LLM, append to Knowledge.md.
 export async function consolidatePhase(
   phaseNode: PhaseNode,
@@ -106,25 +145,15 @@ export async function consolidatePhase(
 
     writeFile(knowledgePath, matter.stringify(knowledgeContent, knowledgeFrontmatter));
 
-    // Attempt to write broadly-applicable items to cross-project knowledge (best-effort)
-    const crossProjectPath = path.join(config.vaultRoot, '08 - System', 'Cross-Project Knowledge.md');
-    const allItems = [...extracted.learnings, ...extracted.gotchas];
-    if (fs.existsSync(crossProjectPath) && allItems.length > 0) {
-      try {
-        const crossPrompt = `You are reviewing learnings from project "${projectId}". Identify any items that would be useful to other unrelated projects (general patterns, debugging approaches, architectural principles). Return ONLY items that are truly general — skip project-specific details. Format as bullet points starting with "- ". If nothing is broadly applicable, return empty string.\n\nItems:\n${allItems.map(i => `- ${i}`).join('\n')}`;
-        const crossResult = await chatCompletion({
-          model: config.llm.model,
-          apiKey,
-          baseUrl: config.llm.baseUrl,
-          maxTokens: 300,
-          messages: [{ role: 'user', content: crossPrompt }],
-        });
-        if (crossResult.trim()) {
-          const entry = `\n### From ${projectId} (${timestamp})\n\n${crossResult}\n`;
-          fs.appendFileSync(crossProjectPath, entry, 'utf-8');
-        }
-      } catch { /* non-fatal */ }
-    }
+    // Attempt to write genuinely new cross-project principles (with deduplication)
+    await maybePropagateToGlobalPrinciples({
+      config,
+      apiKey,
+      projectId,
+      timestamp,
+      learnings: extracted.learnings,
+      gotchas: extracted.gotchas,
+    });
 
     const sections = [
       extracted.learnings.length > 0 ? `${extracted.learnings.length} learnings` : '',
@@ -137,5 +166,73 @@ export async function consolidatePhase(
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     appendToLog(phaseNode.path, { runId, event: 'consolidate_done', detail: `Failed: ${detail}` });
+  }
+}
+
+/**
+ * Checks whether any new learnings represent genuinely novel cross-project principles
+ * not already captured in the global principles file. Only appends if the LLM confirms
+ * the principle is new — never blindly appends.
+ */
+async function maybePropagateToGlobalPrinciples({
+  config, apiKey, projectId, timestamp, learnings, gotchas,
+}: {
+  config: ControllerConfig;
+  apiKey: string;
+  projectId: string;
+  timestamp: string;
+  learnings: string[];
+  gotchas: string[];
+}): Promise<void> {
+  const crossProjectPath = path.join(config.vaultRoot, '08 - System', 'Cross-Project Knowledge.md');
+  const allItems = [...learnings, ...gotchas];
+
+  if (!fs.existsSync(crossProjectPath) || allItems.length === 0) return;
+
+  try {
+    // Read current principles to pass as deduplication context
+    const existingContent = fs.readFileSync(crossProjectPath, 'utf-8');
+    // Extract just the principle names and rules to keep the context concise
+    const principleNames = [...existingContent.matchAll(/^### (.+)$/gm)].map(m => m[1]).join('\n');
+
+    const prompt = CROSS_PROJECT_DEDUP_PROMPT
+      .replace('{EXISTING}', principleNames || '(none yet)')
+      .replace(/{PROJECT}/g, projectId)
+      .replace('{ITEMS}', allItems.map(i => `- ${i}`).join('\n'));
+
+    const result = await chatCompletion({
+      model: config.llm.model,
+      apiKey,
+      baseUrl: config.llm.baseUrl,
+      maxTokens: 800,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    // Parse the JSON array of new principles
+    let newPrinciples: Array<{ name: string; rule: string; why: string; first_seen: string }> = [];
+    try {
+      const jsonMatch = result.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        newPrinciples = JSON.parse(jsonMatch[0]);
+      }
+    } catch {
+      return; // malformed output — skip rather than append noise
+    }
+
+    if (!Array.isArray(newPrinciples) || newPrinciples.length === 0) return;
+
+    // Append only genuinely new principles, each in the canonical format
+    const additions = newPrinciples
+      .filter(p => p && typeof p.name === 'string' && typeof p.rule === 'string')
+      .map(p => formatPrinciple(p))
+      .join('');
+
+    if (additions.trim()) {
+      // Add under a dated section header so new additions are discoverable
+      const sectionHeader = `\n\n---\n\n## New Principles — ${timestamp} (from ${projectId})\n`;
+      fs.appendFileSync(crossProjectPath, sectionHeader + additions, 'utf-8');
+    }
+  } catch {
+    // Non-fatal — cross-project propagation failing must never block phase consolidation
   }
 }

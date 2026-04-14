@@ -10,6 +10,7 @@ import { runPlan } from './plan.js';
 import { runCapture } from './capture.js';
 import { runResearch } from './research.js';
 import { runConsolidate } from './consolidate.js';
+import { runMonthlyConsolidate } from './monthly-consolidate.js';
 import { runReset } from './reset.js';
 import { runDecompose, runAtomiseCommand, runPlanProject } from './plan-project.js';
 import { runLogs } from './logs.js';
@@ -328,8 +329,15 @@ program
 // ── consolidate ────────────────────────────────────────────────────────────
 program
   .command('consolidate [args...]')
-  .description('Manually trigger vault consolidation')
+  .description('Manually trigger vault consolidation (project phases/docs)')
   .action(async (args) => { await runConsolidate(args ?? []); });
+
+// ── monthly-consolidate ───────────────────────────────────────────────────
+program
+  .command('monthly-consolidate [args...]')
+  .description('Consolidate last month daily plans into a single monthly note (LLM summary + optional prune)')
+  .allowUnknownOption(true)
+  .action(async (args) => { await runMonthlyConsolidate(args ?? []); });
 
 // ── import ────────────────────────────────────────────────────────────────
 program

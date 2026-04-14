@@ -47,7 +47,7 @@ export async function planningCall(opts: {
       prompt: userPrompt,
       repoPath,
       systemPrompt,
-      timeoutMs: 180_000, // planning reads files + reasons — 3 min ceiling
+      timeoutMs: 600_000, // planning reads files + reasons — 10 min ceiling
       model,
     });
     if (!result.success) {

@@ -69,6 +69,7 @@ export interface GZPhase {
   risk?: string;
   dependsOn?: number[];
   blockedReason?: string;
+  phaseType?: string;
 }
 
 export interface GZProject {
@@ -79,6 +80,7 @@ export interface GZProject {
   status: string;
   phases: GZPhase[];
   phaseCount: number;
+  agentDriver?: 'claude-code' | 'cursor';
 }
 
 export interface StatusSnapshot {

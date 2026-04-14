@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Wrench } from 'lucide-react';
 import { statusColor as sc } from '@/lib/colors';
 
 interface Stats {
@@ -32,6 +32,30 @@ export default function SystemView({ onRunCLI }: { onRunCLI: (cmd: string, args?
         </button>
       </div>
 
+      {/* Tools */}
+      <div style={{ border: '1px solid var(--glass-b)', borderRadius: 'var(--r-md)', overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Wrench size={10}/> Tools
+        </div>
+        <div style={{ padding: '12px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Refresh Context', cmd: 'refresh-context', args: [] as string[] },
+            { label: 'Research',        cmd: 'research',        args: [] as string[] },
+            { label: 'Consolidate',     cmd: 'consolidate',     args: ['--apply'] },
+            { label: 'Monthly Consolidate', cmd: 'monthly-consolidate', args: ['--apply'] },
+            { label: 'Heal',            cmd: 'heal',            args: [] as string[] },
+          ].map(({ label, cmd, args }) => (
+            <button key={cmd} onClick={() => onRunCLI(cmd, args.length ? args : undefined)}
+              style={{ fontSize: 11, color: 'var(--text-str)', border: '1px solid var(--glass-b)', background: 'var(--glass)', borderRadius: 'var(--r-sm)', padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, background 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--glass-b-hi)'; e.currentTarget.style.background = 'var(--glass-hi)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-b)'; e.currentTarget.style.background = 'var(--glass)'; }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Vault stats */}
@@ -57,7 +81,7 @@ export default function SystemView({ onRunCLI }: { onRunCLI: (cmd: string, args?
                 {data.stats.projectsNoPhases.map(id => (
                   <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ flex: 1, fontSize: 12, color: 'var(--text-dim)' }}>{id}</span>
-                    <button onClick={() => onRunCLI('plan', [id])} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--accent)44', background: 'transparent', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>Decompose</button>
+                    <button onClick={() => onRunCLI('plan', [id])} style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--accent)44', background: 'transparent', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>Plan Project</button>
                   </div>
                 ))}
               </div>
