@@ -29,7 +29,7 @@ All agent skills available in this ONYX installation. Each skill is a composable
 | phase-planner | auto (P1) | Break project overview into numbered phases |
 | atomiser | auto (P2) | Break a phase into 6–12 atomic executable tasks |
 | consolidator | auto (P3) | Extract learnings after phase completion → Knowledge.md |
-| plan-my-day | `onyx plan` | Rank all ready phases into a prioritised daily plan |
+| daily-planner | `onyx daily-plan` | Generate today's time-blocked daily plan |
 
 ## Execution Skills
 
@@ -62,5 +62,5 @@ Switch to `"cursor"` to use Cursor Composer instead. The executor calls `runAgen
 The vault IS the memory:
 - **Repo Context** — per-project stack, key areas, constraints (read by executor before every agent spawn)
 - **Knowledge.md** — per-project learnings (written by consolidator after each phase)
-- **OpenClaw Learnings** — cross-project patterns (`vault/02 - OpenClaw/OpenClaw Learnings.md`)
-- **Daily plans** — ranked work log (`vault/00 - Dashboard/Daily/`)
+- **Cross-Project Knowledge** — universal patterns across all projects (`vault/08 - System/Cross-Project Knowledge.md`)
+- **Daily plans** — time-blocked daily work log (`vault/00 - Dashboard/Daily/`)

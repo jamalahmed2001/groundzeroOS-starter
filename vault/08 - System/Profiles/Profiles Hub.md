@@ -42,31 +42,13 @@ Nine profiles. Each one is a genuinely distinct mechanical contract — differen
 
 A profile is a mechanical contract with ONYX — different required fields, a different bundle structure, a different acceptance gate. Most project types don't need a new profile; they need a better Overview and the right directives.
 
-- **Podcast, YouTube, newsletter, social media** → use `content`. The profile's mechanics are identical. Use a [[08 - System/Templates/Quick Start Overviews/|Quick Start Overview template]] to pre-fill the domain-specific fields.
+- **Podcast, YouTube, newsletter, social media** → use `content`. The profile's mechanics are identical across all content pipelines.
 - **Analytics** → use `research`. Set `output_format: "weekly dashboard + monthly report"`.
 - **Marketing campaigns** → use `content`. Phases that do audience research use `research`.
 - **E-commerce operations, event management, creator management** → use `operations`.
 - **Building any of the above as software** → use `engineering`.
 - **Bookkeeping, financial reporting, audit** → use `accounting`.
 - **Legal research, contract drafting, compliance** → use `legal`.
-
----
-
-## Quick Start Overview templates
-
-Pre-filled Overviews for common project types. Copy, fill in the `{{fields}}`, and use with the corresponding profile above.
-
-| Template | Profile to use |
-|---|---|
-| [[08 - System/Templates/Quick Start Overviews/podcast-overview.md\|Podcast]] | content |
-| [[08 - System/Templates/Quick Start Overviews/youtube-overview.md\|YouTube channel]] | content |
-| [[08 - System/Templates/Quick Start Overviews/newsletter-overview.md\|Newsletter]] | content |
-| [[08 - System/Templates/Quick Start Overviews/social-media-overview.md\|Social media]] | content |
-| [[08 - System/Templates/Quick Start Overviews/ecommerce-overview.md\|E-commerce store]] | operations |
-| [[08 - System/Templates/Quick Start Overviews/creator-ops-overview.md\|Creator management]] | operations |
-| [[08 - System/Templates/Quick Start Overviews/events-overview.md\|Events]] | operations |
-| [[08 - System/Templates/Quick Start Overviews/analytics-overview.md\|Analytics]] | research |
-| [[08 - System/Templates/Quick Start Overviews/marketing-campaign-overview.md\|Marketing campaign]] | content |
 
 ---
 
@@ -102,7 +84,7 @@ Project-specific profiles live alongside the bundle. System-level profiles (shar
 
 ## What profiles do NOT control
 
-- The six FSM states (backlog / planning / ready / active / completed / blocked) — universal, inviolable
+- The FSM states (backlog / planning / ready / active / completed / blocked) — universal, inviolable
 - The phase file structure (Summary / Tasks / Acceptance Criteria / Log) — universal
 - The Knowledge note convention — universal
 - Agent identity for a given phase — that's a directive

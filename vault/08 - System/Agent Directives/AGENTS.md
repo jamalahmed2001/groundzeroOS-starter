@@ -32,11 +32,18 @@ Only after completing all four steps should you take any action.
 Read state from vault frontmatter and tags. Write state back to vault frontmatter and tags. Do not create `.lock.json` files, `.jsonl` event logs, sidecar state files, or any other external state store. If it is not in the vault, it does not exist.
 
 **Tags are the FSM.**
-The `phase-*` tag in a phase note's frontmatter is the canonical state machine. The FSM has exactly four states:
+The `phase-*` tag in a phase note's frontmatter is the canonical state machine. The FSM has six states:
 ```
-phase-backlog → phase-ready → phase-active → phase-completed
-                                           ↘ phase-blocked
+phase-backlog → phase-planning → phase-ready → phase-active → phase-completed
+                                                            ↘ phase-blocked
 ```
+- `phase-backlog` — phase exists, no tasks yet (atomiser will generate them)
+- `phase-planning` — atomiser is generating tasks (transient, do not interrupt)
+- `phase-ready` — approved for execution, `onyx run` picks these up
+- `phase-active` — agent holds the lock and is executing right now
+- `phase-completed` — acceptance criteria passed, learnings consolidated
+- `phase-blocked` — agent halted; `## Human Requirements` written for human review
+
 When a `status:` field and a tag conflict, the tag wins. Never set a tag without also updating the `status:` field to match.
 
 **Lock is in the frontmatter.**

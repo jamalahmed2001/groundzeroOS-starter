@@ -31,14 +31,9 @@ The directive is injected **first** — before the profile, before the Overview,
 
 ---
 
-## System Identity
+## Operating Rules
 
-Core identity files injected by default in all sessions (not phase-specific):
-
-- [[08 - System/Agent Directives/SOUL.md|SOUL]] — the agent's character (Claw persona): cognitive discipline, honesty, first principles
-- [[08 - System/Agent Directives/USER.md|USER]] — who Jamal is, communication style, projects, context
-- [[08 - System/Agent Directives/AGENTS.md|AGENTS]] — operating rules for every session: task management, memory, blockers protocol, safety
-- [[08 - System/Agent Directives/TOOLS.md|TOOLS]] — available tools and correct usage patterns
+- [[08 - System/Agent Directives/AGENTS.md|AGENTS]] — operating rules for every session: phase FSM, lock protocol, write discipline, safety constraints
 
 ---
 
