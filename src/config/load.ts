@@ -81,8 +81,14 @@ function loadDotEnv(cwd: string): void {
     if (!line || line.startsWith('#')) continue;
     const eq = line.indexOf('=');
     if (eq === -1) continue;
-    const key   = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, ''); // strip quotes
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    // Strip inline comments from unquoted values (KEY=value # comment)
+    if (!value.startsWith('"') && !value.startsWith("'")) {
+      value = value.replace(/\s+#.*$/, '');
+    }
+    // Strip surrounding quotes
+    value = value.replace(/^["']|["']$/g, '');
     if (key && !(key in process.env)) {
       process.env[key] = value;
     }

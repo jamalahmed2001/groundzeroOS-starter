@@ -1,7 +1,7 @@
 ---
 tags: [dashboard, system, onyx]
 created: 2026-04-13
-updated: 2026-04-13
+updated: 2026-04-16
 ---
 
 # ONYX
@@ -14,7 +14,8 @@ updated: 2026-04-13
 
 - [[What is ONYX|What is ONYX?]] — mental model + use cases
 - [[Getting Started|Getting Started]] — install + first project
-- [[ONYX - Summary|One-page reference]]
+- [[08 - System/ONYX - Quick Start.md|Quick Start]] — zero to running pipeline
+- [[08 - System/ONYX - Reference.md|Complete Reference & Playbook]] — all principles, internals, commands
 
 ---
 

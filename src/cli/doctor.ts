@@ -124,10 +124,10 @@ export async function runDoctor(): Promise<void> {
       }
     } catch {
       checks.push({
-        label: 'OpenRouter API reachability check timed out',
+        label: 'OpenRouter API key: network timeout (key status unknown)',
         pass: true,
         warn: true,
-        fix: 'Key may still be valid — check network connectivity',
+        fix: 'Network check timed out — key may still be valid. Verify manually: curl -s https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY" | head -1',
       });
     }
   }

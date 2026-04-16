@@ -1,7 +1,7 @@
 ---
 tags: [system, guide, overview, onyx]
 created: 2026-04-13
-updated: 2026-04-13
+updated: 2026-04-16
 type: guide
 ---
 
@@ -197,6 +197,5 @@ Bundles   = instantiated functional structures
 ## Next steps
 
 - [[Getting Started|Getting Started]] — install ONYX and create your first project
-- [[ONYX - Summary|ONYX Summary]] — one-page reference
-- [[ONYX - Inner Workings|Inner Workings]] — complete technical reference
-- [[ONYX — The Orchestration Layer for Obsidian|Philosophy & Architecture]] — full overview with design rationale
+- [[08 - System/ONYX - Quick Start.md|Quick Start]] — zero to running pipeline
+- [[08 - System/ONYX - Reference.md|Complete Reference & Playbook]] — principles, internals, commands

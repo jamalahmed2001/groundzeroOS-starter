@@ -52,7 +52,7 @@ Every project has a profile set in `Overview.md` frontmatter. The profile tells 
 - What bundle documents to create at init
 - What context to inject into the agent
 
-Nine profiles:
+Seven profiles:
 
 | Profile | Domain | Key required fields | Acceptance gate |
 |---|---|---|---|
@@ -63,8 +63,6 @@ Nine profiles:
 | `operations` | System ops, incidents, maintenance | `monitored_systems`, `runbook_path` | runbook followed + outcome documented |
 | `trading` | Algorithmic strategies, exchange bots | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | backtest passes + risk compliance |
 | `experimenter` | Systematic experimentation, A/B testing | `hypothesis`, `success_metric`, `baseline_value` | result recorded + Cognition Store updated |
-| `accounting` | Bookkeeping, financial reporting, audit | `reporting_period`, `accounting_standards`, `entity_type` | balance check + human sign-off mandatory |
-| `legal` | Legal research, contract drafting, compliance | `jurisdiction`, `matter_type` | citations verified + human review required |
 
 → Full specs: [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]]
 
@@ -80,7 +78,9 @@ Set a directive on a phase by adding `directive: name` to the phase frontmatter.
 
 For **experimenter** projects: set `cycle_type: learn|design|experiment|analyze` and ONYX auto-wires the correct directive (no need to set `directive:` manually).
 
-**15 professional role directives** are available system-wide — `accountant`, `investment-analyst`, `legal-researcher`, `legal-drafter`, `compliance-officer`, `consultant`, `product-manager`, `marketing-strategist`, `data-analyst`, `security-analyst`, `hr-manager`, `curriculum-designer`, `clinical-researcher`, `journalist`, `general`. Each one tells the agent who it is, what to read, and — for data-dependent roles — exactly which APIs to call (free, keyed, or build-first). No hallucinated data sources.
+**Workflow directives** are available system-wide — `accountant`, `investment-analyst`, `legal-researcher`, `data-analyst`, `security-analyst`, `clinical-researcher`, `journalist`, `marketing-strategist`, `general`, `knowledge-keeper`, `observer` + experimenter set. These encode non-trivial automatable processes: specific tool invocations, data protocols, structured output formats that a general agent wouldn't naturally produce. For each data-dependent directive, exact API calls are documented (Tier 1 free, Tier 2 keyed, Tier 3 build-first). No hallucinated data sources.
+
+Add your own: `onyx new directive <name>` — scaffolds a stub with the right structure.
 
 → Directive index: [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]]  
 → Integration catalogue: [[08 - System/ONYX Integrations.md|ONYX Integrations]]
@@ -517,7 +517,7 @@ ONYX gets smarter in three layers:
 
 ## Reference
 
-- [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]] — all 9 profiles with full specs
+- [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]] — all 7 profiles with full specs
 - [[08 - System/Agent Directives/Agent Directives Hub.md|Agent Directives Hub]] — all system directives (15 professional roles + system roles)
 - [[08 - System/ONYX Integrations.md|ONYX Integrations]] — integration catalogue: APIs, tiers, env vars
 - [[08 - System/Agent Directives/ONYX Architecture Directive.md|ONYX Architecture Directive]] — full system internals

@@ -31,6 +31,7 @@ interface ContextPaths {
   decisionsPath: string;
   researchPath: string;
   checkpointPath: string;
+  sourceContextPath: string; // abs path to Source Context .md, or '' (content profile)
   bundleDir: string;
   profileName: string;      // resolved profile name ('engineering' if not set)
   profilePath: string;      // abs path to profile .md file, or '' if not found
@@ -66,8 +67,8 @@ function resolveContextPaths(
     }
   }
 
-  // Profile resolution
-  const profileName = String(overviewFrontmatter['profile'] ?? 'engineering').trim() || 'engineering';
+  // Profile resolution — phase-level profile overrides bundle Overview profile
+  const profileName = String(phaseFrontmatter['profile'] ?? overviewFrontmatter['profile'] ?? 'engineering').trim() || 'engineering';
   const profileFilePath = path.join(vaultRoot, '08 - System', 'Profiles', `${profileName}.md`);
   let profilePath = '';
   let requiredFields: string[] = ['repo_path']; // engineering default
@@ -126,6 +127,7 @@ function resolveContextPaths(
   const decisionsPath = path.join(bundleDir, `${projectId} - Decisions.md`);
   const researchPath = path.join(bundleDir, 'Phases', `P${phaseNum} - ${phaseLabel} - Research.md`);
   const checkpointPath = path.join(bundleDir, 'Phases', `.onyx-continue-P${phaseNum} - ${phaseLabel}.md`);
+  const sourceContextPath = path.join(bundleDir, `${projectId} - Source Context.md`);
 
   return {
     repoPath,
@@ -135,6 +137,7 @@ function resolveContextPaths(
     decisionsPath: fs.existsSync(decisionsPath) ? decisionsPath : '',
     researchPath: fs.existsSync(researchPath) ? researchPath : '',
     checkpointPath: fs.existsSync(checkpointPath) ? checkpointPath : '',
+    sourceContextPath: fs.existsSync(sourceContextPath) ? sourceContextPath : '',
     bundleDir,
     profileName,
     profilePath,
@@ -164,7 +167,11 @@ function isSafeShellCommand(cmd: string): boolean {
 function tryRunShellTask(taskLine: string, cwd: string): { ok: boolean; output: string } | null {
   const cmd = extractBacktickedCommand(taskLine);
   if (!cmd) return null;
-  if (!isSafeShellCommand(cmd)) return null;
+  if (!isSafeShellCommand(cmd)) {
+    const head = cmd.trim().split(/\s+/)[0] ?? '';
+    console.log(`[onyx] shell fast-path skipped (\`${head}\` not whitelisted) — routing to agent`);
+    return null;
+  }
 
   try {
     const output = execSync(cmd, {
@@ -192,10 +199,14 @@ interface PreflightResult {
 function preflightCheck(phaseNode: PhaseNode, ctx: ContextPaths, allPhases: PhaseNode[]): PreflightResult {
   const warnings: string[] = [];
 
-  // 1. Tasks exist?
+  // 1. Tasks exist? (fatal — agent has nothing to execute without tasks)
   const hasTasks = /^\s*-\s*\[\s*[x ]?\s*\]/m.test(phaseNode.content);
   if (!hasTasks) {
-    warnings.push('No task checkboxes found in phase note — run `onyx plan "<project>" <n>` to atomise tasks');
+    return {
+      warnings,
+      fatal: true,
+      fatalReason: 'No task checkboxes found — atomise this phase first: onyx atomise "<project>" <phase_number>',
+    };
   }
 
   // 2. Profile-driven required field validation
@@ -203,7 +214,9 @@ function preflightCheck(phaseNode: PhaseNode, ctx: ContextPaths, allPhases: Phas
   {
     const ovFrontmatter = (() => { try { return readPhaseNode(ctx.overviewPath).frontmatter; } catch { return {} as Record<string, unknown>; } })();
     for (const field of ctx.requiredFields) {
-      const val = String(ovFrontmatter[field] ?? '').trim();
+      // Phase frontmatter is the fallback — lets phase-level profile overrides declare
+      // their own required fields (e.g. pipeline_stage on a content phase in an engineering bundle)
+      const val = String(ovFrontmatter[field] ?? phaseNode.frontmatter[field] ?? '').trim();
       if (!val) {
         return {
           warnings,
@@ -267,8 +280,7 @@ export async function runPhase(
 
   // 0. Backup phase files before acquiring lock
   try {
-    const backupDir = backupPhaseFiles(phaseNode.path);
-    console.log(`[onyx:debug] Backup created at: ${backupDir}`);
+    backupPhaseFiles(phaseNode.path);
   } catch (backupErr) {
     console.warn('[onyx] Backup failed (non-fatal):', (backupErr as Error).message);
   }
@@ -377,7 +389,7 @@ export async function runPhase(
     appendToLog(phaseNode.path, { runId, event: 'task_started', detail: nextTask });
 
     // Fast path: run simple shell tasks directly (deterministic) instead of invoking an agent.
-    const shellResult = tryRunShellTask(nextTask, ctx.repoPath);
+    const shellResult = tryRunShellTask(nextTask, ctx.repoPath || ctx.bundleDir);
     if (shellResult) {
       if (shellResult.ok) {
         if (!tickTask(phaseNode.path, nextTask)) {
@@ -619,14 +631,24 @@ function buildPrompt(opts: {
   if (ctx.profilePath)   contextFiles.push(`- Profile (domain rules + acceptance criteria): ${ctx.profilePath}`);
   contextFiles.push(`- Phase note: ${phaseNotePath}`);
   contextFiles.push(`- Project overview: ${ctx.overviewPath}`);
-  if (ctx.knowledgePath) contextFiles.push(`- Knowledge (learnings, gotchas): ${ctx.knowledgePath}`);
-  if (ctx.decisionsPath) contextFiles.push(`- Decisions register: ${ctx.decisionsPath}`);
+  if (ctx.knowledgePath)      contextFiles.push(`- Knowledge (learnings, gotchas): ${ctx.knowledgePath}`);
+  if (ctx.sourceContextPath)  contextFiles.push(`- Source Context (show identity, audience, voice, safety): ${ctx.sourceContextPath}`);
+  if (ctx.decisionsPath)      contextFiles.push(`- Decisions register: ${ctx.decisionsPath}`);
   if (ctx.researchPath)  contextFiles.push(`- Research notes: ${ctx.researchPath}`);
   if (checkpoint)        contextFiles.push(`- Prior run checkpoint: ${ctx.checkpointPath}`);
 
+  const isCodeProfile = ctx.profileName === 'engineering' || ctx.profileName === 'trading';
+  const locationLine = isCodeProfile && ctx.repoPath ? `Repo: ${ctx.repoPath}` : `Bundle: ${ctx.bundleDir}`;
+  const workInstruction = isCodeProfile && ctx.repoPath
+    ? `4. Work in: ${ctx.repoPath}`
+    : `4. Write output to the location specified in the phase note.`;
+  const commitInstruction = isCodeProfile
+    ? `5. Commit: git commit -m "onyx: P${phaseNum} — ${summariseTask(nextTask)}"`
+    : `5. Document what you produced and where it is in the phase log.`;
+
   return [
     `Project: ${projectId} | Phase P${phaseNum}: ${phaseLabel}`,
-    `Repo: ${ctx.repoPath}`,
+    locationLine,
     '',
     failureContext ? `${sep}\n⚠️  ATTEMPT ${attemptNumber ?? 2} OF 3 — PREVIOUS ATTEMPT FAILED\n${sep}\n${failureContext.slice(0, 800)}\n\nAnalyse this error before writing code. Do not repeat the same approach.\n` : '',
     `${sep}\nYOUR TASK\n${sep}`,
@@ -640,8 +662,8 @@ function buildPrompt(opts: {
     `1. Read the phase note and project overview to understand scope, constraints, and architecture.`,
     ctx.knowledgePath ? `2. Read the knowledge file for prior learnings and gotchas.` : '',
     `3. Complete ONLY the task above.`,
-    `4. Work in: ${ctx.repoPath}`,
-    `5. Commit: git commit -m "onyx: P${phaseNum} — ${summariseTask(nextTask)}"`,
+    workInstruction,
+    commitInstruction,
     `6. If blocked: output BLOCKED: <reason>`,
     ctx.decisionsPath ? `7. If you make an architectural decision, append to: ${ctx.decisionsPath}\n   Format: | D{next_id} | P${phaseNum} | arch/pattern/library | <decision> | <choice> | <rationale> | Yes/No |` : '',
     acceptanceCriteria ? `\nVerify before committing — Acceptance Criteria:\n${acceptanceCriteria}` : '',

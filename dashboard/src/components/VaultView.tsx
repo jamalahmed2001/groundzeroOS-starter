@@ -124,6 +124,8 @@ function rgba(rgb: [number, number, number], a: number): string {
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 }
 
+
+
 // ─── Sphere types ─────────────────────────────────────────────────────────────
 
 interface SphereNode extends VaultGraphNode {
@@ -312,6 +314,9 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
   const [tooltip, setTooltip]       = useState<{ x: number; y: number; label: string; sub: string } | null>(null);
   const [handMode, setHandMode]       = useState(false);
   const [handPaused, setHandPaused]   = useState(false);
+  const [focusedDomain, setFocusedDomain] = useState<string | null>(null);
+  const focusedDomainRef = useRef<string | null>(null);
+  const focusTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handPausedRef                 = useRef(false);
   useEffect(() => { handPausedRef.current = handPaused; }, [handPaused]);
   const [activeGesture, setActiveGesture] = useState<GestureType>('none');
@@ -336,10 +341,30 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     return s;
   }, [rawLinks]);
 
-  const activeNodes = useMemo(
-    () => connOnly ? rawNodes.filter(n => connectedIds.has(n.id)) : rawNodes,
-    [rawNodes, connOnly, connectedIds],
-  );
+  // One representative hub node per domain (prefer overview/hub files, then most-linked)
+  const domainHubMap = useMemo(() => {
+    const map = new Map<string, VaultGraphNode>();
+    for (const n of rawNodes) {
+      if (!connectedIds.has(n.id)) continue;
+      const existing = map.get(n.topFolder);
+      const isHubFile = /overview|hub(?:\.md)?$/i.test(n.label);
+      const existingIsHub = existing ? /overview|hub(?:\.md)?$/i.test(existing.label) : false;
+      if (!existing || (!existingIsHub && isHubFile) ||
+          (isHubFile === existingIsHub && n.linkCount > (existing.linkCount))) {
+        map.set(n.topFolder, n);
+      }
+    }
+    return map;
+  }, [rawNodes, connectedIds]);
+
+  // Default: one hub node per domain. Focused: all nodes in that domain + hubs for others.
+  const activeNodes = useMemo(() => {
+    if (!focusedDomain) return [...domainHubMap.values()];
+    return rawNodes.filter(n => {
+      if (n.topFolder === focusedDomain) return !connOnly || connectedIds.has(n.id);
+      return domainHubMap.get(n.topFolder)?.id === n.id;
+    });
+  }, [focusedDomain, domainHubMap, rawNodes, connOnly, connectedIds]);
   const activeNodeIds = useMemo(() => new Set(activeNodes.map(n => n.id)), [activeNodes]);
   const activeLinks   = useMemo(
     () => rawLinks.filter(l => activeNodeIds.has(l.source) && activeNodeIds.has(l.target)),
@@ -701,6 +726,24 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
 
   useEffect(() => { dirtyRef.current = true; }, [matchIds, connOnly]);
 
+  // ── Camera focus when domain changes ─────────────────────────────────────────
+  useEffect(() => {
+    focusedDomainRef.current = focusedDomain;
+    lastInteractRef.current  = Date.now(); // suppress drift while focused
+    if (focusedDomain) {
+      const center = domainCentersRef.current.get(focusedDomain);
+      if (center) {
+        const qY = qAxisAngle(0, 1, 0, center.theta);
+        const qX = qAxisAngle(1, 0, 0, -center.phi);
+        camQuatTargetRef.current = qNorm(qMul(qY, qX));
+        fovTargetRef.current = 60;
+      }
+    } else {
+      camQuatTargetRef.current = qIdentity();
+      fovTargetRef.current = 75;
+    }
+  }, [focusedDomain]);
+
   // ── Wheel → FOV ───────────────────────────────────────────────────────────
   const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => {
     e.preventDefault();
@@ -758,6 +801,23 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     } else {
       setTooltip(null);
     }
+
+    // Domain expand/collapse on hover
+    const newDomain = hit?.topFolder ?? null;
+    if (newDomain !== focusedDomainRef.current) {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      if (newDomain) {
+        focusTimerRef.current = setTimeout(() => {
+          setFocusedDomain(newDomain);
+          focusedDomainRef.current = newDomain;
+        }, 150);
+      } else {
+        focusTimerRef.current = setTimeout(() => {
+          setFocusedDomain(null);
+          focusedDomainRef.current = null;
+        }, 700);
+      }
+    }
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -781,9 +841,17 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
     setTooltip(null);
     dirtyRef.current = true;
     if (canvasRef.current) canvasRef.current.style.cursor = 'grab';
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => {
+      setFocusedDomain(null);
+      focusedDomainRef.current = null;
+    }, 1000);
   }, []);
 
   const homeView = useCallback(() => {
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    setFocusedDomain(null);
+    focusedDomainRef.current = null;
     camQuatTargetRef.current = qIdentity();
     fovTargetRef.current     = 75;
     lastInteractRef.current  = 0;
@@ -1010,6 +1078,17 @@ function VaultGraph({ onOpenFile }: { onOpenFile: (p: string) => void }) {
         }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#e6edf3', marginBottom: tooltip.sub ? 2 : 0 }}>{tooltip.label}</div>
           {tooltip.sub && <div style={{ fontSize: 10, color: 'rgba(139,148,158,0.8)', textTransform: 'capitalize' }}>{tooltip.sub}</div>}
+        </div>
+      )}
+
+      {focusedDomain && (
+        <div style={{
+          position: 'absolute', bottom: 34, left: '50%', transform: 'translateX(-50%)',
+          padding: '4px 14px', borderRadius: 20, fontSize: 11, pointerEvents: 'none',
+          background: 'rgba(22,27,34,0.92)', border: '1px solid rgba(48,54,61,0.8)',
+          color: '#e6edf3', whiteSpace: 'nowrap',
+        }}>
+          {focusedDomain.replace(/^\d+\s*[-–]\s*/, '')}
         </div>
       )}
 

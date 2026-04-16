@@ -325,7 +325,7 @@ export async function runCheck(projectArg: string): Promise<void> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function matchProject(
+export function matchProject(
   allPhases: ReturnType<typeof discoverAllPhases>,
   projectArg: string
 ): { id: string; phases: ReturnType<typeof discoverAllPhases> } | null {

@@ -150,7 +150,7 @@ export async function runLoop(config: ControllerConfig, opts: RunOptions = {}): 
         // Apply optional filters
         if (opts.projectFilter) {
           const projectId = String(phase.frontmatter['project'] ?? '');
-          if (!projectId.toLowerCase().includes(opts.projectFilter.toLowerCase())) continue;
+          if (!projectId.toLowerCase().startsWith(opts.projectFilter.toLowerCase())) continue;
         }
         if (opts.phaseFilter !== undefined) {
           const phaseNum = Number(phase.frontmatter['phase_number'] ?? -1);
@@ -219,6 +219,8 @@ export async function runLoop(config: ControllerConfig, opts: RunOptions = {}): 
                 await consolidatePhase(operation.phaseNode, bundle, runId, config).catch(err =>
                   console.warn('[onyx] Knowledge extraction failed (non-fatal):', (err as Error).message)
                 );
+              } else {
+                console.log('[onyx] Knowledge extraction skipped — set OPENROUTER_API_KEY to enable');
               }
 
               // Auto-review: diff the repo and log a verdict

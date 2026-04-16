@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { LayoutDashboard, Columns, BookOpen, ScrollText, Settings, RefreshCw, Search, Play, Inbox, Terminal, Download, X, MessageSquare, Send, Loader } from 'lucide-react';
+import { LayoutDashboard, Columns, BookOpen, ScrollText, Settings, RefreshCw, Search, Play, Inbox, Terminal, Download, X, MessageSquare, Send, Loader, Mail } from 'lucide-react';
 import type { GZProject, RunEntry, VaultFileNode } from '@/lib/types';
 import TodayView from './TodayView';
+import EmailView from './EmailView';
 import KanbanView from './KanbanView';
 import VaultView from './VaultView';
 import RunsView from './RunsView';
@@ -13,16 +14,17 @@ import LinearImportModal from './LinearImportModal';
 import Drawer from './Drawer';
 import { ToastProvider } from './Toast';
 
-type Tab = 'today' | 'kanban' | 'vault' | 'runs' | 'system';
+type Tab = 'today' | 'email' | 'kanban' | 'vault' | 'runs' | 'system';
 
 interface DashData { projects: GZProject[]; runs: RunEntry[]; tree: VaultFileNode[]; lastFetch: number }
 
 const NAV: { id: Tab; label: string; Icon: React.ElementType; shortcut: string }[] = [
   { id: 'today',  label: 'Today',  Icon: LayoutDashboard, shortcut: '1' },
-  { id: 'kanban', label: 'Kanban', Icon: Columns,          shortcut: '2' },
-  { id: 'vault',  label: 'Vault',  Icon: BookOpen,         shortcut: '3' },
-  { id: 'runs',   label: 'Runs',   Icon: ScrollText,       shortcut: '4' },
-  { id: 'system', label: 'System', Icon: Settings,         shortcut: '5' },
+  { id: 'email',  label: 'Email',  Icon: Mail,            shortcut: '2' },
+  { id: 'kanban', label: 'Kanban', Icon: Columns,          shortcut: '3' },
+  { id: 'vault',  label: 'Vault',  Icon: BookOpen,         shortcut: '4' },
+  { id: 'runs',   label: 'Runs',   Icon: ScrollText,       shortcut: '5' },
+  { id: 'system', label: 'System', Icon: Settings,         shortcut: '6' },
 ];
 
 interface CLIOut { cmd: string; output: string; exitCode: number; ts: number; id: string }
@@ -393,6 +395,7 @@ function formatElapsed(lockedAt: string | undefined): string {
 
 export default function Shell() {
   const [tab, setTab]                   = useState<Tab>('today');
+  const [emailBox, setEmailBox]         = useState<'inbox' | 'drafts'>('inbox');
   const [data, setData]                 = useState<DashData | null>(null);
   const [loading, setLoading]           = useState(true);
   const [drawerPath, setDrawerPath]     = useState<string | null>(null);
@@ -434,6 +437,11 @@ export default function Shell() {
     finally { setLoading(false); }
   }, []);
 
+  const openEmail = useCallback((box: 'inbox' | 'drafts' = 'inbox') => {
+    setEmailBox(box);
+    setTab('email');
+  }, []);
+
   useEffect(() => { void fetchData(); }, [fetchData]);
   useEffect(() => {
     const id = setInterval(() => void fetchData(), 30_000);
@@ -443,7 +451,7 @@ export default function Shell() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-      const tabKeys: Record<string, Tab> = { '1':'today','2':'kanban','3':'vault','4':'runs','5':'system' };
+      const tabKeys: Record<string, Tab> = { '1':'today','2':'email','3':'kanban','4':'vault','5':'runs','6':'system' };
 
       if (e.key === 'Escape') {
         // Dismiss topmost overlay only (priority order)
@@ -719,7 +727,8 @@ export default function Shell() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-faint)', fontSize: 12 }}>Loading vault…</div>
               ) : (
                 <>
-                  {tab === 'today'  && <TodayView  projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRunCLI={runCLI}/>}
+                  {tab === 'today'  && <TodayView  projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRunCLI={runCLI} onOpenEmail={openEmail}/>}
+                  {tab === 'email'  && <EmailView key={emailBox} initialBox={emailBox}/>}
                   {tab === 'kanban' && <KanbanView projects={data?.projects ?? []} onOpenFile={setDrawerPath} onRefresh={fetchData} onOpenProject={setDetailProject} onOpenProjectDiff={p => { setDetailProject(p); setDetailTab('diff'); }} onRunCLI={runCLI}/>}
                   {tab === 'vault'  && <VaultView  tree={data?.tree ?? []}         onOpenFile={setDrawerPath}/>}
                   {tab === 'runs'   && <RunsView   runs={data?.runs ?? []}          onOpenFile={setDrawerPath}/>}

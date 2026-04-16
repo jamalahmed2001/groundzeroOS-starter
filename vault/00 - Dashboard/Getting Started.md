@@ -1,7 +1,7 @@
 ---
 tags: [system, guide, setup, onyx]
 created: 2026-04-13
-updated: 2026-04-13
+updated: 2026-04-16
 type: guide
 ---
 
@@ -162,7 +162,7 @@ The replanner gets 2 auto-retries before blocking.
 | Current state | `onyx status` |
 | Fix vault drift | `onyx heal` |
 | Show execution logs | `onyx logs --recent` |
-| Reset a blocked phase | `onyx reset <phase-number>` |
+| Reset a blocked phase | `onyx reset "My Project"` |
 
 ---
 
@@ -207,5 +207,5 @@ onyx run
 ## Next reading
 
 - [[What is ONYX|What is ONYX]] — mental model + use cases
-- [[ONYX - Summary|ONYX Summary]] — one-page reference
-- [[ONYX - Inner Workings|Inner Workings]] — complete technical reference
+- [[08 - System/ONYX - Quick Start.md|Quick Start]] — core concepts and profiles in depth
+- [[08 - System/ONYX - Reference.md|Complete Reference & Playbook]] — principles, internals, all commands

@@ -19,6 +19,7 @@ import { runRefreshContext } from './refresh-context.js';
 import { runLinearUplink } from './linear-uplink.js';
 import { runNext } from './next.js';
 import { runReady, runBlockPhase, runNewPhase, runCheck } from './phase-ops.js';
+import { runNewDirective, runNewProfile } from './new.js';
 import { loadConfig } from '../config/load.js';
 import { runLoop } from '../controller/loop.js';
 import { runAllHeals } from '../healer/index.js';
@@ -101,7 +102,7 @@ function isJson(): boolean {
 program
   .command('init [name]')
   .description('Create a new project bundle')
-  .option('--profile <name>', 'project profile: engineering | content | research | operations | trading | experimenter')
+  .option('--profile <name>', 'project profile: general | engineering | content | research | operations | trading | experimenter')
   .option('--ready', 'automatically set P1 to ready after creation')
   .action(async (name, opts) => {
     await runInit(name, (opts as { profile?: string; ready?: boolean }).profile);
@@ -150,6 +151,21 @@ newCmd
       risk: (opts as { risk?: string }).risk,
       directive: (opts as { directive?: string }).directive,
     });
+  });
+
+newCmd
+  .command('directive <name>')
+  .description('Scaffold a directive stub (system-level, or project-local with --project)')
+  .option('--project <name>', 'create in project Directives/ folder instead of system')
+  .action(async (name, opts) => {
+    await runNewDirective(name, (opts as { project?: string }).project);
+  });
+
+newCmd
+  .command('profile <name>')
+  .description('Scaffold a profile stub in 08 - System/Profiles/')
+  .action(async (name) => {
+    await runNewProfile(name);
   });
 
 // ── check ─────────────────────────────────────────────────────────────────
@@ -297,7 +313,7 @@ program
     const phases = projectFilter
       ? allPhases.filter(p => {
           const proj = String(p.frontmatter['project_id'] ?? p.frontmatter['project'] ?? '');
-          return proj.toLowerCase().includes(projectFilter.toLowerCase());
+          return proj.toLowerCase().startsWith(projectFilter.toLowerCase());
         })
       : allPhases;
 

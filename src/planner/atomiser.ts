@@ -99,6 +99,62 @@ Rules:
 - Do NOT add tasks about writing documentation or tests unless the phase explicitly requires it
 - When done writing the plan, also update the frontmatter: add phase-ready to tags, set state: ready`;
 
+const ATOMISE_WRITE_SYSTEM_PROMPT_GENERIC = `You are a project architect creating a task plan for an autonomous agent.
+
+You will be asked to:
+1. Read a phase note to understand what needs to be produced
+2. Explore the bundle (context docs, prior phase notes, directives) to understand the project
+3. Write a task plan DIRECTLY into the phase note file
+
+CRITICAL: You MUST write the plan to the file using your Edit or Write tools. Do NOT output the plan to stdout.
+
+Plan format — write this exact structure between the managed markers in the file:
+
+<!-- AGENT_WRITABLE_START:phase-plan -->
+
+## Implementation Plan
+
+### [T1] Task name (3-6 words, action-oriented)
+**Output:** What artifact this task produces and where it goes
+**Steps:**
+1. Concrete step
+2. Concrete step
+**Validation:** How to verify this is done (e.g. "File exists at <path>", "Section complete in <doc>")
+**DoD:** One measurable binary done condition
+
+- [ ] [T1.1] Sub-task — imperative verb, specific output location if known
+- [ ] [T1.2] Sub-task — imperative verb, specific output location if known
+
+### [T2] Next task name
+...
+
+<!-- AGENT_WRITABLE_END:phase-plan -->
+
+Rules:
+- Sub-tasks MUST be checkboxes (- [ ]) — these are actual work items the agent will execute
+- Steps must be concrete — what to research, write, or produce, and where it goes
+- 4-8 parent tasks maximum
+- Do NOT add tasks about writing documentation unless the phase explicitly requires it
+- When done writing the plan, also update the frontmatter: add phase-ready to tags, set state: ready`;
+
+// Select atomiser system prompt based on profile
+function buildAtomiserSystemPrompt(profileName: string, writeDirect: boolean): string {
+  const isCodeProfile = profileName === 'engineering' || profileName === 'trading';
+  if (writeDirect) {
+    return isCodeProfile ? ATOMISE_WRITE_SYSTEM_PROMPT : ATOMISE_WRITE_SYSTEM_PROMPT_GENERIC;
+  }
+  return isCodeProfile ? ATOMISE_SYSTEM_PROMPT : ATOMISE_SYSTEM_PROMPT.replace(
+    /You are a senior technical architect creating an implementation task plan for an AI coding agent\./,
+    `You are a project architect creating a task plan for an autonomous ${profileName} agent.`
+  ).replace(
+    /\*\*Files:\*\* `path\/to\/file\.ts`, `path\/to\/other\.ts`/g,
+    '**Output:** What artifact this task produces and where it goes'
+  ).replace(
+    /GROUNDING RULES \(critical.*?(?=\n\n|$)/s,
+    `Rules for non-code projects:\n- Tasks must specify what output artifact is produced and where it goes\n- Base task structure on the phase note and project overview\n- Validation steps must describe how to verify the output exists`
+  );
+}
+
 function buildAgentWritePrompt(opts: {
   phaseNotePath: string;
   repoPath: string;
@@ -106,14 +162,20 @@ function buildAgentWritePrompt(opts: {
   phaseNum: unknown;
   projectId: string;
   userPrompt: string;
+  profileName?: string;
 }): string {
+  const isCodeProfile = !opts.profileName || opts.profileName === 'engineering' || opts.profileName === 'trading';
+  const exploreLabel = isCodeProfile ? 'Repo to explore' : 'Bundle to explore';
+  const exploreInstruction = isCodeProfile
+    ? `Explore the repo — read key source files, check package.json for scripts and dependencies, understand existing patterns`
+    : `Explore the bundle — read context docs, directives, and any existing artifacts to understand the project`;
   return `Phase note to update: ${opts.phaseNotePath}
-Repo to explore: ${opts.repoPath}
+${exploreLabel}: ${opts.repoPath}
 
 ## Your task
 
 1. Read the phase note at ${opts.phaseNotePath}
-2. Explore the repo — read key source files, check package.json for scripts and dependencies, understand existing patterns
+2. ${exploreInstruction}
 3. Write the implementation task plan directly into the phase note between these markers:
    <!-- AGENT_WRITABLE_START:phase-plan -->
    ...your plan here...
@@ -213,27 +275,42 @@ export async function atomisePhase(
   );
   const phaseNum = phaseNode.frontmatter['phase_number'];
 
-  setPhaseTag(phaseNode.path, 'phase-planning');
-  appendToLog(phaseNode.path, { runId, event: 'atomise_started' });
-  await notify({ event: 'atomise_started', projectId, phaseLabel, runId }, config);
+  const bundleDir = bundleDirFromPhase(phaseNode.path);
 
-  const repoPath = resolveRepoPath(phaseNode, projectId, config);
+  // Resolve profile from Overview frontmatter BEFORE mutating state
+  let profileName = 'engineering';
+  try {
+    const ovFile = fs.readdirSync(bundleDir).find(f => f.includes('Overview') && f.endsWith('.md'));
+    if (ovFile) {
+      const ovNode = readPhaseNode(path.join(bundleDir, ovFile));
+      const pn = String(ovNode.frontmatter['profile'] ?? '').trim();
+      if (pn) profileName = pn;
+    }
+  } catch { /* non-fatal */ }
+  const isCodeProfile = profileName === 'engineering' || profileName === 'trading';
 
-  // Only need an API key when not routing through the agent driver
-  if (!planningUsesAgent(config, repoPath)) {
+  const repoPath = isCodeProfile ? resolveRepoPath(phaseNode, projectId, config) : '';
+  const exploreDir = repoPath || bundleDir;
+
+  // Check if we can proceed BEFORE marking phase as planning (avoids planning→backlog bounce)
+  if (!planningUsesAgent(config, exploreDir)) {
     const apiKey = config.llm.apiKey ?? process.env['OPENROUTER_API_KEY'];
     if (!apiKey) {
+      console.error('[onyx] Cannot atomise: no API key. Set OPENROUTER_API_KEY or use claude-code as agent_driver.');
       appendToLog(phaseNode.path, { runId, event: 'atomise_done', detail: 'Failed: no API key (set OPENROUTER_API_KEY)' });
-      setPhaseTag(phaseNode.path, 'phase-backlog');
       return 'failed';
     }
   }
 
-  const repoTree = scanRepoFiles(repoPath);
+  // Now safe to mark as planning
+  setPhaseTag(phaseNode.path, 'phase-planning');
+  appendToLog(phaseNode.path, { runId, event: 'atomise_started' });
+  await notify({ event: 'atomise_started', projectId, phaseLabel, runId }, config);
+
+  const repoTree = isCodeProfile ? scanRepoFiles(repoPath) : '';
 
   // Read Overview for current project scope and agent constraints
   // (Overview is the source of truth — may have been updated since phase was created)
-  const bundleDir = bundleDirFromPhase(phaseNode.path);
   let overviewContext = '';
   try {
     const ovFile = fs.readdirSync(bundleDir).find(f => f.includes('Overview') && f.endsWith('.md'));
@@ -273,19 +350,32 @@ export async function atomisePhase(
   // Build a focused context from the phase note
   const phaseContext = phaseNode.content.trim();
 
-  // When the agent driver has repo access, tell it to explore; otherwise pass static tree
-  const repoSection = planningUsesAgent(config, repoPath)
-    ? [
-        `You have full read access to the repo at ${repoPath}.`,
-        ``,
-        `BEFORE writing the plan:`,
-        `1. Read key source files to understand existing patterns and architecture`,
-        `2. Check package.json (or equivalent) for existing scripts, dependencies, and test framework`,
-        `3. Identify the actual file structure — do NOT guess paths`,
-        ``,
-        `Then generate the implementation plan grounded in what you found.`,
-      ].join('\n')
-    : `Repo file structure (${repoPath || 'path unknown'}):\n${repoTree}`;
+  // When the agent driver has access, tell it to explore; otherwise pass static tree
+  const repoSection = planningUsesAgent(config, exploreDir)
+    ? isCodeProfile
+      ? [
+          `You have full read access to the repo at ${exploreDir}.`,
+          ``,
+          `BEFORE writing the plan:`,
+          `1. Read key source files to understand existing patterns and architecture`,
+          `2. Check package.json (or equivalent) for existing scripts, dependencies, and test framework`,
+          `3. Identify the actual file structure — do NOT guess paths`,
+          ``,
+          `Then generate the implementation plan grounded in what you found.`,
+        ].join('\n')
+      : [
+          `You have full read access to the bundle at ${exploreDir}.`,
+          ``,
+          `BEFORE writing the plan:`,
+          `1. Read context docs (Source Context, Research Brief, Strategy Context, etc.)`,
+          `2. Read any existing artifacts and phase notes to understand what has been done`,
+          `3. Identify the output locations specified in the phase note`,
+          ``,
+          `Then generate the task plan grounded in what you found.`,
+        ].join('\n')
+    : isCodeProfile
+      ? `Repo file structure (${repoPath || 'path unknown'}):\n${repoTree}`
+      : `Bundle directory: ${exploreDir}\nRead context docs and existing artifacts to understand the project.`;
 
   const userPrompt = `Project: ${projectId}
 Phase: P${phaseNum} — ${phaseLabel}
@@ -300,20 +390,21 @@ Generate the implementation task plan for this phase.`;
 
   try {
     // Branch A: agent driver can write directly to the vault
-    if (planningUsesAgent(config, repoPath)) {
+    if (planningUsesAgent(config, exploreDir)) {
       const agentPrompt = buildAgentWritePrompt({
         phaseNotePath: phaseNode.path,
-        repoPath,
+        repoPath: exploreDir,
         phaseLabel,
         phaseNum,
         projectId,
         userPrompt,
+        profileName,
       });
 
       const result = await spawnClaudeCode({
         prompt: agentPrompt,
-        repoPath,
-        systemPrompt: config.prompts?.atomise ?? ATOMISE_WRITE_SYSTEM_PROMPT,
+        repoPath: exploreDir,
+        systemPrompt: config.prompts?.atomise ?? buildAtomiserSystemPrompt(profileName, true),
         timeoutMs: 180_000,
         model: config.llm.model,
       });
@@ -324,9 +415,9 @@ Generate the implementation task plan for this phase.`;
         const blockStart = written.indexOf(PLAN_START);
         const blockEnd   = written.indexOf(PLAN_END);
         if (blockStart !== -1 && blockEnd !== -1 && blockEnd > blockStart) {
-          // Agent wrote successfully — post-validate paths, set tag, done
+          // Agent wrote successfully — post-validate paths (code profiles only), set tag, done
           const planSection = written.slice(blockStart, blockEnd + PLAN_END.length);
-          const missingFiles = validatePlanFilePaths(planSection, repoPath);
+          const missingFiles = isCodeProfile ? validatePlanFilePaths(planSection, repoPath) : [];
           if (missingFiles.length > 0) {
             const warning = `<!-- onyx: WARNING — These file paths were not found in the repo and may be hallucinated:\n${missingFiles.map(f => `- ${f}`).join('\n')}\nConsider verifying before execution. -->`;
             const withWarning = written.replace(PLAN_END, `${PLAN_END}\n\n${warning}`);
@@ -348,11 +439,11 @@ Generate the implementation task plan for this phase.`;
       // On failure, fall through to OpenRouter path
     }
 
-    // Branch B: OpenRouter path (unchanged existing code)
+    // Branch B: OpenRouter path
     const output = await planningCall({
       config,
-      repoPath,
-      systemPrompt: config.prompts?.atomise ?? ATOMISE_SYSTEM_PROMPT,
+      repoPath: exploreDir,
+      systemPrompt: config.prompts?.atomise ?? buildAtomiserSystemPrompt(profileName, false),
       userPrompt,
       maxTokens: 3500,
     });
@@ -382,7 +473,7 @@ Generate the implementation task plan for this phase.`;
     const planSection = (planStartIdx !== -1 && planEndIdx !== -1)
       ? finalContent.slice(planStartIdx, planEndIdx + PLAN_END.length)
       : '';
-    const missingFiles = validatePlanFilePaths(planSection, repoPath);
+    const missingFiles = isCodeProfile ? validatePlanFilePaths(planSection, repoPath) : [];
     if (missingFiles.length > 0) {
       const warning = `<!-- onyx: WARNING — These file paths were not found in the repo and may be hallucinated:\n${missingFiles.map(f => `- ${f}`).join('\n')}\nConsider verifying before execution. -->`;
       // Append warning after the plan block

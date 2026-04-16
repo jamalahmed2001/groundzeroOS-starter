@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Play, AlertCircle, Inbox, ChevronDown, ChevronRight, Send } from 'lucide-react';
+import { Play, AlertCircle, Inbox, ChevronDown, ChevronRight, Send, Mail, FileEdit } from 'lucide-react';
 import { toast } from './Toast';
 import type { GZProject, GZPhase, DailyPlan, InboxItem } from '@/lib/types';
 import { statusColor as sc } from '@/lib/colors';
@@ -10,6 +10,7 @@ interface Props {
   projects: GZProject[];
   onOpenFile: (path: string) => void;
   onRunCLI: (cmd: string, args?: string[]) => void;
+  onOpenEmail: (box?: 'inbox' | 'drafts') => void;
 }
 
 // ─── Prayer times (pure JS, London default) ───────────────────────────────────
@@ -328,10 +329,12 @@ function DailyPlanView({ raw, planPath, projects, onOpenFile, onRunCLI, onToggle
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function TodayView({ projects, onOpenFile, onRunCLI }: Props) {
+export default function TodayView({ projects, onOpenFile, onRunCLI, onOpenEmail }: Props) {
   const [plan, setPlan]           = useState<DailyPlan | null>(null);
   const [inbox, setInbox]         = useState<InboxItem[]>([]);
   const [inboxOpen, setInboxOpen] = useState(false);
+  const [emailSummary, setEmailSummary] = useState<{ unread: number; drafts: number } | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
   const [settings, setSettings]   = useState<{ lat: number; lng: number } | null>(null);
   const [direction, setDirection]       = useState('');
   const [savedDirections, setSavedDirections] = useState<string[]>([]);
@@ -364,6 +367,13 @@ export default function TodayView({ projects, onOpenFile, onRunCLI }: Props) {
       .then(r => r.json())
       .then((d: { lat?: number; lng?: number }) => setSettings({ lat: d.lat ?? 51.5074, lng: d.lng ?? -0.1278 }))
       .catch(() => setSettings({ lat: 51.5074, lng: -0.1278 }));
+    fetch('/api/mailcow/summary', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { unread?: number; drafts?: number } | null) => {
+        if (!d || typeof d.unread !== 'number' || typeof d.drafts !== 'number') return;
+        setEmailSummary({ unread: d.unread, drafts: d.drafts });
+      })
+      .catch(() => undefined);
     loadDirection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -512,6 +522,28 @@ export default function TodayView({ projects, onOpenFile, onRunCLI }: Props) {
                 ))}
                 <div onClick={() => onOpenFile('00 - Dashboard/Inbox.md')} style={{ padding: '5px 9px', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 10, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Inbox size={9}/> Open inbox
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Email (Mailcow) */}
+        {emailSummary && (emailSummary.unread > 0 || emailSummary.drafts > 0) && (
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => setEmailOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', marginBottom: 5 }}>
+              {emailOpen ? <ChevronDown size={9} color="var(--text-faint)"/> : <ChevronRight size={9} color="var(--text-faint)"/>}
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Email (Unread {emailSummary.unread} · Drafts {emailSummary.drafts})
+              </span>
+            </button>
+            {emailOpen && (
+              <div style={{ borderRadius: 5, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                <div onClick={() => onOpenEmail('inbox')} style={{ padding: '6px 9px', cursor: 'pointer', fontSize: 10, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Mail size={9}/> Open email inbox
+                </div>
+                <div onClick={() => onOpenEmail('drafts')} style={{ padding: '6px 9px', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: 10, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <FileEdit size={9}/> Open drafts
                 </div>
               </div>
             )}

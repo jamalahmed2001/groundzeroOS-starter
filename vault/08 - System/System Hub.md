@@ -34,16 +34,19 @@ These files are loaded automatically at session start. Customise them for your s
 
 ## Profiles
 
-Six profiles, one per domain:
+Nine profiles, one per domain:
 
 | Profile | Use for |
 |---|---|
+| `general` | Catch-all — lightweight tasks, mixed domains, starting point |
 | `engineering` | Software projects with a git repo |
 | `content` | Podcast, video, newsletter, social pipelines |
 | `research` | Investigation, analysis, synthesis |
 | `operations` | System ops, monitoring, incident response |
 | `trading` | Algorithmic trading, strategy dev |
 | `experimenter` | Systematic A/B testing, prompt engineering, ML experiments |
+| `accounting` | Financial records, reconciliation, reporting |
+| `legal` | Contracts, research, compliance |
 
 → [[Profiles/Profiles Hub|Profiles Hub]] for full specs
 
