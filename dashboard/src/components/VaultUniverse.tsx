@@ -234,6 +234,23 @@ function sectionLabelAnchors(sections: Section[]): Array<{ label: string; positi
 
 // ── 3D Node ────────────────────────────────────────────────────────────────
 
+/** Classify a node's visual kind — drives shape, size, and what adornments
+ *  appear on it in the scene. */
+type NodeKind = 'hub' | 'phase' | 'log' | 'knowledge' | 'directive' | 'leaf';
+function kindOf(n: VaultGraphNode): NodeKind {
+  const stem = n.label.replace(/\.md$/, '');
+  if (/overview|(\s|^)hub$|kanban|phase group/i.test(stem)) return 'hub';
+  if (n.isPhase) return 'phase';
+  if (/log\b/i.test(stem) || n.id.includes('/Logs/')) return 'log';
+  if (/knowledge/i.test(stem)) return 'knowledge';
+  if (n.directive || n.id.includes('/Directives/')) return 'directive';
+  return 'leaf';
+}
+
+const KIND_SIZE: Record<NodeKind, number> = {
+  hub: 0.85, phase: 0.6, log: 0.4, knowledge: 0.55, directive: 0.5, leaf: 0.45,
+};
+
 function WorldNode({
   pn, onTap, currentYawRef,
 }: {
@@ -244,6 +261,7 @@ function WorldNode({
   const [hovered, setHovered] = useState(false);
   const meshRef = useRef<THREE.Mesh>(null);
   const color = colorForTopFolder(pn.node.topFolder);
+  const kind = kindOf(pn.node);
   const isActive = pn.node.phaseStatus === 'active';
   const isReady = pn.node.phaseStatus === 'ready';
   const isBlocked = pn.node.phaseStatus === 'blocked';
@@ -258,25 +276,32 @@ function WorldNode({
     }
   });
 
-  const radius = 0.6;
+  const radius = KIND_SIZE[kind];
   const angle = Math.atan2(pn.position.x, -pn.position.z);
   const angleDiff = Math.abs(((angle - currentYawRef.current + Math.PI) % (Math.PI * 2)) - Math.PI);
   const inFront = angleDiff < 0.4;
 
   return (
     <group position={pn.position} scale={hovered ? 1.15 : 1}>
-      {/* Outer ring for status */}
+      {/* Hub: bright outer shell to flag "you can enter this" */}
+      {kind === 'hub' && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[radius * 1.25, radius * 1.45, 40]} />
+          <meshBasicMaterial color={color} transparent opacity={0.75} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+      {/* Phase: status-colored rim */}
       {statusColor && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[radius * 1.35, radius * 1.5, 32]} />
+          <ringGeometry args={[radius * 1.35, radius * 1.52, 32]} />
           <meshBasicMaterial color={statusColor} transparent opacity={0.9} side={THREE.DoubleSide} />
         </mesh>
       )}
-      {/* Breadcrumb halo for "previous" node */}
+      {/* Previous-node halo */}
       {pn.isPrevious && (
         <mesh>
-          <sphereGeometry args={[radius * 1.8, 24, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.1} />
+          <sphereGeometry args={[radius * 1.9, 24, 16]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.09} />
         </mesh>
       )}
       {/* Glow */}
@@ -295,29 +320,41 @@ function WorldNode({
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={hovered ? 1.1 : (inFront ? 0.8 : 0.4)}
+          emissiveIntensity={hovered ? 1.1 : (inFront ? (kind === 'hub' ? 1.0 : 0.8) : 0.4)}
           roughness={0.45}
-          metalness={0.15}
+          metalness={kind === 'hub' ? 0.25 : 0.15}
         />
       </mesh>
-      {/* Label */}
+      {/* Label — pill background for readability on any backdrop */}
       <Html
-        position={[0, -radius - 0.4, 0]}
+        position={[0, -radius - 0.5, 0]}
         center
         distanceFactor={6}
+        zIndexRange={[2, 3]}
         style={{
           pointerEvents: 'none',
           userSelect: 'none',
-          color: '#ffffff',
-          fontSize: 16,
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          fontWeight: 600,
-          textShadow: '0 2px 10px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.9)',
           whiteSpace: 'nowrap',
           textAlign: 'center',
         }}
       >
-        {cleanLabel(pn.node.label)}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 9px',
+          background: 'rgba(5,7,13,0.78)',
+          border: `1px solid ${color}55`,
+          borderRadius: 6,
+          fontSize: kind === 'hub' ? 14 : 12,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontWeight: kind === 'hub' ? 700 : 500,
+          color: '#ffffff',
+          letterSpacing: '0.01em',
+        }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor ?? color, boxShadow: statusColor ? `0 0 6px ${statusColor}` : 'none' }}/>
+          <span>{cleanLabel(pn.node.label)}</span>
+        </div>
       </Html>
     </group>
   );
@@ -331,20 +368,23 @@ function SectionLabel({ label, position, color }: { label: string; position: THR
       position={[position.x, position.y, position.z]}
       center
       distanceFactor={9}
-      style={{
-        pointerEvents: 'none',
-        userSelect: 'none',
-        fontSize: 14,
+      zIndexRange={[2, 3]}
+      style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'nowrap' }}
+    >
+      <div style={{
+        padding: '3px 12px',
+        background: `${color}2a`,
+        border: `1px solid ${color}66`,
+        borderRadius: 999,
+        fontSize: 11,
         fontWeight: 700,
-        letterSpacing: '0.16em',
+        letterSpacing: '0.18em',
         textTransform: 'uppercase',
         color,
-        opacity: 0.7,
-        textShadow: '0 2px 10px rgba(0,0,0,0.9)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
+        textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+      }}>
+        {label}
+      </div>
     </Html>
   );
 }
@@ -363,9 +403,10 @@ function FloorDisc({ color }: { color: string }) {
 // ── Camera ─────────────────────────────────────────────────────────────────
 
 function FirstPersonCamera({
-  yaw, walkProgress, walkTargetPosition,
+  yaw, fov, walkProgress, walkTargetPosition,
 }: {
   yaw: number;
+  fov: number;
   walkProgress: number;
   walkTargetPosition: THREE.Vector3 | null;
 }) {
@@ -379,6 +420,12 @@ function FirstPersonCamera({
     const lookX = Math.sin(yaw) * 10;
     const lookZ = -Math.cos(yaw) * 10;
     camera.lookAt(camera.position.x + lookX, camera.position.y, camera.position.z + lookZ);
+    // Smoothly lerp FOV toward the target set by wheel/pinch
+    if ('fov' in camera) {
+      const persp = camera as THREE.PerspectiveCamera;
+      persp.fov += (fov - persp.fov) * 0.18;
+      persp.updateProjectionMatrix();
+    }
   });
   return null;
 }
@@ -471,6 +518,15 @@ function NodeActionBar({
   );
 }
 
+function LegendRow({ dot, label }: { dot: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, padding: '1px 0' }}>
+      <span style={{ width: 10, height: 10, borderRadius: '50%', background: dot, flexShrink: 0, boxShadow: `0 0 6px ${dot}88` }}/>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 function Chip({ label, value, color }: { label: string; value: string; color?: string }) {
   const c = color ?? 'rgba(139,148,158,0.9)';
   return (
@@ -509,6 +565,14 @@ export default function VaultUniverse({ onOpenFile }: Props) {
   const yawRef = useRef(0);
   useEffect(() => { yawRef.current = yaw; }, [yaw]);
 
+  // FOV = zoom. Lower FOV = zoomed in; higher = zoomed out.
+  const [fov, setFov] = useState(70);
+  const fovRef = useRef(70);
+  useEffect(() => { fovRef.current = fov; }, [fov]);
+
+  // Pinch (two-finger) distance baseline, for touch zoom.
+  const pinchRef = useRef<{ startDist: number; startFov: number } | null>(null);
+
   const [walkProgress, setWalkProgress] = useState(0);
   const walkTargetIdRef = useRef<string | null>(null);
   const walkTargetPosRef = useRef<THREE.Vector3 | null>(null);
@@ -516,6 +580,7 @@ export default function VaultUniverse({ onOpenFile }: Props) {
   /** The last-tapped node. Its actions are shown in the floating action bar. */
   const [selectedNode, setSelectedNode] = useState<VaultGraphNode | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
 
   const dragRef = useRef<{ x: number; yaw0: number; moved: boolean } | null>(null);
@@ -666,6 +731,42 @@ export default function VaultUniverse({ onOpenFile }: Props) {
     dragRef.current = null;
   }, []);
 
+  // Wheel zoom — adjust FOV. Clamp to a usable band.
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-overlay="true"]')) return;
+    // deltaY positive = zoom out (wider FOV), negative = zoom in (narrower FOV).
+    const next = Math.max(30, Math.min(110, fovRef.current + e.deltaY * 0.04));
+    setFov(next);
+  }, []);
+
+  // Pinch zoom on touch — delta between two-finger distance controls FOV.
+  const activeTouchesRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    for (const t of Array.from(e.touches)) {
+      activeTouchesRef.current.set(t.identifier, { x: t.clientX, y: t.clientY });
+    }
+    if (e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      pinchRef.current = { startDist: d, startFov: fovRef.current };
+      dragRef.current = null; // cancel any spin in progress
+    }
+  }, []);
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchRef.current) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      const scale = d / pinchRef.current.startDist;
+      const next = Math.max(30, Math.min(110, pinchRef.current.startFov / scale));
+      setFov(next);
+    }
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+    for (const t of Array.from(e.changedTouches)) activeTouchesRef.current.delete(t.identifier);
+  }, []);
+
   // ── Phase actions ────────────────────────────────────────────────────
   const runPhaseAction = useCallback(async (verb: string) => {
     if (!selectedNode) return;
@@ -711,6 +812,10 @@ export default function VaultUniverse({ onOpenFile }: Props) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onWheel={onWheel}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
       <Canvas camera={{ position: [0, 0, 0], fov: 70, near: 0.1, far: 200 }}>
         <Suspense fallback={null}>
@@ -721,6 +826,7 @@ export default function VaultUniverse({ onOpenFile }: Props) {
 
           <FirstPersonCamera
             yaw={yaw}
+            fov={fov}
             walkProgress={walkProgress}
             walkTargetPosition={walkTargetPosRef.current}
           />
@@ -827,12 +933,74 @@ export default function VaultUniverse({ onOpenFile }: Props) {
           }}>← Back</button>
       )}
 
+      {/* Zoom control + legend toggle (top-right of the canvas) */}
+      <div data-overlay="true" style={{
+        position: 'absolute', top: 12, right: 12, zIndex: 18,
+        display: 'flex', gap: 6, alignItems: 'center',
+      }}>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setFov(70)}
+          title="Reset zoom"
+          style={{
+            padding: '4px 10px', fontSize: 10, fontFamily: 'monospace',
+            background: 'rgba(22,27,34,0.9)', color: 'rgba(200,210,230,0.9)',
+            border: '1px solid rgba(48,54,61,0.95)', borderRadius: 5, cursor: 'pointer',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          {Math.round((70 / fov) * 100)}%
+        </button>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setShowLegend((v) => !v)}
+          title="What do the shapes and colours mean?"
+          style={{
+            padding: '4px 10px', fontSize: 11, fontFamily: 'inherit',
+            background: showLegend ? 'rgba(68,147,248,0.15)' : 'rgba(22,27,34,0.9)',
+            color: showLegend ? '#4493f8' : 'rgba(200,210,230,0.9)',
+            border: `1px solid ${showLegend ? '#4493f8' : 'rgba(48,54,61,0.95)'}`,
+            borderRadius: 5, cursor: 'pointer',
+            backdropFilter: 'blur(4px)',
+          }}
+        >?</button>
+      </div>
+
+      {/* Legend */}
+      {showLegend && (
+        <div data-overlay="true" onPointerDown={(e) => e.stopPropagation()} style={{
+          position: 'absolute', top: 52, right: 12, zIndex: 18,
+          width: 220, padding: 12, fontSize: 11,
+          background: 'rgba(13,17,23,0.96)',
+          border: '1px solid rgba(48,54,61,0.95)',
+          borderRadius: 8, backdropFilter: 'blur(8px)',
+          color: 'rgba(200,210,230,0.9)', lineHeight: 1.5,
+        }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(139,148,158,0.7)', marginBottom: 8 }}>Legend</div>
+          <LegendRow dot="#ffc850" label="Hub — tap to hop" />
+          <LegendRow dot="#00dcb4" label="Phase: active" />
+          <LegendRow dot="#4493f8" label="Phase: ready" />
+          <LegendRow dot="#dc6e6e" label="Phase: blocked" />
+          <LegendRow dot="#b478ff" label="Planning" />
+          <LegendRow dot="#9aa4b2" label="Backlog / leaf" />
+          <LegendRow dot="#5a6070" label="Completed" />
+          <div style={{ height: 1, background: 'rgba(48,54,61,0.6)', margin: '8px 0' }} />
+          <div style={{ fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(139,148,158,0.7)', marginBottom: 6 }}>Domains</div>
+          <LegendRow dot="#4493f8" label="Dashboard" />
+          <LegendRow dot="#ff9f0a" label="Ventures" />
+          <LegendRow dot="#00dcb4" label="Finance" />
+          <LegendRow dot="#b478ff" label="Systems" />
+          <LegendRow dot="#dc6e6e" label="ONYX system" />
+          <LegendRow dot="#ffc850" label="OpenClaw" />
+        </div>
+      )}
+
       {/* Help */}
       <div data-overlay="true" style={{
         position: 'absolute', bottom: 12, left: 12, zIndex: 10,
         fontSize: 10, color: 'rgba(139,148,158,0.5)', pointerEvents: 'none',
       }}>
-        Drag to spin · tap a hub to hop · tap a leaf to open · Esc to go back
+        Drag to spin · scroll / pinch to zoom · tap a hub to hop · tap a leaf to open · Esc to go back
       </div>
 
       {/* Toast */}
