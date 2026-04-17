@@ -18,6 +18,12 @@ export interface VaultGraphNode {
   linkCount: number; // in + out degree
   phaseStatus: string | null;
   isPhase: boolean;
+  /** Phase profile when set in frontmatter (content, engineering, research…). */
+  profile: string | null;
+  /** Directive when set in frontmatter (maniplus-audio-producer, …). */
+  directive: string | null;
+  /** Project ID when inferable from path/frontmatter. */
+  projectId: string | null;
 }
 
 export interface VaultGraphLink { source: string; target: string }
@@ -130,18 +136,32 @@ export async function GET() {
     const folder  = path.dirname(f.relPath);
     const parts   = f.relPath.split('/');
     const topFolder = parts.length > 1 ? parts[0] : 'Root';
-    const isPhase = parts.some(p => p === 'Phases') && /^Phase\s+\d+/i.test(label);
+    // A phase is any markdown under a Phases/ directory. Label-format free.
+    const isPhase = parts.some(p => p === 'Phases');
+    const phasesIdx = parts.lastIndexOf('Phases');
+    const pathProjectId = phasesIdx > 0 ? parts[phasesIdx - 1] : null;
 
     let phaseStatus: string | null = null;
+    let profile: string | null = null;
+    let directive: string | null = null;
+    let projectId: string | null = pathProjectId;
     if (isPhase && f.size <= MAX_FILE_SIZE) {
       try {
         const raw = fs.readFileSync(f.absPath, 'utf8');
         const { data } = matter(raw);
-        phaseStatus = stateFromFrontmatter(data as Record<string, unknown>);
+        const fm = data as Record<string, unknown>;
+        phaseStatus = stateFromFrontmatter(fm);
+        if (typeof fm.profile === 'string') profile = fm.profile;
+        if (typeof fm.directive === 'string') directive = fm.directive;
+        if (typeof fm.project_id === 'string') projectId = fm.project_id;
+        else if (typeof fm.project === 'string') projectId = fm.project;
       } catch { /* skip */ }
     }
 
-    nodeMap.set(f.relPath, { id: f.relPath, label, folder, topFolder, size: f.size, linkCount: 0, phaseStatus, isPhase });
+    nodeMap.set(f.relPath, {
+      id: f.relPath, label, folder, topFolder, size: f.size, linkCount: 0,
+      phaseStatus, isPhase, profile, directive, projectId,
+    });
   }
 
   // 4. Parse wikilinks from all files → build links, increment linkCount
