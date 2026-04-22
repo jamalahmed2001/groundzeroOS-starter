@@ -1,93 +1,134 @@
 # ONYX
 
-> **The orchestration layer for Obsidian.** Turn your vault into an autonomous execution surface for AI agents — code, content, research, trading, or anything in between.
+> **The vault-native runtime for AI agents.** Your Obsidian vault is the OS. Markdown is the source of truth. Skills do the work. One directive tells every agent how to behave.
 
 ---
 
 ## What is ONYX?
 
-ONYX is a local CLI + vault convention. Phase notes in your Obsidian vault hold state. A controller loop reads state, dispatches AI agents, writes results back, and compounds learnings. No SaaS. No database. No framework. Just markdown, frontmatter, and a deterministic state machine.
+ONYX is not a framework or a SaaS. It is a **vault convention + a runtime directive**. You point an AI agent at your Obsidian vault; it reads the **ONYX Master Directive** and behaves as the system. State lives in frontmatter. Work is scoped to phases. Knowledge compounds. Every iteration runs the same loop:
 
 ```
-read vault → heal → discover → route → dispatch agent → write vault → consolidate → repeat
+heal → find work → lock → load context → execute → consolidate → release → repeat
 ```
+
+No database. No message broker. No control plane. If it is not in a markdown file in the vault, it does not exist.
+
+---
+
+## Two-minute model
+
+ONYX is five primitives, one directive, one loop.
+
+**The Master Directive** (`08 - System/ONYX Master Directive.md`) is the runtime's law. Every agent loads it first and follows its invariants, state model, and operation semantics. Update the directive → the runtime's behaviour changes. There is no other source of truth.
+
+**The five primitives** that make up everything else:
+
+| Primitive | What it is | Where it lives |
+|---|---|---|
+| **Skill** | A capability the agent can invoke (native tool or external CLI). | `~/clawd/skills/<name>/` (external) + vault Skill Overview |
+| **Directive** | One phase's agent brief — role, tools to call, outputs to write. | `08 - System/Agent Directives/` or `<project>/Directives/` |
+| **Profile** | Invariants for a whole project-type — required fields, acceptance gate. | `08 - System/Profiles/<name>.md` |
+| **Phase** | One unit of work — status, deps, tasks, acceptance, Human Requirements. | `<project>/Phases/<Prefix><N> - <Title>.md` |
+| **Skill Overview** | Vault-facing contract: verbs, flags, output shape. | `08 - System/Agent Skills/<name> - Skill Overview.md` |
+
+**Every new thing must be one of these five.** No new category without evidence.
 
 ---
 
 ## Why it exists
 
 Knowledge work has no operating layer. You have:
-- **Project tools** (Jira, Linear, Notion) — track work but don't execute it
-- **AI agents** (Claude, Cursor) — execute work but forget everything between sessions
-- **Knowledge bases** (Obsidian) — store facts but don't do anything
 
-ONYX is the thinnest possible layer that connects all three. Plans live in the vault. Agents read plans, do the work, write results back. Knowledge compounds automatically across every phase.
+- **Project tools** (Jira, Linear, Notion) — track work, don't execute it
+- **AI agents** (Claude, Cursor) — execute work, forget everything between sessions
+- **Knowledge bases** (Obsidian) — store facts, don't do anything
 
----
-
-## The four ideas
-
-1. **The vault is the only state.** No external databases. Vault frontmatter = truth. If it's not in the vault, it didn't happen.
-2. **The phase is sacred.** Every project decomposes into phases — smallest reviewable unit with goals, tasks, acceptance criteria, and a linked log. Same structure everywhere.
-3. **Profiles specialise the scaffold.** Domain extensions that tell ONYX how to handle a project type mechanically: required fields, context docs, acceptance gate.
-4. **Directives specialise the agent.** Per-phase instructions that tell the agent who it is, what to load, and what constraints to operate under.
+ONYX connects all three with the thinnest viable glue: markdown frontmatter as state, a directive as program, phases as the unit of work. Plans live in the vault. Agents read plans, do work, write results back. Knowledge compounds automatically across every phase, every agent, every session.
 
 ---
 
-## What you get
+## The runtime loop
 
-| Capability | Mechanism |
-|---|---|
-| **Autonomous phase execution** | `onyx run` loops over all `phase-ready` phases, spawns agents, verifies acceptance |
-| **Multi-agent pipelines** | Phases chain via `depends_on`. Vault is the coordination layer — no message brokers |
-| **Domain specialisation** | 9 profiles (engineering, content, research, operations, trading, experimenter, general, accounting, legal) |
-| **Agent identity** | Directives give each phase a role, context rules, real data sources, and safety constraints |
-| **Compounding knowledge** | Consolidator extracts learnings after every phase into `Knowledge.md` |
-| **Self-healing vault** | `onyx heal` fixes stale locks, frontmatter drift, orphaned phases, graph links |
-| **Observable by default** | Everything visible in Obsidian — no special tooling required |
-| **Agent-agnostic** | Swap Claude Code for Cursor or a custom binary. Vault doesn't care. |
+Every iteration — whether triggered by `onyx run`, a cron job, or a human invoking the agent directly — executes the same eight steps from §3 of the Master Directive:
 
----
-
-## Quick start
-
-```bash
-git clone https://github.com/jamalahmed2001/onyx
-cd onyx
-npm install                       # builds TypeScript automatically via postinstall
-cp .env.example .env              # set ONYX_VAULT_ROOT + OPENROUTER_API_KEY
-onyx doctor                       # verify every dependency
-onyx init "My First Project"      # create a bundle (prompts for profile)
-onyx plan "My First Project"      # decompose + atomise into phases with tasks
-onyx run                          # execute phase-ready phases
+```
+1. Heal       — clear stale locks, repair hub back-links, normalise frontmatter drift
+2. Find work  — scan for the next actionable phase (priority + dependencies respected)
+3. Lock       — stamp the phase with agent-id + ISO timestamp
+4. Load ctx   — phase → overview → profile → directive → Knowledge.md → linked files
+5. Route      — atomise / wait / execute / surface_blocker / skip (the five operations)
+6. Execute    — call skills, follow the directive, write progress to the phase note
+7. Consolidate— on completion, merge learnings into Knowledge.md
+8. Release    — clear the lock, append to ExecLog, exit (or loop)
 ```
 
-Full setup guide: [`CLAUDE.md`](./CLAUDE.md)
+The agent is disposable. The vault persists the state that makes the next iteration possible.
+
+---
+
+## Vault organisation
+
+The vault is a **fractal tree, not a spider web**. Every node has one `up:` parent. Cross-branch relationships (profile-of, based-on, directive-for) live in frontmatter, not body wikilinks. Obsidian's graph view becomes a branching star, which is what you want.
+
+```
+vault/
+├── 00 - Dashboard/
+│   ├── ExecLog.md            # append-only runtime trace
+│   ├── Inbox.md              # quick-capture triage queue
+│   └── Daily/                # daily planning + log notes
+├── 01 - Projects/
+│   └── <My Project>/         # project bundle
+│       ├── <Project> - Overview.md
+│       ├── <Project> - Knowledge.md
+│       ├── Phases/
+│       │   ├── <Project> - P01 - Build a thing.md
+│       │   ├── <Project> - O3 - Run the pipeline.md
+│       │   └── <Project> - R1 - Investigate the spike.md
+│       ├── Logs/
+│       └── Directives/       # project-local directive overrides (optional)
+└── 08 - System/              # cross-project primitives
+    ├── ONYX Master Directive.md
+    ├── Agent Directives/     # role definitions
+    ├── Agent Skills/         # skill overviews + registry hub
+    ├── Conventions/          # authoring guides (minimal-code, browser automation)
+    └── Profiles/             # project-type contracts
+```
+
+### Phase lifecycle prefixes
+
+Phase filenames carry a single letter describing the **lifecycle role** of that phase, not the sub-activity inside it. A research step inside an ops run is still `O<N>` — the enclosing unit is operational.
+
+| Prefix | Meaning | Typical use |
+|---|---|---|
+| **`P`** | Plan / Build | One-off setup, scaffolding, new feature, migration |
+| **`O`** | Ops | Recurring production runs of an established pipeline |
+| **`R`** | Research | Investigation, sniffing, feasibility, discovery |
+| **`E`** | Experiment | Experimenter-profile cycles (learn / design / experiment / analyze) |
+| **`M`** | Maintenance | Cleanup, dependency upgrades, refactors, non-trivial bugfixes |
+
+Numbers are per-prefix and per-project: `P01`, `P02`, …; separately `O1`, `O2`, …; decimals (`O3.5`) are fine for interstitial steps.
 
 ---
 
 ## Profiles
 
-One profile per project — set `profile:` in the project's `Overview.md`. Each profile defines required fields, the bundle structure initialised by `onyx init`, and the acceptance gate that must pass before a phase can complete.
+One profile per project — set `profile:` in the project's `Overview.md`. The profile defines required fields, the bundle skeleton created by `onyx init`, and the acceptance gate that must pass before a phase can complete.
 
-| Profile | Use for | Key required fields | Acceptance gate |
+| Profile | Use for | Required fields | Acceptance gate |
 |---|---|---|---|
-| `general` | Catch-all — unsure which profile, mixed domains, lightweight tasks | none | All tasks checked + output documented |
+| `general` | Catch-all, lightweight tasks | none | All tasks checked + output documented |
 | `engineering` | Software projects with a git repo | `repo_path`, `test_command` | Test command exits 0 |
 | `content` | Podcast, video, newsletter, social pipelines | `voice_profile`, `pipeline_stage` | Safety filter + voice check |
-| `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | Source count + confidence gaps addressed |
+| `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | Source count + gaps addressed |
 | `operations` | System ops, monitoring, incident response | `monitored_systems`, `runbook_path` | Runbook followed + outcome documented |
 | `trading` | Algorithmic trading, strategy development | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | Backtest passes + risk compliance |
 | `experimenter` | A/B testing, prompt engineering, ML experiments | `hypothesis`, `success_metric`, `baseline_value` | Result recorded + Cognition Store updated |
 | `accounting` | Financial records, reconciliation, reporting | `ledger_path`, `reporting_period` | Trial balance verified |
-| `legal` | Contracts, research, compliance | `jurisdiction`, `matter_type` | Evidence hierarchy followed + citations verified |
+| `legal` | Contracts, research, compliance | `jurisdiction`, `matter_type` | Evidence hierarchy + citations verified |
+| `audio-production` | Music/audio-first pipelines (ManiPlus, Suno Albums) | `voice_profile`, `lufs_target` | Mastered audio + LUFS target met |
 
-```bash
-onyx init "KrakenBot"    --profile trading
-onyx init "ManiPlus"     --profile content
-onyx init "Prompt Lab"   --profile experimenter
-onyx init "Tax Q1"       --profile accounting
-```
+Profiles are **invariants**. If a rule only applies to some phases of a project-type, it's a directive rule, not a profile.
 
 ---
 
@@ -97,156 +138,125 @@ A directive is a markdown file prepended to the agent's context before it reads 
 
 ```yaml
 # In phase frontmatter
-directive: maniplus-script-writer
+directive: clinical-researcher
 ```
 
-**Resolution:** `My Project/Directives/<name>.md` → `08 - System/Agent Directives/<name>.md`
+**Resolution order** (bundle-local wins over system-global):
+1. Phase's explicit `directive:` field
+2. Auto-wiring for experimenter phases (`cycle_type:` → `experimenter-<role>`)
+3. `<project>/Directives/<default>.md` if present
+4. Profile's default directive
+5. `08 - System/Agent Directives/general.md`
 
-**Context injection order:**
+**Context injection order for every phase:**
 ```
-1. Directive (who the agent is)
-2. Profile (domain rules + acceptance gate)
-3. Overview.md (project goals, scope, constraints)
-4. Knowledge.md (all prior learnings from past phases)
-5. Context doc (Repo Context / Source Context / Research Brief / etc.)
-6. Phase file (what to do right now)
-```
-
-**Experimenter auto-wiring** — set `cycle_type:` on a phase, no `directive:` field needed:
-```yaml
-cycle_type: experiment   # → auto-wires experimenter-engineer
-cycle_type: analyze      # → auto-wires experimenter-analyzer
-cycle_type: learn        # → auto-wires experimenter-researcher
+Master Directive → Directive → Profile → Overview → Knowledge → Context file → Phase → Skill Overviews
 ```
 
-**Workflow directives** — encode non-trivial automatable processes with specific tool invocations and real data source access:
+Each data-dependent directive declares the **skills** it needs (API clients, browser recipes, vault primitives) and the **sources** it can read from. Representative directives:
 
 | Directive | What it encodes |
 |---|---|
-| `accountant` | Journal entry production, trial balance verification, Stripe + ECB FX API access |
-| `investment-analyst` | Financial data retrieval (SEC EDGAR, CoinGecko, Yahoo Finance), ratio calculation, investment memo |
-| `legal-researcher` | Primary source retrieval (legislation.gov.uk, CourtListener, EUR-Lex), evidence hierarchy, citations |
-| `data-analyst` | EDA, SQL, PostHog/Amplitude API access, observation vs interpretation discipline |
-| `security-analyst` | npm audit, semgrep, secrets grep, OWASP checklist — exact tool commands |
 | `clinical-researcher` | PubMed/ClinicalTrials.gov search, evidence hierarchy, Vancouver citations |
+| `data-analyst` | EDA, SQL, PostHog/Amplitude API access, observation-vs-interpretation discipline |
+| `investment-analyst` | SEC EDGAR, CoinGecko, Yahoo Finance; ratio calculation; investment memo |
+| `legal-researcher` | legislation.gov.uk, CourtListener, EUR-Lex; evidence hierarchy; citations |
+| `security-analyst` | npm audit, semgrep, secrets grep, OWASP checklist |
 | `journalist` | Multi-source corroboration, GDELT/Guardian search, right-of-reply protocol |
-| `marketing-strategist` | Audience signal retrieval, Meta/Mailchimp/GA4 API access, objective-first structure |
-| `knowledge-keeper` | Maintains Knowledge.md as structured wiki; contradiction detection; topic index |
-| `observer` | Read-only state snapshot for inspection without mutation |
-| `general` | Catch-all — reads phase and executes without workflow encoding |
-
-Each data-dependent directive uses a three-tier model: Tier 1 (free public APIs, usable immediately), Tier 2 (API key in `.env`), Tier 3 (pnpm script built by an engineering phase first). See `08 - System/ONYX Integrations.md` for the full integration catalogue.
-
-**Scaffold new directives and profiles:**
-```bash
-onyx new directive <name>                          # system-level directive
-onyx new directive <name> --project "My Project"   # project-local directive
-onyx new profile <name>                            # new domain profile
-```
+| `universal-engagement` | Comment ingestion → safety filter → HITL approval → reply post |
+| `universal-publisher` | Pluggable publish fan-out (YouTube/Spotify/TikTok/Instagram) |
+| `knowledge-keeper` | Maintains Knowledge.md as structured wiki; contradiction detection |
+| `observer` | Read-only state snapshot; never mutates |
+| `general` | Catch-all; reads phase and executes without workflow encoding |
 
 ---
 
-## Phase lifecycle
+## Skills
 
-```
-backlog → planning → ready → active → completed
-                               ↘ blocked → (human resolves) → ready
-```
+The **skill surface layer** (§10 of the Master Directive) is everything an agent can invoke during a phase. There are exactly two categories:
 
-| State | Meaning |
+**Native skills** — built into the runtime, always available:
+`read_file`, `write_file`, `edit_file`, `grep`, `glob`, `bash`, `web_fetch`, `web_search`. Plus vault convenience helpers (`read_frontmatter`, `append_to_section`, `check_box`, `append_execlog`).
+
+**External skills** — installed under `~/clawd/skills/<name>/`, with a bin at `<name>/bin/<name>`. Each one has a **Skill Overview** in the vault describing verbs, flags, output shape, prerequisites. The starter vault ships overviews for a generic set:
+
+| Category | Skills |
 |---|---|
-| `backlog` | Phase exists, no tasks yet |
-| `planning` | Atomiser generating tasks (transient) |
-| `ready` | Approved; `onyx run` picks this up |
-| `active` | Agent holds lock, executing right now |
-| `completed` | Acceptance passed, learnings consolidated |
-| `blocked` | Agent halted; `## Human Requirements` written for human review |
+| Agent Execution | `agent-spawn`, `onyx-controller`, `context-orchestrator` |
+| Integrations | `linear-fetch`, `linear-uplink`, `notion-context`, `notify-phase`, `rss-fetch` |
+| Media & Content | `whisper-groq`, `elevenlabs-tts`, `audio-master`, `suno`, `pubmed-search`, `remotion-best-practices` |
+| Distribution | `spotify-creators`, `music-distro`, `rss-publish`, `youtube-publish`, `youtube-comments`, `tiktok-publish`, `instagram-publish`, `analytics-pull` |
+| Personal & Productivity | `plan-my-day` |
+| Infrastructure | `headless-browser`, `browser-automate`, `cloudflare-dns-sync`, `housekeeping`, `obsidian`, `project-health` |
+| Utilities | `prompt-optimizer`, `clawdbot-cost-tracker`, `image-resize`, `pdf-extract`, `comment-safety-filter`, `notify` |
 
-**Scheduling:** phases sort by `priority` (0–10, default 5, higher = first) → risk (high first) → phase number.
+A phase, directive, or profile can declare `skills:` in frontmatter to whitelist its allowed surface. Outside that set → log a warning.
 
-**Both must be set for pickup:** `state: ready` AND `tags` must include `phase-ready`.
-
----
-
-## Multi-agent pipelines
-
-The vault is the coordination layer. No message broker. Agent A completes its phase and writes output to the vault. Agent B's `depends_on: [A]` prevents it from starting until A is complete.
-
-```
-Phase A (researcher)  → writes findings to vault
-Phase B (writer)      → reads findings → writes script
-Phase C (distributor) → reads script → publishes
-```
-
-Every phase can have a different directive — different agent identity, different expertise — all driven by `onyx run` against the same vault.
+Adding a new skill: scaffold under `~/clawd/skills/<name>/`, write the vault Skill Overview first, then implement backwards from it. Follow `08 - System/Conventions/Minimal Code Max Utility.md`. Ship with pluggable providers from day one if a second backend is plausible.
 
 ---
 
-## Commands
+## Quick start
+
+```bash
+git clone https://github.com/jamalahmed2001/onyx
+cd onyx
+npm install                       # postinstall runs tsc → dist/
+cp .env.example .env              # set ONYX_VAULT_ROOT + OPENROUTER_API_KEY
+onyx doctor                       # verify every dependency
+onyx init "My First Project"      # create a bundle (prompts for profile)
+onyx plan "My First Project"      # decompose Overview → phases → tasks
+onyx run                          # execute phase-ready phases
+```
+
+Full setup: [`GETTING_STARTED.md`](./GETTING_STARTED.md). The bundled `./vault/` is a working starter with example project, templates, directives, profiles, conventions, skill overviews, and the Master Directive.
+
+---
+
+## CLI — thin helpers around the vault
+
+The `onyx` CLI is convenience, not authority. Everything it does is expressible as reads and writes of markdown files in the vault. The Master Directive is what makes an agent ONYX-shaped; the CLI just saves keystrokes.
 
 ```bash
 # Execution
 onyx run                             # autonomous loop — all phase-ready phases
 onyx run --project "My Project"      # scope to one project
 onyx run --once                      # single iteration then exit (safe for cron)
-onyx run --phase 2                   # run a specific phase number (implies --once)
-onyx run --dry-run                   # preview what would happen without running
+onyx run --phase 2                   # run a specific phase
 
 # Observability
 onyx status                          # all projects + phase states
-onyx status --json                   # machine-readable snapshot
 onyx explain                         # plain English: what every project is doing
-onyx explain "My Project"            # one project, detailed view
 onyx logs "My Project"               # execution log
-onyx logs "My Project" --recent      # most recent entries
-onyx logs --audit                    # full audit trail
 
 # Project creation + planning
 onyx init "My Project"               # create bundle (prompts for profile, repo path)
-onyx init "My Project" --profile engineering  # skip profile picker
-onyx plan "My Project"               # decompose Overview → phase stubs → atomise to tasks
-onyx plan "My Project" 2             # atomise one specific phase only
-onyx plan "My Project" --extend      # add new phases to an existing project
-onyx decompose "My Project"          # Overview → phase stubs only (no atomising)
-onyx atomise "My Project"            # atomise all backlog phase stubs to tasks
-onyx atomise "My Project" 1          # atomise a specific phase only
+onyx plan "My Project"               # decompose + atomise
+onyx atomise "My Project" 1          # atomise a specific phase
 
-# Phase state management
-onyx next                            # find highest-priority ready phase and run it
-onyx ready "My Project"              # auto-pick next backlog phase → set ready
-onyx ready "My Project" 3            # set phase 3 specifically to ready
-onyx block "My Project" "reason"     # block active phase with a reason
-onyx reset "My Project"              # unblock → ready (after fixing the blocker)
-onyx set-state <path/to/phase.md> ready  # force state transition (for scripts)
+# Phase state
+onyx next                            # highest-priority ready phase → run
+onyx ready "My Project" 3            # set phase 3 to ready
+onyx block / onyx reset              # blocker management
+onyx consolidate "My Project"        # phase-group archive (two-pass: archive + trash)
+onyx monthly-consolidate --prune --delete-dailies    # monthly daily-note consolidation
 
-# Vault objects
-onyx new phase "My Project" "Name"   # create a new phase file
-onyx new directive <name>            # scaffold system directive stub
-onyx new directive <name> --project "My Project"  # project-local directive
-onyx new profile <name>              # scaffold new profile
+# Maintenance
+onyx doctor                          # pre-flight checks
+onyx heal                            # clear stale locks, fix drift, repair graph
+onyx check "My Project"              # validate bundle shape (read-only)
 
-# Maintenance + recovery
-onyx doctor                          # pre-flight: config, vault, API keys, claude CLI
-onyx heal                            # fix stale locks, frontmatter drift, graph links
-onyx check "My Project"              # validate vault state (fields, deps, directives)
-onyx consolidate "My Project"        # manually trigger Knowledge consolidation
-onyx refresh-context "My Project"    # re-scan repo, update Repo Context doc
-
-# Capture + daily planning
-onyx capture "note text"             # append to Inbox.md for later triage
-onyx daily-plan                      # generate today's time-blocked daily plan
-
-# Integrations
-onyx dashboard                       # web dashboard on localhost:7070
-onyx import <linearProjectId>        # import Linear project as vault bundle
-onyx linear-uplink "My Project"      # sync vault phases to Linear issues
+# Scaffolding
+onyx new phase "My Project" "Name"
+onyx new directive <name>
+onyx new profile <name>
 ```
 
 ---
 
 ## Configuration
 
-**`.env`** — secrets (never commit):
+**`.env`** — secrets, never commit:
 ```
 ONYX_VAULT_ROOT=/absolute/path/to/your/obsidian/vault
 OPENROUTER_API_KEY=sk-or-...
@@ -257,12 +267,12 @@ OPENROUTER_API_KEY=sk-or-...
 {
   "vault_root": "/absolute/path/to/your/obsidian/vault",
   "agent_driver": "claude-code",
-  "projects_glob": "{01 - Projects/**,02 - Work/**}",
+  "projects_glob": "{01 - Projects/**,03 - Ventures/**,10 - OpenClaw/**}",
   "model_tiers": {
-    "planning":  "anthropic/claude-opus-4-6",
-    "standard":  "anthropic/claude-sonnet-4-6",
-    "light":     "anthropic/claude-haiku-4-5-20251001",
-    "heavy":     "anthropic/claude-opus-4-6"
+    "planning": "anthropic/claude-opus-4-6",
+    "light":    "anthropic/claude-haiku-4-5-20251001",
+    "standard": "anthropic/claude-sonnet-4-6",
+    "heavy":    "anthropic/claude-opus-4-6"
   },
   "max_iterations": 20,
   "stale_lock_threshold_ms": 300000
@@ -271,57 +281,35 @@ OPENROUTER_API_KEY=sk-or-...
 
 ---
 
-## Architecture
+## Principles (hard-won, from §20 of the Master Directive)
 
-```
-┌─────────────────────────────────────────┐
-│  Intelligence Layer (Claude / agents)   │  Reasoning, planning, decision-making
-├─────────────────────────────────────────┤
-│  Runtime Layer (TypeScript CLI)         │  FSM, routing, file I/O, agent spawning
-├─────────────────────────────────────────┤
-│  Convention Layer (vault structure)     │  File names, frontmatter, folder layout
-├─────────────────────────────────────────┤
-│  State Layer (Obsidian vault)           │  Persistent state, history, config
-└─────────────────────────────────────────┘
-
-ONYX Core    = the nervous system (universal — never changes)
-Profiles     = how ONYX handles each domain (mechanical)
-Directives   = who the agent is for each phase (instructional)
-Bundles      = instantiated projects in the vault
-```
-
----
-
-## First principles
-
-1. **Vault is the only state.** If it's not in the vault, it didn't happen.
-2. **Phase is sacred.** Smallest reviewable unit. No profile or directive redefines it.
-3. **Profiles are thin.** Extra fields, templates, verification gate. Nothing more.
-4. **Directives are instructions.** Text the agent reads — not config ONYX parses.
-5. **Knowledge compounds.** Every phase teaches the next. Cross-session, cross-agent.
-6. **Agents are disposable.** Swap the driver. Vault doesn't care.
-7. **Human in the loop.** Blocked phases surface requirements. System asks instead of guessing.
-8. **Observable by default.** Everything visible in Obsidian without special tooling.
-9. **Convention over configuration.** Name things right, the system finds them.
-10. **Least mechanism.** Markdown file beats database table. Local beats SaaS.
-11. **Domain agnostic.** Engineering is not special. The model is universal.
-12. **Healing is proactive.** System self-repairs before every run. Drift doesn't accumulate.
+1. **One source of truth.** Vault-as-state everywhere. Skills that cache state across runs are wrong. Write to the vault; read from the vault.
+2. **Minimal code, max utility.** Every line earns its place. Five composable primitives; no new category without evidence.
+3. **Vault-first beats parallel databases.** Every `state.json` temptation has been replaced by frontmatter. Resist the regression.
+4. **Fractal tree, not spider web.** One `up:` parent per node. Cross-branch relationships in frontmatter, not body wikilinks.
+5. **Pluggable backends from day one.** Skills with a plausible alternative provider ship with `pickProvider()` and one stub on the first commit.
+6. **Directives orchestrate; skills execute; profiles constrain.** Violate that separation and debugging becomes archaeology.
+7. **Declare the plan before the code.** Write the vault contract (phase file or Skill Overview) first. Implement backwards from it.
+8. **Name what you can't solve.** Blockers surface as `## Human Requirements`. Silence is not success.
+9. **Verify before declaring done.** After a move, list the destination. After a merge, grep for stragglers. "Should be fine" ≠ "verified fine."
+10. **Human in the loop on paid actions.** Never auto-submit a DistroKid release, a Spotify publish, a music-distro flow. Leave the wizard at the review step.
 
 ---
 
 ## Documentation
 
-Open `./vault/` in Obsidian for the full interactive docs:
+Open `./vault/` in Obsidian for the live docs:
 
 | File | What's in it |
 |---|---|
-| `00 - Dashboard/What is ONYX.md` | Mental model, use cases, the three ideas |
+| `08 - System/ONYX Master Directive.md` | **The runtime spec.** Every agent reads this first. Everything flows from here. |
+| `08 - System/Conventions/Minimal Code Max Utility.md` | Authoring convention for skills, directives, and phase work |
+| `08 - System/Conventions/Browser Automation for Services Without APIs.md` | CDP-attach pattern for Clerk-protected / session-bound services |
+| `08 - System/Agent Skills/Agent Skills Hub.md` | Registry of all skills, grouped by category |
+| `08 - System/Agent Directives/` | All system directives — professional roles + system roles |
+| `08 - System/Profiles/` | All profile specs with required fields and acceptance gates |
+| `00 - Dashboard/What is ONYX.md` | Mental model, use cases |
 | `00 - Dashboard/Getting Started.md` | First project walkthrough — install to running |
-| `08 - System/ONYX - Quick Start.md` | Step-by-step guide: profiles, directives, pipelines, examples |
-| `08 - System/ONYX - Reference.md` | **Complete reference & playbook** — WHY each principle exists + all technical internals |
-| `08 - System/ONYX Integrations.md` | Integration catalogue — all APIs by domain, tier, env var, directive |
-| `08 - System/Profiles/` | All 9 profile specs with full required fields and acceptance gates |
-| `08 - System/Agent Directives/` | All system directives — 15 professional roles + system roles |
 
 ---
 
@@ -331,4 +319,4 @@ MIT
 
 ---
 
-**One nervous system. Many specialisations. The vault does the coordination.**
+**Vault is state. Master Directive is program. Skills are effectors. Phases are work units. Agents are disposable.**

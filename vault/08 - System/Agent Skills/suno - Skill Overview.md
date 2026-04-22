@@ -53,13 +53,55 @@ suno groups --by persona [--library ./tracks.json] [--output grouped.json] [--mi
 suno move --track <uuid> --workspace <target-id>
 suno move --tracks <uuid1>,<uuid2> --workspace <target-id> [--from-workspace <src-id>] [--dry-run]
 
+# Generate — full surface (direct API: POST /api/generate/v2-web/)
+# Default task=vox (lyrics sung). Always returns 2 takes (Suno default).
 suno generate \
-  --prompt "warm British piano, 60 bpm, hopeful-melancholy" \
-  --style "ambient piano, minimal, contemplative, instrumental" \
-  --title "maniplus-bed-01" \
-  --instrumental --count 2 \
+  --prompt "<lyrics>" \
+  --style "<tags>" \
+  --title "<optional>" \
+  [--model chirp-fenix|chirp-auk|chirp-crow|chirp-v4|chirp-v3] \
+  [--persona <uuid> | --persona-name "<name>"] \
+  [--workspace <id> | --workspace-name "<name>"] \
+  [--instrumental | --vocal] \
+  [--negative-tags "<tags>"] \
+  [--cover-clip <clip-id> | --continue-clip <clip-id> [--continue-at <sec>]] \
+  [--output-dir ./out/] \
+  [--dry-run]
+
+# Example — vocal R&B track in a specific persona's voice, auto-move into the Smoke & Tide workspace
+suno generate \
+  --prompt "Walking home in the rain, thinking of you" \
+  --style "neo-soul, 88 BPM, rhodes, warm" \
+  --persona-name "Rasta" \
+  --workspace-name "Smoke & Tide" \
   --output-dir ./out/
+
+# Create / delete / rename a workspace on Suno
+suno create-workspace --name "My New Album" [--description "..."]
+suno delete-workspace --workspace <id>    # POST /api/project/trash
+
+# Rename a track (preserves lyrics, caption, cover flags — only title changes)
+suno rename-track --track <uuid> --title "New Title"
+
+# Sequential two-voice duet via continue-clip — persona A sings part 1,
+# persona B extends the chosen take with part 2 lyrics. Each part-B take
+# renders the FULL assembled duet audio.
+suno duet \
+  --prompt-a "<part 1 lyrics>" --prompt-b "<part 2 lyrics>" \
+  --persona-a-name "Rasta" --persona-b-name "soulful hip - Female" \
+  --style "reggae-soul, 82 bpm, rhodes, warm dub bass" \
+  --title "Rising Up (Duet)" \
+  [--take 1|2|auto] [--continue-at <seconds>] \
+  [--workspace-name "Smoke & Tide"] [--output-dir ./out/] [--dry-run]
 ```
+
+### Duet flow
+
+1. `POST /api/generate/v2-web/` with persona A + `prompt-a` — 2 takes come back.
+2. Poll `/api/feed/v3` until both takes are terminal.
+3. Pick one take (default `--take auto` = the longer of the two; override with `--take 1|2`).
+4. `POST /api/generate/v2-web/` again, this time with `persona_id = B`, `prompt = prompt-b`, `continue_clip_id = selected_take.id`, `continue_at = selected_take.duration` (or `--continue-at <seconds>` to splice mid-clip). Returns 2 continuation takes.
+5. Each completed part-B clip contains the full assembled duet audio — downloaded to `--output-dir` and/or moved into `--workspace`.
 
 ### Track metadata fields
 
@@ -73,15 +115,19 @@ Each track in `library` output has: `id`, `title`, `created_at`, `duration`, `ta
 - **Personas list:** `GET /api/persona/get-personas/?page=N`
 - **Playlists list:** `GET /api/playlist/me?page=N`
 - **Clip detail:** `GET /api/clips/get_songs_by_ids?ids=<uuid>&ids=<uuid>...`
-- **Move tracks into workspace:** `POST /api/project/<src-id>/clips` with body `{"update_type":"move","metadata":{"clip_ids":[...], "target_project_id":"<dest-id>"}}`
+- **Move tracks into workspace:** `POST /api/project/<src-id>/clips` with body `{"update_type":"move","metadata":{"clip_ids":[...], "target_project_id":"<dest-id>"}}` — valid `update_type` literals: `add | remove | move | pinned`
+- **Create workspace:** `POST /api/project` body `{name, description}` → returns `{id, ...}`
+- **Trash workspace:** `POST /api/project/trash` body `{project_id}` → 204
+- **Rename track (set metadata):** `POST /api/gen/<clip-id>/set_metadata/` body `{title, lyrics, caption, caption_mentions, remove_image_cover, remove_video_cover}` — must preserve lyrics or they blank
+- **Generate track:** `POST /api/generate/v2-web/` body `{task: "vox"|"instrumental", prompt, tags, title, mv, persona_id, continue_clip_id, cover_clip_id, make_instrumental, override_fields, transaction_uuid, metadata: {...}}` → returns `{id: task-id, clips: [{id, status: "submitted"}, ...]}`
+- **Poll clip status:** `POST /api/feed/v3` body `{filters: {ids: {presence: "True", clipIds: [...]}}, limit}` → statuses: `submitted → queued → streaming → complete | error`
 
 Host is `studio-api-prod.suno.com` (hyphen, not dot).
 
 ### Known gaps (roadmap)
 
-- **Track → workspace membership** isn't exposed via the global feed endpoint. `suno library --workspace <id>` walks one workspace at a time; full-library-with-workspace-tags requires walking each workspace and merging — easy to wire up as a `--all-workspaces` flag if the need comes up.
-- **Delete / trash track** endpoints not yet sniffed; similar pattern — sniff a UI trash action and wire up.
-- **Workspace create / rename / delete** — not yet sniffed.
+- **Rename workspace** endpoint not discovered (all PATCH/PUT variants on `/project/<id>` return 405). Workaround: create new + move tracks + trash old.
+- **Delete / trash individual track** not yet sniffed — probably the same `POST /api/project/<ws>/clips` with `update_type: "remove"`.
 
 ## Prerequisites
 

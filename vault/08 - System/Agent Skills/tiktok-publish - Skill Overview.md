@@ -13,7 +13,7 @@ up: Agent Skills Hub
 
 # tiktok-publish
 
-> Upload to TikTok via the Content Posting API. Asynchronous — returns a `publish_id`; poll `--check-status` until the video is live.
+> Upload to TikTok, multi-account. Default backend is **browser** (CDP-attach to signed-in Creator Studio) since TikTok's Content Posting API requires app approval that's hard to get. API backend is still available for approved apps.
 
 ## When a directive should call this
 
@@ -29,6 +29,15 @@ up: Agent Skills Hub
 ## How to call it
 
 ```bash
+# Account management
+tiktok-publish account list
+tiktok-publish account show <ref>
+tiktok-publish account add <ref> --backend browser \
+  --field TIKTOK_HANDLE=@your_handle \
+  --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@your_handle
+tiktok-publish account remove <ref>
+
+# Upload (browser or api backend decided from the env file's BACKEND= line)
 ~/clawd/skills/tiktok-publish/bin/tiktok-publish \
   --account-ref maniplus \
   --video ./out-9x16.mp4 \
@@ -36,24 +45,33 @@ up: Agent Skills Hub
   --privacy PUBLIC_TO_EVERYONE \
   --cover-timestamp-ms 1500
 
-# Later — poll status
+# API backend only — poll status
 ~/clawd/skills/tiktok-publish/bin/tiktok-publish \
   --account-ref maniplus \
   --check-status <publish_id>
 ```
 
-Emits structured JSON on stdout (success) or stderr (error with classification).
+### Adding a new account
+
+**Browser backend (recommended):**
+1. Sign in to the target TikTok account in the daemon Chrome (CDP 9222) — `studio.tiktok.com`.
+2. `tiktok-publish account add my-channel --backend browser --field TIKTOK_HANDLE=@your_handle --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@your_handle`
+3. First upload triggers a sniff of the Creator Studio upload flow; selectors get baked into the recipe.
+
+**API backend (needs approved TikTok Developers app):**
+1. Register app at developers.tiktok.com. Request the `video.publish` scope. Wait for approval.
+2. OAuth-flow per account → exchange code → get access token.
+3. `tiktok-publish account add my-channel --backend api --field TIKTOK_ACCESS_TOKEN=...`
 
 ## Credentials
 
-`~/.credentials/tiktok-<account-ref>.env` with `TIKTOK_ACCESS_TOKEN` (Content Posting scope — `video.publish`). Tokens expire; refresh via your OAuth flow.
+`~/.credentials/tiktok-<ref>.env` (mode 600). `BACKEND=browser|api` plus matching fields. Browser: `TIKTOK_HANDLE`, `TIKTOK_PROFILE_URL`. API: `TIKTOK_ACCESS_TOKEN`.
 
 ## Currently used by
 
 | Project | Directive | Which video(s) |
 |---|---|---|
 | ManiPlus | `maniplus-distributor` | Short clips from each episode |
-| Cartoon Remakes | `cartoon-launch-ops` | Every episode as TikTok post (primary platform) |
 
 ## See also
 
