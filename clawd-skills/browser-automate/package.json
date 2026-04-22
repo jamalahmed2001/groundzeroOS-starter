@@ -1,0 +1,19 @@
+{
+  "name": "@skills/browser-automate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "browser-automate": "./bin/browser-automate" },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "playwright install chromium --only-shell || true"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

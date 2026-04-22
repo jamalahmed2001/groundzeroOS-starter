@@ -30,6 +30,12 @@ vault/.trash/
 # Skills node_modules
 skills/**/node_modules/
 
+# clawd-skills: if a user builds in-place, don't track their artifacts
+clawd-skills/**/node_modules/
+clawd-skills/**/dist/
+clawd-skills/**/.env
+clawd-skills/**/.env.local
+
 # Dashboard: local dev secrets (never commit)
 dashboard/.env.local
 dashboard/mailcow-accounts.json

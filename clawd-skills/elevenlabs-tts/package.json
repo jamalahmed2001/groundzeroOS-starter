@@ -1,0 +1,23 @@
+{
+  "name": "@skills/elevenlabs-tts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "elevenlabs-tts": "./bin/elevenlabs-tts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "elevenlabs": "^1.55.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# fal skill — dispatches to built dist or falls back to tsx src for dev.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -f "$DIR/dist/cli.js" ]; then
+  exec node "$DIR/dist/cli.js" "$@"
+elif command -v tsx >/dev/null 2>&1; then
+  exec tsx "$DIR/src/cli.ts" "$@"
+else
+  echo "fal: neither dist/cli.js nor tsx available. Run 'npm run build' in $DIR." >&2
+  exit 1
+fi

@@ -1,0 +1,15 @@
+{
+  "name": "@skills/suno",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "suno": "./bin/suno" },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Entry point for the elevenlabs-tts skill.
+# Runs src/cli.ts via ts-node. Requires `pnpm install` to have been run once.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+SKILL_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Prefer compiled dist/ if it exists (production), fall back to ts-node (dev)
+# --no-warnings suppresses Node's experimental-loader noise on every invocation
+if [[ -f "$SKILL_DIR/dist/cli.js" ]]; then
+  exec node --no-warnings "$SKILL_DIR/dist/cli.js" "$@"
+else
+  exec node --no-warnings --loader ts-node/esm "$SKILL_DIR/src/cli.ts" "$@"
+fi
