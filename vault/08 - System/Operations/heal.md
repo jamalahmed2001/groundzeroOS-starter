@@ -119,7 +119,19 @@ Invoke [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.
 - **Detections (no auto-fix):** unresolvable target (broken link — separate concern); mismatched profile (added parent_directive points at a directive whose profile contradicts the bundle's profile); cycle (parent_directive chain creates a loop).
 - **ExecLog:** one line per applied fix.
 
-### Step 8 — Missing-section detection (detect-only)
+### Step 9 — Bundle-shape integrity
+Invoke [[08 - System/Agent Skills/_onyx-runtime/heal-bundle-shape/heal-bundle-shape.md|heal-bundle-shape]].
+- **Input:** vault path, scope (default `all`), `dry_run: false`.
+- **Effect:** enforces the canonical bundle layout — branch-out leaf-tree fractal. Root-level archive files move into `_archive/`. Shared phase-template folders (a flat `Phases/` alongside a units-folder like `Albums/` or `Episodes/`) get renamed to `_<unit>-phases-template/` to disambiguate from per-unit op instances. Documentation buckets (`Docs/`) get lifted to root with `<Project> - ` prefix so the docs are visible at the bundle root, not buried. Research/audit folders (`Insights/`, `qc-reports/`) get their files tagged `context-only` so they don't pollute orphan scans.
+- **Auto-fixes (Rules 1–4):**
+  - **Rule 1**: root-level `* Archive.md` / `* (P*-P*) - Archive.md` → moved to `_archive/`.
+  - **Rule 2**: `Phases/` + sibling `Albums/` or `Episodes/` (no per-unit Phases yet) → rename `Phases/` → `_<unit>-phases-template/`. Skipped if per-unit Phases folders already exist (mixed-mode detection).
+  - **Rule 3**: lift `Docs/<Project> - <Title>.md` → `<bundle>/<Project> - <Title>.md`. Lift `Docs/<other>.md` → `<bundle>/<Project> - <other>.md`. Empty `Docs/` removed.
+  - **Rule 4**: tag `Insights/`, `Research/`, `qc-reports/` files with `context-only`.
+- **Detections (no auto-fix):** missing canonical bridge files (`<Project> - Master Pipeline.md`, `<Project> - <Unit> Catalog.md`, `<Project> - Craft Standards.md`); mixed phase layout (both flat and per-unit Phases); missing per-unit Phases (operator-gated instantiation).
+- **ExecLog:** one line per applied fix.
+
+### Step 10 — Missing-section detection (detect-only)
 No skill — this runs inline at the end. For every phase file, verify it contains `## Tasks` and `## Acceptance Criteria` headings. If either is missing, log a `drift:missing_section` entry to ExecLog. **Do not auto-fix.** Missing sections often indicate an in-progress plan or legacy phase; human review required.
 
 ## What heal does NOT do
@@ -153,6 +165,7 @@ No skill — this runs inline at the end. For every phase file, verify it contai
 - [[08 - System/Agent Skills/_onyx-runtime/heal-dup-nav/heal-dup-nav.md|heal-dup-nav]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/heal-fractal-links.md|heal-fractal-links]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.md|heal-cross-link]] — full procedure (added 2026-04-27 after the maniplus-marketer cross-link regression)
+- [[08 - System/Agent Skills/_onyx-runtime/heal-bundle-shape/heal-bundle-shape.md|heal-bundle-shape]] — full procedure (added 2026-04-27 after the Suno Albums bundle-layout restructure)
 
 ## Skills NOT invoked routinely (one-shot, human-gated)
 

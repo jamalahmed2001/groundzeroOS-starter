@@ -151,14 +151,18 @@ fi
 incoming_orphan_count=0
 declare -a INCOMING_ORPHANS
 if [[ "$MODE" == "all" || "$MODE" == "--incoming-only" ]]; then
-  # Build target index once
+  # Build target index once. Index BOTH the full wikilink target and just the basename
+  # so a wikilink like [[Albums/X/Y - Overview]] also matches a target whose filename
+  # is "Y - Overview.md" (Obsidian resolves wikilinks by basename when path prefix is given).
   TARGETS_TMP=$(mktemp)
   grep -rho '\[\[[^]]\+\]\]' "$VAULT" \
        --include="*.md" \
        --exclude-dir=_archive --exclude-dir=.trash --exclude-dir=.onyx-backups \
        --exclude-dir=.onyx-locks --exclude-dir=.onyx-checkpoints --exclude-dir=.git \
        --exclude-dir=.obsidian --exclude-dir=_drafts --exclude-dir=node_modules 2>/dev/null \
-    | sed 's/\[\[//; s/\]\]//; s/|.*//' | sort -u > "$TARGETS_TMP"
+    | sed 's/\[\[//; s/\]\]//; s/|.*//' \
+    | awk '{print $0; n=split($0, parts, "/"); print parts[n]}' \
+    | sort -u > "$TARGETS_TMP"
 
   while IFS= read -r -d '' f; do
     base=$(basename "$f" .md)
