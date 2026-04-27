@@ -1,0 +1,12 @@
+[
+  {
+    "term": "echocardiogram",
+    "phoneme": "ˌek.oʊˈkɑːr.di.ə.ɡræm",
+    "replacement": "eh-koh-KAR-dee-oh-gram"
+  },
+  {
+    "term": "anaemia",
+    "phoneme": "əˈniː.mi.ə",
+    "replacement": "uh-NEE-mee-uh"
+  }
+]
