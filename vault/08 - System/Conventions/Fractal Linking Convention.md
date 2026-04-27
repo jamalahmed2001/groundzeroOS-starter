@@ -163,7 +163,7 @@ Notes carrying the `context-only` tag (see [[Tag Convention]] §4.1) are referen
 
 ## 3. The 5-check fractal audit
 
-Mechanised by [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/SKILL.md|heal-fractal-links]]. For every note in the vault (excluding archives, trash, templates, context-only):
+Mechanised by [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/heal-fractal-links.md|heal-fractal-links]]. For every note in the vault (excluding archives, trash, templates, context-only):
 
 1. **`up:` present** — the note has a non-empty `up:` frontmatter field.
 2. **`up:` target exists** — the file named by `up:` exists in the vault.

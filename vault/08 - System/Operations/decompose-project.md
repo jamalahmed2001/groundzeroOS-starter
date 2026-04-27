@@ -38,7 +38,7 @@ migration_stage: 6
 2. `08 - System/Profiles/<profile>.md` — template selection + required fields.
 3. `<bundle>/Knowledge.md` — prior learnings that inform phase structure.
 4. `<bundle>/Phases/*.md` — existing phases (for `--extend` mode; need current max phase number).
-5. For code profiles: repo tree via [[08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md|repo-scan]].
+5. For code profiles: repo tree via [[08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md|repo-scan]].
 6. For non-code profiles: `<bundle>/Source Context.md` and other reference docs if present.
 
 ## Procedure
@@ -57,7 +57,7 @@ Same algorithm as [[08 - System/Operations/atomise.md|atomise]]:
 - `extend` mode: scan `<bundle>/Phases/`. Find max `phase_number` across all files (parse from frontmatter; fall back to filename `P<N>`). Start at `max + 1`.
 
 ### Step 4 — Generate phase stubs
-Invoke [[08 - System/Agent Skills/_onyx-runtime/phase-decompose/SKILL.md|phase-decompose]] with:
+Invoke [[08 - System/Agent Skills/_onyx-runtime/phase-decompose/phase-decompose.md|phase-decompose]] with:
 - `project_id`, `profile_name`, `is_code_profile`
 - `repo_path` (code) or `bundle_path` (non-code)
 - `overview_content` (full body)
@@ -182,8 +182,8 @@ Call `tools/write-exec-log.sh`:
 - **INTEGRITY:** repo_path unresolvable for code profile; Overview frontmatter corrupt.
 
 ## Skills invoked
-- [[08 - System/Agent Skills/_onyx-runtime/phase-decompose/SKILL.md|phase-decompose]] — shared with [[08 - System/Operations/replan.md|replan]].
-- [[08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md|repo-scan]] — for code profiles in Step 1.
+- [[08 - System/Agent Skills/_onyx-runtime/phase-decompose/phase-decompose.md|phase-decompose]] — shared with [[08 - System/Operations/replan.md|replan]].
+- [[08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md|repo-scan]] — for code profiles in Step 1.
 
 ## Tools invoked
 - `tools/write-exec-log.sh` — Step 8.

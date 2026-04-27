@@ -103,25 +103,25 @@ Each src/ module becomes one **Operation Directive** (the *what/why/contract*) p
 | Source | Becomes | Location |
 |---|---|---|
 | `runPhase.ts` (671 LOC) | Operation Directive: Execute Phase | `08 - System/Operations/execute-phase.md` |
-| task-loop inner logic | Skill: phase-task-loop (select → spawn → write-back → tick) | `08 - System/Agent Skills/_onyx-runtime/phase-task-loop/SKILL.md` |
-| `selectTask.ts` (162 LOC) | Skill: select-next-task (full algorithm) | `08 - System/Agent Skills/_onyx-runtime/select-next-task/SKILL.md` |
+| task-loop inner logic | Skill: phase-task-loop (select → spawn → write-back → tick) | `08 - System/Agent Skills/_onyx-runtime/phase-task-loop/phase-task-loop.md` |
+| `selectTask.ts` (162 LOC) | Skill: select-next-task (full algorithm) | `08 - System/Agent Skills/_onyx-runtime/select-next-task/select-next-task.md` |
 | spawn subprocess (claude-code / cursor) | Skill: agent-spawn (promote existing stub to full procedure) | `08 - System/Agent Skills/agent-spawn - Skill Overview.md` → move under `_onyx-runtime/agent-spawn/` |
-| lock refresh inside runPhase | Skill: lock-lifecycle (acquire/refresh/release, shared by executor + atomiser + heal) | `08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/SKILL.md` |
+| lock refresh inside runPhase | Skill: lock-lifecycle (acquire/refresh/release, shared by executor + atomiser + heal) | `08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/lock-lifecycle.md` |
 
 ### 4.2 Atomiser — `src/planner/atomiser.ts` (498 lines)
 
 | Source | Becomes | Location |
 |---|---|---|
 | atomiser.ts prompt + rules | Operation Directive: Atomise | `08 - System/Operations/atomise.md` |
-| "6–12 tasks" heuristic, profile rules | Skill: atomise-phase (full procedure with per-profile branches) | `08 - System/Agent Skills/_onyx-runtime/atomise-phase/SKILL.md` |
-| repo-scan subroutine | Skill: repo-scan (grep + tree + symbol index) | `08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md` |
+| "6–12 tasks" heuristic, profile rules | Skill: atomise-phase (full procedure with per-profile branches) | `08 - System/Agent Skills/_onyx-runtime/atomise-phase/atomise-phase.md` |
+| repo-scan subroutine | Skill: repo-scan (grep + tree + symbol index) | `08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md` |
 
 ### 4.3 Planner — `src/planner/phasePlanner.ts` (785) + `replan.ts` (226)
 
 | Source | Becomes | Location |
 |---|---|---|
 | phasePlanner.ts | Operation Directive: Decompose Project | `08 - System/Operations/decompose-project.md` |
-| phase stub generator | Skill: phase-decompose | `08 - System/Agent Skills/_onyx-runtime/phase-decompose/SKILL.md` |
+| phase stub generator | Skill: phase-decompose | `08 - System/Agent Skills/_onyx-runtime/phase-decompose/phase-decompose.md` |
 | replan.ts | Operation Directive: Replan Phase | `08 - System/Operations/replan.md` |
 
 ### 4.4 Consolidator — `src/planner/consolidator.ts` (238)
@@ -129,8 +129,8 @@ Each src/ module becomes one **Operation Directive** (the *what/why/contract*) p
 | Source | Becomes | Location |
 |---|---|---|
 | consolidator.ts | Operation Directive: Consolidate Knowledge | `08 - System/Operations/consolidate.md` |
-| knowledge merge rules | Skill: knowledge-merge | `08 - System/Agent Skills/_onyx-runtime/knowledge-merge/SKILL.md` |
-| monthly-consolidate | Skill: monthly-rollup | `08 - System/Agent Skills/_onyx-runtime/monthly-rollup/SKILL.md` |
+| knowledge merge rules | Skill: knowledge-merge | `08 - System/Agent Skills/_onyx-runtime/knowledge-merge/knowledge-merge.md` |
+| monthly-consolidate | Skill: monthly-rollup | `08 - System/Agent Skills/_onyx-runtime/monthly-rollup/monthly-rollup.md` |
 
 ### 4.5 Healer — `src/healer/*.ts` (882 lines)
 
@@ -139,12 +139,12 @@ The vault healer is today a pile of small checks bolted together. Carve each int
 | Source | Becomes | Location |
 |---|---|---|
 | `healer/index.ts` orchestration (58 LOC) | Operation Directive: Heal Vault (ordered checklist) | `08 - System/Operations/heal.md` |
-| `staleLocks.ts` (138) | Skill: heal-stale-locks | `08 - System/Agent Skills/_onyx-runtime/heal-stale-locks/SKILL.md` |
-| `drift.ts` (296) | Skill: heal-frontmatter-drift (status/tag mismatches, invalid states) | `08 - System/Agent Skills/_onyx-runtime/heal-frontmatter-drift/SKILL.md` |
-| `orphans.ts` (276) | Skill: heal-orphans (logs, wikilinks, bundle folders) | `08 - System/Agent Skills/_onyx-runtime/heal-orphans/SKILL.md` |
-| `migrateLogs.ts` (172) | Skill: heal-migrate-logs | `08 - System/Agent Skills/_onyx-runtime/heal-migrate-logs/SKILL.md` |
-| `repairProjectId.ts` (42) | Skill: heal-project-id | `08 - System/Agent Skills/_onyx-runtime/heal-project-id/SKILL.md` |
-| graph maintainer (`src/vault/graphMaintainer.ts`) | Skill: heal-graph-integrity | `08 - System/Agent Skills/_onyx-runtime/heal-graph-integrity/SKILL.md` |
+| `staleLocks.ts` (138) | Skill: heal-stale-locks | `08 - System/Agent Skills/_onyx-runtime/heal-stale-locks/heal-stale-locks.md` |
+| `drift.ts` (296) | Skill: heal-frontmatter-drift (status/tag mismatches, invalid states) | `08 - System/Agent Skills/_onyx-runtime/heal-frontmatter-drift/heal-frontmatter-drift.md` |
+| `orphans.ts` (276) | Skill: heal-orphans (logs, wikilinks, bundle folders) | `08 - System/Agent Skills/_onyx-runtime/heal-orphans/heal-orphans.md` |
+| `migrateLogs.ts` (172) | Skill: heal-migrate-logs | `08 - System/Agent Skills/_onyx-runtime/heal-migrate-logs/heal-migrate-logs.md` |
+| `repairProjectId.ts` (42) | Skill: heal-project-id | `08 - System/Agent Skills/_onyx-runtime/heal-project-id/heal-project-id.md` |
+| graph maintainer (`src/vault/graphMaintainer.ts`) | Skill: heal-graph-integrity | `08 - System/Agent Skills/_onyx-runtime/heal-graph-integrity/heal-graph-integrity.md` |
 
 The existing `safe-repair` / `drift-scan` SKILL.md files at repo root become **references** pointing into this suite — not primary sources.
 
@@ -356,15 +356,15 @@ Built on Zero-Code Vision §16, with the Operations layer added.
 - [ ] Once diff is empty: delete `src/healer/`, `src/cli/heal.ts` becomes a directive loader
 
 ### Stage 4 — Migrate atomiser + consolidator
-- [ ] Write `Operations/atomise.md` + `_onyx-runtime/atomise-phase/SKILL.md` + `repo-scan/SKILL.md`
-- [ ] Write `Operations/consolidate.md` + `_onyx-runtime/knowledge-merge/SKILL.md` + `monthly-rollup/SKILL.md`
+- [ ] Write `Operations/atomise.md` + `_onyx-runtime/atomise-phase/atomise-phase.md` + `repo-scan/SKILL.md`
+- [ ] Write `Operations/consolidate.md` + `_onyx-runtime/knowledge-merge/knowledge-merge.md` + `monthly-rollup/SKILL.md`
 - [ ] Shadow-mode week on both
 - [ ] Delete `src/planner/atomiser.ts`, `src/planner/consolidator.ts`
 - [ ] `src/cli/plan.ts` (atomise branch) + `src/cli/consolidate.ts` become directive loaders
 
 ### Stage 5 — Migrate executor (the big one)
 - [ ] Write `Operations/execute-phase.md`
-- [ ] Write `_onyx-runtime/phase-task-loop/SKILL.md` + `select-next-task/SKILL.md` + `lock-lifecycle/SKILL.md`
+- [ ] Write `_onyx-runtime/phase-task-loop/phase-task-loop.md` + `select-next-task/SKILL.md` + `lock-lifecycle/SKILL.md`
 - [ ] Promote `agent-spawn` overview stub to a full SKILL.md under `_onyx-runtime/`
 - [ ] Shadow-mode week
 - [ ] Delete `src/executor/`

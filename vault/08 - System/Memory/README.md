@@ -121,6 +121,6 @@ These exclusions hold even if you're tempted to "save it just in case."
 ## See also
 
 - [[08 - System/Memory/MEMORY-template.md|Memory Index Template]] — shape for the per-machine memory index
-- [[08 - System/Memory/_examples|Memory Entry Examples]] — three example feedback entries showing the canonical format
+- [[08 - System/Memory/_examples/user_role.md|Memory Entry Examples]] — three example feedback entries showing the canonical format
 - [[08 - System/Cross-Project Knowledge.md|Cross-Project Knowledge]] — the operator-specific store
 - [[08 - System/Principles/Principles Hub.md|Principles Hub]] — the framework-canonical store

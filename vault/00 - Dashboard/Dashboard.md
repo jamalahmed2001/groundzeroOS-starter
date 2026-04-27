@@ -49,5 +49,5 @@ onyx heal             fix vault drift
 ## System
 
 - [[AGENTS|Agent Operating Rules]]
-- [[Skills Index|Skills Index]]
+
 - [[ONYX - Scoping (KISS)|KISS Directive]]

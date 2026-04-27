@@ -104,4 +104,4 @@ projects_root: /home/you/workspace/projects
 
 - [[What is ONYX|What is ONYX]] — mental model
 - [[Getting Started|Getting Started]] — install + first project
-- [[ONYX - Summary|ONYX Summary]] — one-page reference
+

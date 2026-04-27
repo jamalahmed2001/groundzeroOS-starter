@@ -49,7 +49,7 @@ Canonical load order (Master Directive §8):
 
 ### Step 1 — Backup + acquire
 1. Snapshot the phase file + log file to `<bundle>/_backups/<phase>-<runId>.md` (pre-execution state for potential rollback).
-2. Invoke [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/SKILL.md|lock-lifecycle]] `acquire` with `phase_path`, `run_id`, target tag `phase-active`.
+2. Invoke [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/lock-lifecycle.md|lock-lifecycle]] `acquire` with `phase_path`, `run_id`, target tag `phase-active`.
    - If acquire returns `already_locked` (fresh lock) → return `lock_contention`; do not proceed.
    - If `schema_invalid` → emit errors; return `error`.
    - If `ok` → proceed.
@@ -155,7 +155,7 @@ Acceptance-met check:
 
 If met:
 1. Invoke [[08 - System/Operations/consolidate.md|consolidate]] inline (synchronously) — extracts learnings, writes to Knowledge.md, optionally propagates cross-project.
-2. Invoke [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/SKILL.md|lock-lifecycle]] `release` with target tag `phase-completed`.
+2. Invoke [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/lock-lifecycle.md|lock-lifecycle]] `release` with target tag `phase-completed`.
 3. Transition `active → completed`. Bump `updated:`. Write `state: completed`, `status: completed`, swap `phase-active` → `phase-completed` in tags.
 4. If engineering profile: tag the repo: Bash `git -C <repo_path> tag -a "onyx/<project>/P<N>-complete" -m "Phase <label> complete"` (subject to allowed_shell).
 5. Notify: event `phase_completed`.
@@ -189,7 +189,7 @@ If met:
 - **INTEGRITY:** schema-invalid phase frontmatter (detected by lock-lifecycle at acquire); acceptance check crashes because `## Acceptance Criteria` is malformed.
 
 ## Skills invoked
-- [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/SKILL.md|lock-lifecycle]] — acquire / refresh / release.
+- [[08 - System/Agent Skills/_onyx-runtime/lock-lifecycle/lock-lifecycle.md|lock-lifecycle]] — acquire / refresh / release.
 
 Everything else inlined per "minimal code" preference:
 - Task selection (Step 3) — was `select-next-task`, now inline.

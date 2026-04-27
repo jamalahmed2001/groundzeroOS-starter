@@ -124,7 +124,7 @@ The brief lives in the vault. Search results land in `/tmp/<project>-<date>/`; o
 - Citations without URLs.
 - Year-stamped citations the publisher's page doesn't carry.
 - Phone numbers / helplines passed through from older briefs without re-fetching.
-- "[[wikilinks]]" to system docs in the brief — the brief lives at the project layer; system docs are referenced by frontmatter only.
+- `[[wikilinks]]` to system docs in the brief — the brief lives at the project layer; system docs are referenced by frontmatter only.
 - Blocking on every gap. Some gaps are honest — the data doesn't exist. Flag them in `## Gaps / caveats`, don't refuse to ship a brief.
 
 ---

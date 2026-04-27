@@ -39,7 +39,7 @@ migration_stage: 4
 2. Project Overview.md — extract `profile:` from frontmatter (determines code vs. non-code path), plus `repo_path:`, `## Scope` / `## Goals` / `## Description` / `## Overview` body section, `## Agent Constraints` body section.
 3. Profile file from `08 - System/Profiles/<profile>.md` — for declared `allowed_shell:`, acceptance-gate patterns, required phase fields.
 4. Sibling phases: files under `<bundle>/Phases/*.md` matching `P\d+` or `O\d+`, up to 15. Read only frontmatter + phase_name — enough to avoid duplicating their work.
-5. For code profiles only: [[08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md|repo-scan]] on `repo_path` — top-level file tree capped at ~150 files, respecting profile exclusions.
+5. For code profiles only: [[08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md|repo-scan]] on `repo_path` — top-level file tree capped at ~150 files, respecting profile exclusions.
 6. For non-code profiles: `ls` + short reads of top-level bundle contents (Source Context, Research Brief, Strategy Context, prior artifacts).
 
 ## Procedure
@@ -77,12 +77,12 @@ Cap the list so the full context packet stays under 4KB.
 The full phase file body (Summary, Acceptance Criteria, any existing Tasks, Human Requirements, Progress).
 
 **E. Source context (per profile):**
-- Code profile: invoke [[08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md|repo-scan]] on `repo_path`. Use the result as "Repo file structure:" block.
+- Code profile: invoke [[08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md|repo-scan]] on `repo_path`. Use the result as "Repo file structure:" block.
 - Non-code profile: bundle directory listing + read of Source Context / Research Brief docs if present.
 
 ### Step 4 — Generate the plan
 
-Invoke [[08 - System/Agent Skills/_onyx-runtime/atomise-phase/SKILL.md|atomise-phase]] with:
+Invoke [[08 - System/Agent Skills/_onyx-runtime/atomise-phase/atomise-phase.md|atomise-phase]] with:
 - `phase_path`
 - `project_id`, `phase_name`, `phase_number`
 - `profile_name`, `is_code_profile`
@@ -154,8 +154,8 @@ Priority for finding `repo_path`:
 3. If nothing matches → return empty; caller treats this as a BLOCKING condition.
 
 ## Skills invoked
-- [[08 - System/Agent Skills/_onyx-runtime/atomise-phase/SKILL.md|atomise-phase]] — full procedure (the LLM-or-agent plan generation step).
-- [[08 - System/Agent Skills/_onyx-runtime/repo-scan/SKILL.md|repo-scan]] — for code profiles in Step 3.E.
+- [[08 - System/Agent Skills/_onyx-runtime/atomise-phase/atomise-phase.md|atomise-phase]] — full procedure (the LLM-or-agent plan generation step).
+- [[08 - System/Agent Skills/_onyx-runtime/repo-scan/repo-scan.md|repo-scan]] — for code profiles in Step 3.E.
 
 ## Tools invoked
 - `tools/write-exec-log.sh` — Step 8.
