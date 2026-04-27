@@ -89,10 +89,15 @@ vault/
 │       └── Directives/       # project-local directive overrides (optional)
 └── 08 - System/              # cross-project primitives
     ├── ONYX Master Directive.md
-    ├── Agent Directives/     # role definitions
-    ├── Agent Skills/         # skill overviews + registry hub
-    ├── Conventions/          # authoring guides (minimal-code, browser automation)
-    └── Profiles/             # project-type contracts
+    ├── Cross-Project Knowledge.md  # principles graduated from project Knowledge.md
+    ├── Doctor Directive.md         # pre-flight health checks
+    ├── Agent Directives/           # role-archetype contracts
+    ├── Agent Skills/               # skill overviews + _onyx-runtime/ primitives
+    ├── Conventions/                # authoring guides (minimal-code, fractal-linking, tags, browser-automation)
+    ├── Operations/                 # the nine runtime operations (heal, route, atomise, execute, …)
+    ├── Principles/                 # distilled wisdom (M2 — coming next)
+    ├── Profiles/                   # project-type contracts (engineering, content, audio-production, …)
+    └── Templates/                  # copy-and-fill scaffolds for every artefact type
 ```
 
 ### Phase lifecycle prefixes
@@ -193,6 +198,31 @@ The **skill surface layer** (§10 of the Master Directive) is everything an agen
 A phase, directive, or profile can declare `skills:` in frontmatter to whitelist its allowed surface. Outside that set → log a warning.
 
 Adding a new skill: scaffold under `~/clawd/skills/<name>/`, write the vault Skill Overview first, then implement backwards from it. Follow `08 - System/Conventions/Minimal Code Max Utility.md`. Ship with pluggable providers from day one if a second backend is plausible.
+
+---
+
+## Pipeline starters
+
+After `My First Project` runs end-to-end, the repo ships ready-to-fork pipeline starters under `01 - Projects/`. Each is a complete phase/directive/skill scaffold for one work shape — copy it, rename it, swap in your project's specifics.
+
+| Starter | Profile | Demonstrates | Status |
+|---|---|---|---|
+| `My First Project` | `general` | Hello-world phase, the loop runs end-to-end | shipped |
+| Engineering — Greenfield Service | `engineering` | 10-phase build → test → harden → deploy → observe pipeline (language-agnostic) | M4 — pending |
+| Research — Investigation | `research` | 5-phase scope → gather → synthesise → write → review | M4 — pending |
+| Video — Animated Short | `video-production` | 9-phase animated short pipeline (audio-first, character continuity, model routing) | M5 — pending |
+| Music — Album Release | `audio-production` | 11-phase concept → generate → master → release → engagement pipeline | M5 — pending |
+| Podcast — Spoken Audio Show | `audio-production` | 7-phase plan → research → script → audio → render → publish → engage | M6 — pending |
+
+Each starter pulls the relevant directives from `08 - System/Agent Directives/` and the relevant Templates from `08 - System/Templates/`, so every starter shares the same foundation. See [`PIPELINES.md`](./PIPELINES.md) for the full index.
+
+---
+
+## Wisdom: the Principles library
+
+`08 - System/Principles/` *(M2 — coming next)* distils ~25-30 generalised principles earned from running real pipelines. Things like "audio-first pipeline", "QC gate between every phase", "no invented day-of-week framing", "character continuity stack", "verifiable contact details only". Directives wikilink them and assume the reader has read them.
+
+The operator graduates patterns up the chain: `project Knowledge.md` → `Cross-Project Knowledge.md` → `Principles/`. Most things stay in project Knowledge; only what truly generalises ascends.
 
 ---
 
