@@ -98,14 +98,25 @@ Invoke [[08 - System/Agent Skills/_onyx-runtime/heal-dup-nav/heal-dup-nav.md|hea
 ### Step 7 — Fractal link integrity
 Invoke [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/heal-fractal-links.md|heal-fractal-links]].
 - **Input:** vault path, projects glob.
-- **Effect:** enforces the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]]. Leaves don't link to grandparent. Hubs don't link sideways. `up:` frontmatter points at the correct parent hub. Missing Phases/Directives/Albums/Logs Hubs auto-created when a folder has > 2 markdown children pointing at a non-existent hub.
+- **Effect:** enforces the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]]. Leaves don't link to grandparent. Hubs don't link sideways. `up:` frontmatter points at the correct parent hub. Missing Phases/Directives/Albums/Logs/Shots Hubs auto-created when a folder has > 2 markdown children pointing at a non-existent hub.
 - **Auto-fixes (Rules 1–5):**
-  - **Rule 1** (default-on): files lacking `up:` get one set, derived from folder location.
+  - **Rule 1** (default-on): files lacking `up:` get one set, derived from folder location. Recognises bundle roots via `*Overview.md`, `*Bible.md`, **frontmatter `type: episode`**, **frontmatter `type: album`** — added 2026-04-27 after orphan-shot regression.
   - **Rule 2**: missing target hub → auto-create skeleton hub when threshold met.
   - **Rule 3**: `up:` pointing at wrong parent → re-pointed at correct hub.
   - **Rule 4**: nav block grandparent / sideways links → rewritten to UP-only pattern.
   - **Rule 5** (promoted from detect-only 2026-04-27): hub omits a folder child → child appended under `## Children` section in hub body.
 - **Detections (no auto-fix):** circular `up:` chain (INTEGRITY); ambiguous hub membership; broken cross-domain wikilinks.
+- **ExecLog:** one line per applied fix.
+
+### Step 8 — Cross-link integrity
+Invoke [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.md|heal-cross-link]].
+- **Input:** vault path, scope (default `all`), `auto_replace: true`.
+- **Effect:** detects wikilinks that cross the system ↔ bundle boundary or one bundle ↔ another. Per [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]], inter-zone relationships live in **frontmatter only** (`parent_directive:`, `references:`, `derived_from:`, etc.). Body wikilinks across zones are converted to backticked literal text and the relationship is recorded in frontmatter.
+- **Auto-fixes:**
+  - **`bundle_to_system`** (most common: bundle directive wikilinks `[[content-marketer]]`) — replace with `` `content-marketer` ``, add `parent_directive: content-marketer` to frontmatter if missing.
+  - **`system_to_bundle`** (rarer: system principle wikilinks a project's Knowledge.md) — replace with backticked path; system docs stay bundle-agnostic.
+  - **`bundle_to_bundle`** — replace with backticked literal; cross-bundle wikilinks would break if either bundle is moved or shared independently.
+- **Detections (no auto-fix):** unresolvable target (broken link — separate concern); mismatched profile (added parent_directive points at a directive whose profile contradicts the bundle's profile); cycle (parent_directive chain creates a loop).
 - **ExecLog:** one line per applied fix.
 
 ### Step 8 — Missing-section detection (detect-only)
@@ -141,6 +152,7 @@ No skill — this runs inline at the end. For every phase file, verify it contai
 - [[08 - System/Agent Skills/_onyx-runtime/heal-orphan-locks/heal-orphan-locks.md|heal-orphan-locks]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-dup-nav/heal-dup-nav.md|heal-dup-nav]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/heal-fractal-links.md|heal-fractal-links]] — full procedure
+- [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.md|heal-cross-link]] — full procedure (added 2026-04-27 after the maniplus-marketer cross-link regression)
 
 ## Skills NOT invoked routinely (one-shot, human-gated)
 
@@ -182,7 +194,7 @@ One line per heal action:
 
 Example:
 ```
-2026-04-24T10:47:12Z | - | P14 | HEAL | 0 | stale-locks:cleared path=my-podcast/Phases/P14 - Script.md
+2026-04-24T10:47:12Z | - | P14 | HEAL | 0 | stale-locks:cleared path=mani-plus/Phases/P14 - Script.md
 ```
 
 ## Shadow-mode comparison criteria

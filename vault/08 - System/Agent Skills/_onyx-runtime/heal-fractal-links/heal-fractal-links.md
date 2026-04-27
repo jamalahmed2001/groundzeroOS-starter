@@ -12,14 +12,14 @@ status: draft
 
 # Skill: heal-fractal-links
 
-> **Validated 2026-04-24** by manual application to the three `Automated Distribution Pipelines/` projects (My Podcast, My Album, My Show). Applied against 28 phases + 6 per-album Overviews + 8 hubs. Net effect: tree-shaped graph instead of star topology.
+> **Validated 2026-04-24** by manual application to the three `Automated Distribution Pipelines/` projects (ManiPlus, Suno Albums, Cartoon Remakes). Applied against 28 phases + 6 per-album Overviews + 8 hubs. Net effect: tree-shaped graph instead of star topology.
 
 ## Purpose
 Enforce the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]] across the vault — every note has exactly one parent, leaves don't link to grandparents, hubs don't link sideways to siblings.
 
 ## Inputs
 - `vault_path: string`
-- `projects_glob: string` — default `"{02 - <workplace>/**,03 - Ventures/**,10 - OpenClaw/**}"`
+- `projects_glob: string` — default `"{02 - Fanvue/**,03 - Ventures/**,10 - OpenClaw/**}"`
 - `scope: "project" | "domain" | "all"` — default `"all"`. Optionally restricts to one project (e.g. scope=project + project_id=Clutr) or one domain.
 - `project_id: string | null` — when scope=project.
 - `dry_run: bool` — default false. When true, report intended fixes without writing.
@@ -32,7 +32,7 @@ Enforce the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Link
 
 **Recursive folder walk (universal).** The skill walks **every folder** under the projects glob — not just canonical `Phases/`, `Logs/`, `Directives/`, `Episodes/`, `Albums/` subfolders. Every folder containing ≥2 markdown files (excluding archive-like folders such as `_archive/`, `_drafts/`, `_assets/`, `qc-reports/`) gets a hub if one is missing. Sub-bundles (a character folder, a location folder, an episode subfolder with `reviews/` and `shots/` etc.) follow the same fractal pattern recursively — every depth level, every folder.
 
-### Parent-target resolution (added 2026-04-27 after <character>/reviews/ chain-break)
+### Parent-target resolution (added 2026-04-27 after Bramble/reviews/ chain-break)
 
 When computing the `up:` target for a newly-created hub, do NOT assume the immediate parent folder will get its own hub. The parent folder may have only sub-folders (no md files of its own), in which case forward-referencing a non-existent `<parent> Hub` would create a dangling chain.
 
@@ -40,16 +40,16 @@ When computing the `up:` target for a newly-created hub, do NOT assume the immed
 
 1. **Existing hub** at any ancestor folder (matched by `* Hub.md` filename).
 2. **Existing Overview / Bible** (`*Overview.md`, `*Show Bible.md`, `*Universe Bible.md`, `*Bible.md`) at any ancestor folder.
-3. **Same-name-as-folder file at the grandparent** — when `Characters/<Character>/` has no md children of its own but `Characters/<Character>.md` exists as a sibling-of-folder file, that's the natural parent. Common pattern in media bundles where a character / location is BOTH a description file (sibling) AND a folder (with subfolders for assets / reviews / generations).
+3. **Same-name-as-folder file at the grandparent** — when `Characters/Bramble/` has no md children of its own but `Characters/Bramble.md` exists as a sibling-of-folder file, that's the natural parent. Common pattern in media bundles where a character / location is BOTH a description file (sibling) AND a folder (with subfolders for assets / reviews / generations).
 4. **Domain hub** at the top of the walk if nothing above resolves.
 
 If none of the four resolves → emit `orphan_leaf_no_inference` detection; the human picks the parent.
 
-This rule ensures `<character>/reviews/Reviews Hub.md`'s `up:` resolves to the character file, not to a non-existent `<Character> Hub`. The chain then walks: Reviews Hub → character (file) → Characters Hub → Example Show Hub → … to root.
+This rule ensures `Bramble/reviews/Reviews Hub.md`'s `up:` resolves to `Bramble` (the character file), not to a non-existent `Bramble Hub`. The chain then walks: Reviews Hub → Bramble (file) → Characters Hub → Higher Branch Hub → … to root.
 
-This was promoted from "canonical-folder-only" to "every-folder" on 2026-04-27 after the recursive-heal pass discovered 55 missing hubs in `My Show/Shows/<show>/{Characters,Locations}/<entity>/reviews/` subtrees and similar nested production structures.
+This was promoted from "canonical-folder-only" to "every-folder" on 2026-04-27 after the recursive-heal pass discovered 55 missing hubs in `Cartoon Remakes/Shows/<show>/{Characters,Locations}/<entity>/reviews/` subtrees and similar nested production structures.
 
-**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `My Show - <Character> - Reviews Hub.md`).
+**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `Cartoon Remakes - Bramble - Reviews Hub.md`).
 
 ### Hub-name fallback when no project Overview ancestor exists
 
@@ -68,14 +68,16 @@ For every project bundle under `projects_glob`, perform the five checks in order
 
 ### Step 1 — Identify the bundle's hubs and leaves
 
-For each project bundle (folder containing an `Overview.md` **or a Bible-equivalent root file**):
+For each project bundle (folder containing an `Overview.md`, a Bible-equivalent root file, **or an episode/album root file**):
 
-1. **Overview (or equivalent)** — one of:
+1. **Bundle root** — one of:
    - `*Overview.md` (canonical for engineering/research/personal/client bundles)
    - `*Show Bible.md` or `*Universe Bible.md` (canonical for media-bundle shows under `Shows/<show>/`)
    - `*Bible.md` (catch-all for show or world bibles)
+   - **Frontmatter `type: episode`** (canonical for episode-bundles under `Episodes/<show>/E<NN> - <title>/E<NN> - <title>.md`) — added 2026-04-27 after the heal-fractal-links pass missed 33 orphan shot files in `E03 - The Tape/Shots/` because it didn't recognise the episode folder as a bundle root.
+   - **Frontmatter `type: album`** (canonical for album-bundles under `Albums/<album>/<Album> - Overview.md` or `Albums/<album>/<Album>.md`) — same reasoning; `type: album` is now an explicit bundle-root marker.
 
-   Any of these mark a folder as a bundle root. One per bundle. The bundle's `project_id` derivation falls back to the bundle folder basename when the root file is a Bible (Bibles don't carry `project_id` in their frontmatter by convention).
+   Any of these mark a folder as a bundle root. One per bundle. The bundle's `project_id` derivation falls back to the bundle folder basename when the root file is a Bible / episode / album (these don't carry `project_id` in their frontmatter by convention; they carry `project:` instead, which the skill should also accept as a project-id hint).
 2. **Declared hubs** — any file matching `* - * Hub.md` at the bundle root OR in a first-level subfolder (e.g. `Phases/`, `Directives/`, `Logs/`, `Episodes/`, `Albums/`, plus media-bundle equivalents `Characters/`, `Locations/`, `Shots/`).
 3. **Leaf candidates** — every other markdown file in the bundle that isn't in `.trash/`, `_archive/`, or under a `context-only`-tagged subtree.
 
@@ -86,6 +88,8 @@ For each leaf, infer its **expected hub** from its location:
 - In `<bundle>/Episodes/<Show>/<episode>.md` → expected hub: `<Project> - <Show> Hub` (show-level hub) OR `<Project> - Episodes Hub` (if no per-show hub).
 - In `<bundle>/Albums/<Album>/<Album> - Overview.md` → expected hub: `<Project> - Albums Hub`.
 - In `<bundle>/Albums/<Album>/<Album> - T<NN> - <title>.md` → expected hub: `<Album> - Overview` (recursive fractal).
+- In `<bundle>/Episodes/<Show>/E<NN> - <title>/Shots/p<P>-s<S>.md` → expected hub: `<Project> - <Show> - E<NN> - Shots Hub` (recursive fractal — the episode root file with `type: episode` is the bundle root for this subtree).
+- In `<bundle>/Episodes/<Show>/E<NN> - <title>/Phases/<phase>.md` → expected hub: `<Project> - <Show> - E<NN> - Phases Hub` (or `<Project> - Phases Hub` if no per-episode Phases Hub exists yet — the skill creates one when a Phases/ folder has ≥2 files).
 - At the bundle root with name `<Project> - <single-file>.md` (Knowledge, Kanban, Decisions) → expected hub: `<Project> - Overview` (direct leaf of project root).
 
 ### Step 2 — Rule 1: `up:` present (default-on auto-fix)
@@ -159,7 +163,7 @@ Return aggregated `fixes` + `detections`. Caller decides whether to treat detect
 
 ## Examples
 
-**Example 1 — double-linked phase file (fixture case from My Podcast, 2026-04-24):**
+**Example 1 — double-linked phase file (fixture case from ManiPlus, 2026-04-24):**
 
 Input frontmatter:
 ```yaml
@@ -169,20 +173,20 @@ Input nav:
 ```markdown
 ## 🔗 Navigation
 
-- [[My Podcast - Overview|My Podcast]]
+- [[ManiPlus - Overview|ManiPlus]]
 - [[L21 - Research [episode topic]|L21 — Execution Log]]
 ```
 
 After skill:
 Frontmatter:
 ```yaml
-up: My Podcast - Phases Hub
+up: ManiPlus - Phases Hub
 ```
 Nav:
 ```markdown
 ## 🔗 Navigation
 
-**UP:** [[My Podcast - Phases Hub|Phases Hub]]
+**UP:** [[ManiPlus - Phases Hub|Phases Hub]]
 ```
 
 **Example 2 — hub with sideways link (Book Hub):**
@@ -191,16 +195,16 @@ Input nav:
 ```markdown
 ## 🔗 Navigation
 
-- [[My Podcast - Overview|My Podcast]]
-- [[My Podcast - Episodes Hub|Episodes]]
-- [[My Podcast - Knowledge|Knowledge]]
+- [[ManiPlus - Overview|ManiPlus]]
+- [[ManiPlus - Episodes Hub|Episodes]]
+- [[ManiPlus - Knowledge|Knowledge]]
 ```
 
 After skill:
 ```markdown
 ## 🔗 Navigation
 
-**UP:** [[My Podcast - Overview|My Podcast]]
+**UP:** [[ManiPlus - Overview|ManiPlus]]
 ```
 
 Sideways links (Episodes Hub, Knowledge) removed. Body content unchanged.

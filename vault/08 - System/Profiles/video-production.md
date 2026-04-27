@@ -13,6 +13,7 @@ phase_fields:
 init_docs:
   - Show Bible
 tags: [onyx-profile]
+up: Profiles Hub
 allowed_shell:
   - ls
   - test

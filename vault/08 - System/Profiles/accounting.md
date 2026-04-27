@@ -16,6 +16,7 @@ init_docs:
   - Ledger
   - Financial Notes
 tags: [onyx-profile]
+up: Profiles Hub
 allowed_shell:
   - ls
   - test

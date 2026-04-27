@@ -15,6 +15,7 @@ init_docs:
   - Research Notes
   - Drafts
 tags: [onyx-profile]
+up: Profiles Hub
 allowed_shell:
   - ls
   - test
