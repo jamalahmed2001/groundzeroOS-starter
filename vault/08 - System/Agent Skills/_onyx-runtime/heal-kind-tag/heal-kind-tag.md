@@ -26,7 +26,7 @@ Every node in the graph must declare what it *is* — phase, operative, directiv
 ## Inputs
 
 - `vault_path: string`
-- `scope_glob: string` — default `"{02 - Fanvue/**,03 - Ventures/**,10 - OpenClaw/**,01 - Life/**,08 - System/**}"`. Walks one folder tree at a time when scoped down.
+- `scope_glob: string` — default `"{02 - <workplace>/**,03 - Ventures/**,10 - OpenClaw/**,01 - Life/**,08 - System/**}"`. Walks one folder tree at a time when scoped down.
 - `dry_run: bool` — default `false`. Reports planned writes; no Edits.
 
 ## Outputs
@@ -39,12 +39,12 @@ Every node in the graph must declare what it *is* — phase, operative, directiv
 
 For every `.md` file in scope (excluding `.git/`, `node_modules/`, `.obsidian/`, `.onyx-backups/`, `.trash/`, and any file carrying `context-only` tag), test rules **in this order** and apply the first match.
 
-**Order rationale:** structural patterns (hubs, media-bundle children, directives) must match before generic patterns (phase, overview), or specific files get misclassified. Example: `Cartoon Remakes - Phases Hub.md` lives in `Phases/` — without hubs first, it would tag as `onyx-phase`. Same for show overviews in `Episodes/<show>/`.
+**Order rationale:** structural patterns (hubs, media-bundle children, directives) must match before generic patterns (phase, overview), or specific files get misclassified. Example: `My Show - Phases Hub.md` lives in `Phases/` — without hubs first, it would tag as `onyx-phase`. Same for show overviews in `Episodes/<show>/`.
 
 | # | Match | Tag | Family |
 |---|---|---|---|
 | 1 | Filename matches `* Hub.md` AND folder is a top-level domain (`0X - <Domain>/`) | `hub-domain` | 4 |
-| 2 | Filename matches `* Hub.md` AND parent folder is a known sub-domain group (e.g. `Fanvue Core/`, `Fanvue Experiments/`, `Automated Distribution Pipelines/`, `Personal/`, `Paid Projects/`) | `hub-subdomain` | 4 |
+| 2 | Filename matches `* Hub.md` AND parent folder is a known sub-domain group (e.g. `<workplace> Core/`, `<workplace> Experiments/`, `Automated Distribution Pipelines/`, `Personal/`, `Paid Projects/`) | `hub-subdomain` | 4 |
 | 3 | Filename matches `* Hub.md` (any other location) | `hub-project` | 4 |
 | 4 | Frontmatter `type: directive` OR file in `*/Directives/*.md` | `directive` | 2 |
 | 5 | Frontmatter `type: artefact` OR file in `*/Outputs/*.md`, `*/Artefacts/*.md`, `*/Renders/*.md` | `pipeline-artefact` | 2 |
@@ -67,7 +67,7 @@ For every `.md` file in scope (excluding `.git/`, `node_modules/`, `.obsidian/`,
 
 Operatives are **reusable production stages**, distinct from project phases. They live in `Phases/` for now (legacy) but their identity is operative, not phase. The signature:
 
-- Filename pattern: `<project_id> - O\d+(\.\d+)? - <name>.md` (e.g. `Suno Albums - O1.5 - Lyrics.md`, `ManiPlus - O2 - Write script.md`).
+- Filename pattern: `<project_id> - O\d+(\.\d+)? - <name>.md` (e.g. `My Album - O1.5 - Lyrics.md`, `My Podcast - O2 - Write script.md`).
 - Or frontmatter `phase_id:` matches `^O\d+(\.\d+)?$`.
 - Or frontmatter `type: operative`.
 
@@ -111,7 +111,7 @@ family 1: starts with "phase-"
 family 2: in {onyx-phase, onyx-operative, onyx-project, directive, project-log, project-knowledge, project-kanban, project-docs, project-doc, project-overview, pipeline-artefact, context-only}
 family 3: starts with "status-"
 family 4: starts with "hub-"
-family 5: in pipeline list (maniplus, suno-albums, suno-library, cartoon-remakes, hitpapers, gzos, …)
+family 5: in pipeline list (my-podcast, my-album, suno-library, my-show, hitpapers, gzos, …)
 family 6: in venture list (fanvue, openclaw, personal, finance, legal)
 family 7: tools (elevenlabs, ffmpeg, remotion, audio, video, cli, dashboard, obsidian, …)
 family 8: in {onyx-show, onyx-episode, onyx-track, onyx-album, onyx-asset}
@@ -148,32 +148,32 @@ For each detection:
 
 ## Examples
 
-### Example 1 — Suno Albums O1.5 lyrics
+### Example 1 — My Album O1.5 lyrics
 
-- Path: `10 - OpenClaw/Automated Distribution Pipelines/Suno Albums/Phases/Suno Albums - O1.5 - Lyrics.md`
+- Path: `10 - OpenClaw/Automated Distribution Pipelines/My Album/Phases/My Album - O1.5 - Lyrics.md`
 - Existing tags: `[onyx-phase, phase-backlog, suno-run, per-album]`
 - **Already has `onyx-phase`** — but that's WRONG per the new convention (this is an operative). However, Rule "never overwrite" applies → skipped.
 - **Detection emitted:** `tag_kind_mismatch` because filename pattern matches operative (Rule 12) but file already carries `onyx-phase`. Surface for human review.
 
-### Example 2 — Cartoon Remakes E03 episode
+### Example 2 — My Show E03 episode
 
-- Path: `10 - OpenClaw/Automated Distribution Pipelines/Cartoon Remakes/Episodes/Listening Train/E03 - Heron.md`
-- Existing tags: `[cartoon-remakes, openclaw]` (no kind tag)
+- Path: `10 - OpenClaw/Automated Distribution Pipelines/My Show/Episodes/<Show>/E03 - <Title>.md`
+- Existing tags: `[my-show, openclaw]` (no kind tag)
 - Rule 10 fires: `*/Episodes/<show>/E\d+.*\.md` → `onyx-episode`
-- Result: `tags: [cartoon-remakes, openclaw, onyx-episode]` after insertion; reorder to `[onyx-episode, cartoon-remakes, openclaw]` per family order (8 → 5 → 6 wait, family 8 goes LAST).
+- Result: `tags: [my-show, openclaw, onyx-episode]` after insertion; reorder to `[onyx-episode, my-show, openclaw]` per family order (8 → 5 → 6 wait, family 8 goes LAST).
 
-Actually correction — family order is 1→8 ascending, so 5 and 6 come BEFORE 8. Reorder to `[cartoon-remakes (5), openclaw (6), onyx-episode (8)]`. Final tag list reads top-to-bottom in display order; family order means lower numbers appear first.
+Actually correction — family order is 1→8 ascending, so 5 and 6 come BEFORE 8. Reorder to `[my-show (5), openclaw (6), onyx-episode (8)]`. Final tag list reads top-to-bottom in display order; family order means lower numbers appear first.
 
 ### Example 3 — Phases Hub
 
-- Path: `10 - OpenClaw/Automated Distribution Pipelines/Cartoon Remakes/Phases/Cartoon Remakes - Phases Hub.md`
-- Existing tags: `[hub, cartoon-remakes]`
+- Path: `10 - OpenClaw/Automated Distribution Pipelines/My Show/Phases/My Show - Phases Hub.md`
+- Existing tags: `[hub, my-show]`
 - Rule 16 fires: `* Hub.md`, not in domain or sub-domain root → `hub-project`
-- Result: `tags: [hub, hub-project, cartoon-remakes]` → reordered to `[hub-project (4), cartoon-remakes (5)]` and the bare `hub` tag flagged in detections (unknown family).
+- Result: `tags: [hub, hub-project, my-show]` → reordered to `[hub-project (4), my-show (5)]` and the bare `hub` tag flagged in detections (unknown family).
 
 ### Example 4 — Operative-pattern conflict
 
-- Path: `10 - OpenClaw/Automated Distribution Pipelines/ManiPlus/Phases/ManiPlus - O2 - Write script.md`
+- Path: `10 - OpenClaw/Automated Distribution Pipelines/My Podcast/Phases/My Podcast - O2 - Write script.md`
 - Existing tags: (empty / no kind tag)
 - Rule 12 fires (operative pattern: `<project_id> - O\d+ - <name>`): `onyx-operative`
 - Result: `tags: [onyx-operative, …]`. The file's previous "missing_phase_tag" detection from earlier heal runs is now resolved.

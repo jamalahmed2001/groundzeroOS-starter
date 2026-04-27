@@ -134,7 +134,7 @@ After skill:
 
 **Example 2 — stale duplicate deleted:**
 
-Bundle `Almani/`:
+Bundle `Example Brand/`:
 - Canonical `Logs/L2 - Launch Readiness Validation.md` (exists).
 - Stale `Logs/L2 - P2 - Launch Readiness Validation.md` (legacy #2).
 

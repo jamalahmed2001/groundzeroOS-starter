@@ -93,7 +93,7 @@ notes: [ optional truncation info ]
 
 ## Output format example
 
-For `repo_path = /home/jamal/clawd/openclaw/projects/amazonpipe`:
+For `repo_path = <home>/clawd/openclaw/projects/amazonpipe`:
 
 ```
 package.json
@@ -176,7 +176,7 @@ tests/
 
 **Example 2 — large monorepo, capped:**
 
-Input: `repo_path = /home/jamal/clawd/openclaw` (assume ≥ 1000 source files).
+Input: `repo_path = <home>/clawd/openclaw` (assume ≥ 1000 source files).
 
 Output: 150-line tree prioritising top-level `packages/`, `services/`, etc.
 

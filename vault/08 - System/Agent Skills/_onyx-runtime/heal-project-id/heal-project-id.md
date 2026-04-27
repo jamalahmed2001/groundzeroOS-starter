@@ -34,7 +34,7 @@ Auto-fix scope is intentionally narrow: backfill empty children. Everything else
 ## Inputs
 
 - `vault_path: string`
-- `projects_glob: string` — default `"{02 - Fanvue/**,03 - Ventures/**,10 - OpenClaw/**}"`
+- `projects_glob: string` — default `"{02 - <workplace>/**,03 - Ventures/**,10 - OpenClaw/**}"`
 
 ## Outputs
 
@@ -144,8 +144,8 @@ Each detection includes a `recommended_action` field:
 **Example 2 — backfill blocked by bad source:**
 
 - Phase has no `project_id`.
-- Overview has `project_id: "Suno Albums"` (fails format).
-- Result: phase skipped. Overview gets `detection: project_id_invalid_format`. Phase will be backfilled on the next heal run, after [[heal-project-id-migrate]] cleans up Suno Albums.
+- Overview has `project_id: "My Album"` (fails format).
+- Result: phase skipped. Overview gets `detection: project_id_invalid_format`. Phase will be backfilled on the next heal run, after [[heal-project-id-migrate]] cleans up My Album.
 
 **Example 3 — duplicate slug:**
 
@@ -154,9 +154,9 @@ Each detection includes a `recommended_action` field:
 
 **Example 4 — hub mismatch after partial migration:**
 
-- Overview has `project_id: cartoon-remakes`.
-- Bundle still contains `Cartoon Remakes - Phases Hub.md`.
-- Result: `detection: project_id_hub_mismatch hubs=["Cartoon Remakes - Phases Hub"]`. Recommended action: re-run migrate on bundle.
+- Overview has `project_id: my-show`.
+- Bundle still contains `My Show - Phases Hub.md`.
+- Result: `detection: project_id_hub_mismatch hubs=["My Show - Phases Hub"]`. Recommended action: re-run migrate on bundle.
 
 ## Native primitives relied on
 

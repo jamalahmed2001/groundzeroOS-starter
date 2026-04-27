@@ -125,7 +125,7 @@ buckets = {
 
 ### Step 2 — Plan target node
 
-`bundle_name = basename(bundle_path)` (e.g. `E03 - Heron`).
+`bundle_name = basename(bundle_path)` (e.g. `E03 - <Title>`).
 `target_path = <parent_of_bundle>/<bundle_name> - Consolidated.md`.
 
 Idempotency check: if `target_path` exists AND its frontmatter has `consolidation_state: applied` → return early with `already_consolidated`.

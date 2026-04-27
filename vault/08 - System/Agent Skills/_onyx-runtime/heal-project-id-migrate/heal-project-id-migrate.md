@@ -169,7 +169,7 @@ If verification fails, do not roll back automatically — the modifications are 
 ### Example 1 — Bundle with sentence label, no slug
 
 Input:
-- `bundle_path = "02 - Fanvue/Fanvue Experiments/Moderating Underage Roleplay/"`
+- `bundle_path = "02 - <workplace>/<workplace> Experiments/Moderating Underage Roleplay/"`
 - `target_slug = null`
 - `dry_run = false`
 
@@ -191,23 +191,23 @@ Cascade applied:
 
 ExecLog:
 ```
-2026-04-27T12:30:00Z HEAL project-id-migrate from="Moderating Underage Roleplay" to="moderating-underage-roleplay" hubs=2 children=6 wikilinks=12 tags=0 bundle="02 - Fanvue/Fanvue Experiments/Moderating Underage Roleplay/"
+2026-04-27T12:30:00Z HEAL project-id-migrate from="Moderating Underage Roleplay" to="moderating-underage-roleplay" hubs=2 children=6 wikilinks=12 tags=0 bundle="02 - <workplace>/<workplace> Experiments/Moderating Underage Roleplay/"
 ```
 
 ### Example 2 — Existing slug, format-only fix
 
 Input:
-- bundle has `project_id: Suno Albums` (capital + space — fails format).
-- `target_slug = "suno-albums"`.
+- bundle has `project_id: My Album` (capital + space — fails format).
+- `target_slug = "my-album"`.
 
 Derived: skipped (provided). Validated: passes. Unique: yes.
 
-Cascade: hubs already use `Suno Albums` form; rename to `suno-albums - … Hub.md`. Children's `up:` rewritten. Vault-wide wikilink patches. Overview's `project_id` corrected.
+Cascade: hubs already use `My Album` form; rename to `my-album - … Hub.md`. Children's `up:` rewritten. Vault-wide wikilink patches. Overview's `project_id` corrected.
 
 ### Example 3 — Dry run for an ambiguous bundle
 
 Input:
-- bundle folder is `Cypher Lane/` but project is being renamed to `The Higher Branch` per recent direction.
+- bundle folder is `Example Show/` but project is being renamed to `The Example Show` per recent direction.
 - `target_slug = "higher-branch"`, `dry_run = true`.
 
 Output: full cascade plan (renames, rewrites, patches) with counts. No writes. Human reviews diff, then re-runs with `dry_run = false`.

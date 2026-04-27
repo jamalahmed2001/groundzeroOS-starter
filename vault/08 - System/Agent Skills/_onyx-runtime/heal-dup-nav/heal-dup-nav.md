@@ -97,16 +97,16 @@ Input (excerpt):
 ```markdown
 ## 🔗 Navigation
 
-- [[ManiPlus - Overview|ManiPlus]]
-- [[ManiPlus - Knowledge|Knowledge]]
+- [[My Podcast - Overview|My Podcast]]
+- [[My Podcast - Knowledge|Knowledge]]
 
-# ManiPlus — Episodes Hub
+# My Podcast — Episodes Hub
 
 Body content here.
 
 ## 🔗 Navigation
 
-- [[ManiPlus - Overview|ManiPlus]]
+- [[My Podcast - Overview|My Podcast]]
 
 ## Episodes
 ```
@@ -115,10 +115,10 @@ After skill:
 ```markdown
 ## 🔗 Navigation
 
-- [[ManiPlus - Overview|ManiPlus]]
-- [[ManiPlus - Knowledge|Knowledge]]
+- [[My Podcast - Overview|My Podcast]]
+- [[My Podcast - Knowledge|Knowledge]]
 
-# ManiPlus — Episodes Hub
+# My Podcast — Episodes Hub
 
 Body content here.
 
@@ -134,20 +134,20 @@ Input:
 ```markdown
 ## 🔗 Navigation
 
-- [[Suno Albums - Overview|Suno Albums]]
-- [[Suno Albums - Overview|Home]]
-- [[Suno Albums - Knowledge|Knowledge]]
+- [[My Album - Overview|My Album]]
+- [[My Album - Overview|Home]]
+- [[My Album - Knowledge|Knowledge]]
 ```
 
 After skill:
 ```markdown
 ## 🔗 Navigation
 
-- [[Suno Albums - Overview|Suno Albums]]
-- [[Suno Albums - Knowledge|Knowledge]]
+- [[My Album - Overview|My Album]]
+- [[My Album - Knowledge|Knowledge]]
 ```
 
-Second link with same target `Suno Albums - Overview` dropped (first one — with the `Suno Albums` alias — wins).
+Second link with same target `My Album - Overview` dropped (first one — with the `My Album` alias — wins).
 
 **Example 3 — preserve non-link lines:**
 

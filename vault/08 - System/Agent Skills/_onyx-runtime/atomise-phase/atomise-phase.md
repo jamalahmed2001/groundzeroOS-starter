@@ -198,7 +198,7 @@ Caller decides whether to annotate the plan with a warning comment block or abor
 
 Input:
 - `profile_name = engineering`
-- `repo_path = /home/jamal/clawd/openclaw/projects/amazonpipe`
+- `repo_path = <home>/clawd/openclaw/projects/amazonpipe`
 - `phase_name = Moderation UX for Designs and Listings`
 - `phase_content` describes: build an admin panel for moderators to review AI-generated designs before listing them.
 

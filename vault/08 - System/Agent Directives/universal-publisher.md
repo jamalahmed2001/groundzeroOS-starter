@@ -12,7 +12,7 @@ tags: [directive, distribution, publishing, cross-project]
 
 # Universal Publisher Directive
 
-> **Functions:** Publish finished media (audio or video) to one or more platforms using the shared publishing skills. Every directive that distributes content — My Podcast episodes, My Show shorts, Suno album tracks — picks what to publish and where; this directive encodes *how* to call the skills safely, handle errors, and write back the resulting URLs.
+> **Functions:** Publish finished media (audio or video) to one or more platforms using the shared publishing skills. Every directive that distributes content (e.g. podcast episodes, video shorts, music album tracks) — picks what to publish and where; this directive encodes *how* to call the skills safely, handle errors, and write back the resulting URLs.
 
 This directive captures what is executable without human judgment. Creative decisions (which clips to post, what caption to use, when to schedule) are made upstream — this directive only runs the publish calls.
 

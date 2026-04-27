@@ -49,7 +49,7 @@ title: Moderating Underage Roleplay - Overview
 project: Moderating Underage Roleplay (AI Content Tagging Flow)
 project_id: moderating-roleplay
 tags: [overview, project, fanvue]
-up: Fanvue Experiments Hub
+up: <workplace> Experiments Hub
 ---
 ```
 
@@ -64,7 +64,7 @@ Hub names derived from this slug:
 |---|---|
 | _missing_ | Required. |
 | `Moderating Underage Roleplay via the AI content tagging flow` | Spaces; capitals; >30 chars. |
-| `Suno Albums` | Space; capital. |
+| `My Album` | Space; capital. |
 | `clutr_main` | Underscore. |
 | `MA` | OK on length, fails on capitals. |
 | `-x` | Leading hyphen. |
@@ -90,10 +90,10 @@ The derived slug is **proposed** — the migration operation either applies it d
 | Bundle folder | Derived `project_id` |
 |---|---|
 | `Clutr/` | `clutr` |
-| `Suno Albums/` | `suno-albums` |
+| `My Album/` | `my-album` |
 | `Moderating Underage Roleplay/` | `moderating-underage-roleplay` (28 chars — under cap) |
-| `Fanvue App Starter/` | `fanvue-app-starter` |
-| `Cartoon Remakes/` | `cartoon-remakes` |
+| `<workplace> App Starter/` | `fanvue-app-starter` |
+| `My Show/` | `my-show` |
 | `Moderating underage roleplay via the AI content tagging flow/` | (>30 → truncate at last hyphen ≤30 → `moderating-underage-roleplay`) |
 
 ---
@@ -144,7 +144,7 @@ When a bundle has missing or non-compliant `project_id:`:
 ## 6. Relationship to other conventions
 
 - [[Fractal Linking Convention]] §1: hub naming pattern uses `<Project>` as a placeholder. This convention defines that `<Project>` is **always `project_id`**, never the free-form `project:` label.
-- [[Tag Convention]]: a project tag (family 5) is also derived from `project_id` (e.g. `project-clutr`, `project-suno-albums`). Migration cascades to tags too.
+- [[Tag Convention]]: a project tag (family 5) is also derived from `project_id` (e.g. `project-clutr`, `project-my-album`). Migration cascades to tags too.
 - [[Minimal Code Max Utility]]: this convention is one rule — slug-shaped, kebab-case, unique. No exceptions, no flags, no edge cases. The smallest possible identity contract.
 
 ---
