@@ -48,6 +48,14 @@ status: active
 | *(operator: rescan repo)* | refresh-context | [[08 - System/Operations/refresh-context.md]] | `src/cli/refresh-context.ts` | 108 | 7 | **draft** (managed-block update of Repo Context.md) |
 | *(operator: what's next)* | next | [[08 - System/Operations/next.md]] | `src/cli/next.ts` | 169 | 7 | **draft** (sort ready phases, dispatch to execute-phase) |
 | *(operator: roll up daily plans)* | monthly-consolidate | [[08 - System/Operations/monthly-consolidate.md]] | `src/cli/monthly-consolidate.ts` | 307 | 7 | **draft** (agent reads month of dailies, writes overview, optional prune) |
+| *(operator: pre-flight)* | doctor | [[08 - System/Operations/doctor.md]] | `src/cli/doctor.ts` | 271 | 7 | **draft** (env + config + vault + agent binary + key validity checks) |
+| *(operator: atomic phase commands)* | phase-ops | [[08 - System/Operations/phase-ops.md]] | `src/cli/phase-ops.ts` | 354 | 7 | **draft** (4 verbs: ready / block / new-phase / check) |
+| *(operator: daily plan)* | plan | [[08 - System/Operations/plan.md]] | `src/cli/plan.ts` | 97 | 7 | **draft** (uses plan-my-day skill, injects ready phases) |
+| *(operator: reset blocked phase)* | reset | [[08 - System/Operations/reset.md]] | `src/cli/reset.ts` | 50 | 7 | **draft** (frontmatter-only writes, clear locks, reset replan_count) |
+| *(operator: capture inbox item)* | capture | [[08 - System/Operations/capture.md]] | `src/cli/capture.ts` | 30 | 7 | **draft** (one-line append to Inbox.md) |
+| *(operator: print phase log)* | logs | [[08 - System/Operations/logs.md]] | `src/cli/logs.ts` | 62 | 7 | **draft** (read-only log viewer, supports `--recent`) |
+| *(operator: scaffold directive/profile)* | new | [[08 - System/Operations/new.md]] | `src/cli/new.ts` | 212 | 7 | **draft** (template writes, no LLM) |
+| *(operator: bootstrap project)* | init | [[08 - System/Operations/init.md]] | `src/cli/init.ts` | 986 | 7 | **draft** (renders templates from `08 - System/Templates/`, scans repo via repo-scan skill) |
 
 ### Consolidate (one operation)
 
