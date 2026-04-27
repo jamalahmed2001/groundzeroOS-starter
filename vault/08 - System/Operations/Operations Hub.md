@@ -27,7 +27,7 @@ status: active
 
 ---
 
-## The nine operations
+## The eight operations
 
 | Status → | Operation | Directive | Replaces (src/) | Lines in TS | Stage | Status |
 |---|---|---|---|---|---|---|
@@ -35,14 +35,19 @@ status: active
 | `planning` | *(wait, no-op)* | — | — | — | — | in Master Directive §6.2 |
 | `ready` / `active` | execute | [[08 - System/Operations/execute-phase.md]] | `src/executor/runPhase.ts` + `selectTask.ts` | 833 | 5 | **draft** (task loop + selection inlined; lock-lifecycle shared skill) |
 | `blocked` | surface_blocker | [[08 - System/Operations/surface-blocker.md]] | `src/notify/*` (partial) | ~50 | 3 | **draft** (inline-only, no skills) |
-| `completed` | consolidate *(phase-level, on transition)* | [[08 - System/Operations/consolidate.md]] | `src/planner/consolidator.ts` | 238 | 4 | **draft** (knowledge-merge + monthly-rollup) |
-| *(bundle shipped)* | consolidate-bundle *(profile-agnostic, manual)* | [[08 - System/Operations/consolidate-bundle.md]] | `src/planner/bundleConsolidator.ts` (new — no TS predecessor; vault-native from inception) | 0 | 1 | **draft** (consolidate-bundle skill) |
+| `completed` / parent shipped / bundle marked complete | consolidate *(unified — phase, bundle, children all one operation)* | [[08 - System/Operations/consolidate.md]] | `src/planner/consolidator.ts` | 238 | 4 | **active v1.0** (agent reads children, picks shape) |
 | *(whole project)* | decompose-project | [[08 - System/Operations/decompose-project.md]] | `src/planner/phasePlanner.ts` | 785 | 6 | **draft** (phase-decompose shared with replan) |
 | *(blocked → re-atomise)* | replan | [[08 - System/Operations/replan.md]] | `src/planner/replan.ts` | 226 | 6 | **draft** (inline-only, no new skills) |
 | *(every iteration, step 1)* | heal | [[08 - System/Operations/heal.md]] | `src/healer/*.ts` | 882 | 3 | **draft** (8 heal-* skills incl. heal-kind-tag) |
 | *(every iteration, step 5)* | route | [[08 - System/Operations/route.md]] | `src/controller/router.ts` | 38 | 2 | **draft** (inline-only, no skills) |
 
-Total TS replaced at end of migration: **~3,550 LOC** across these operations. Remaining code surface: doorbell + agent spawner + tool scripts + read-only parsers + dashboard.
+### Consolidate (one operation)
+
+**[[consolidate]] v1.0** — collapsed 2026-04-27 from the previous tier/mode architecture into a single self-contained operation. Same principle every time: take a folder of children, produce one parent node containing everything important from them, archive the children. The agent reads what is there and picks the right shape (prose for narrative, tables for structured rows, mixed for both, verbatim `<details>` for full-fidelity preservation) — not "modes", just doing the job intuitively.
+
+The retired sub-files [[consolidate-bundle]] and [[consolidate-children]] remain as redirects to keep existing wikilinks resolvable. The weekly scan routine invokes `consolidate` per candidate (no tier branching).
+
+**Why the simplification.** The previous architecture had 3 operations × 3 modes × 3 sub-skills = 9 surfaces to keep in sync. The actual mental model is one principle: children → parent, info-dense, archived, with the agent picking shape based on content. One directive that the agent reads end-to-end beats nine that need to be cross-referenced.
 
 ---
 
@@ -51,6 +56,8 @@ Total TS replaced at end of migration: **~3,550 LOC** across these operations. R
 - [[08 - System/Operations/_tools.md|Tool Catalog]] — the **one** irreducible shell tool operations invoke (`write-exec-log.sh`); everything else uses native agent primitives
 - [[08 - System/Operations/_template.md|Operation Directive Template]] — the canonical shape every operation file follows
 - [[08 - System/Operations/_agent-native-validation.md|Validation Log]] — probe-by-probe record of agent-native replacements for retired tools
+- [[08 - System/Operations/_shadow.md|_shadow (meta-directive)]] — how operations graduate from `draft` → `active` (TS + directive parallel runs, classified diffs, 7-run GREEN streak)
+- [[08 - System/Shadow Logs/Shadow Logs Hub.md|Shadow Logs Hub]] — append-only verdict ledger, one file per operation in shadow mode
 
 ---
 
@@ -82,6 +89,7 @@ Master Directive
 - **route** maps phase status → operation.
 - **execute** is the hot path; **consolidate** (phase-level) runs when execute transitions to `completed`.
 - **consolidate-bundle** is the manual "this work is done, fold the bundle" move — content/engineering/research/personal/client/business — invoked once a bundle has shipped or been abandoned. Profile-agnostic; reacts to kind tags. Not in the routine loop.
+- **consolidate-children** is the third tier of the consolidate family. Folds atomic per-unit children (shots/takes/beats/iterations) into a `## <Atoms>` table inside an existing shipped-parent node, then archives the children. The parent stays active; only its production scratch collapses. Wired into the weekly consolidate scan alongside consolidate-bundle.
 - **atomise** / **decompose-project** / **replan** are planner operations.
 - **surface_blocker** makes a blocked phase visible to a human.
 
