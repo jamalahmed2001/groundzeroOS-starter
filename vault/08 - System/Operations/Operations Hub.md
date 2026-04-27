@@ -42,6 +42,12 @@ status: active
 | *(every iteration, step 5)* | route | [[08 - System/Operations/route.md]] | `src/controller/router.ts` | 38 | 2 | **draft** (inline-only, no skills) |
 | *(operator: bring Linear project in)* | linear-import | [[08 - System/Operations/linear-import.md]] | `src/linear/import.ts` + `src/linear/merge.ts` + `src/cli/import-linear.ts` | 410 | 7 | **draft** (uses `linear` skill — bash + curl + jq) |
 | *(operator: push vault phases out)* | linear-uplink | [[08 - System/Operations/linear-uplink.md]] | `src/linear/uplink.ts` + `src/cli/linear-uplink.ts` | 309 | 7 | **draft** (uses `linear` skill) |
+| *(after a phase completes — engineering)* | phase-review | [[08 - System/Operations/phase-review.md]] | `src/skills/phaseReview.ts` | 91 | 7 | **draft** (agent reads git diff, writes review — no separate LLM call) |
+| *(operator: explain project state)* | explain | [[08 - System/Operations/explain.md]] | `src/cli/explain.ts` | 209 | 7 | **draft** (pure read, no LLM) |
+| *(operator: pre-execution scout)* | research | [[08 - System/Operations/research.md]] | `src/cli/research.ts` | 162 | 7 | **draft** (agent scouts repo + writes Research note) |
+| *(operator: rescan repo)* | refresh-context | [[08 - System/Operations/refresh-context.md]] | `src/cli/refresh-context.ts` | 108 | 7 | **draft** (managed-block update of Repo Context.md) |
+| *(operator: what's next)* | next | [[08 - System/Operations/next.md]] | `src/cli/next.ts` | 169 | 7 | **draft** (sort ready phases, dispatch to execute-phase) |
+| *(operator: roll up daily plans)* | monthly-consolidate | [[08 - System/Operations/monthly-consolidate.md]] | `src/cli/monthly-consolidate.ts` | 307 | 7 | **draft** (agent reads month of dailies, writes overview, optional prune) |
 
 ### Consolidate (one operation)
 
