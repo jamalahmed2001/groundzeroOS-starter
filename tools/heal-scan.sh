@@ -20,12 +20,12 @@ VAULT="${1:-}"
 MODE="${2:-all}"
 
 if [[ -z "$VAULT" || ! -d "$VAULT" ]]; then
-  echo "usage: heal-scan.sh <vault-path> [--orphans-only|--cross-links-only]" >&2
+  echo "usage: heal-scan.sh <vault-path> [--orphans-only|--cross-links-only|--incoming-only]" >&2
   exit 2
 fi
 
 case "$MODE" in
-  all|--orphans-only|--cross-links-only) ;;
+  all|--orphans-only|--cross-links-only|--incoming-only) ;;
   *) echo "unknown mode: $MODE" >&2; exit 2 ;;
 esac
 
@@ -145,6 +145,46 @@ if [[ "$MODE" == "all" || "$MODE" == "--cross-links-only" ]]; then
   done
 fi
 
+# === Pass 3: incoming-link orphans (Obsidian-style) ===
+# A file is incoming-orphan if no other markdown file wikilinks to its basename.
+# Excludes files tagged context-only and files whose basename starts with `_`.
+incoming_orphan_count=0
+declare -a INCOMING_ORPHANS
+if [[ "$MODE" == "all" || "$MODE" == "--incoming-only" ]]; then
+  # Build target index once
+  TARGETS_TMP=$(mktemp)
+  grep -rho '\[\[[^]]\+\]\]' "$VAULT" \
+       --include="*.md" \
+       --exclude-dir=_archive --exclude-dir=.trash --exclude-dir=.onyx-backups \
+       --exclude-dir=.onyx-locks --exclude-dir=.onyx-checkpoints --exclude-dir=.git \
+       --exclude-dir=.obsidian --exclude-dir=_drafts --exclude-dir=node_modules 2>/dev/null \
+    | sed 's/\[\[//; s/\]\]//; s/|.*//' | sort -u > "$TARGETS_TMP"
+
+  while IFS= read -r -d '' f; do
+    base=$(basename "$f" .md)
+    [[ "$base" =~ ^\._ ]] && continue
+    [[ "$base" =~ ^_ ]] && continue
+    grep -q "context-only" "$f" 2>/dev/null && continue
+    rel="${f#$VAULT/}"
+    # Skip vault root domain hubs (depth ≤ 1)
+    depth=$(echo "$rel" | tr -cd '/' | wc -c)
+    [[ $depth -le 1 ]] && continue
+    # Skip Decisions in 00 - Dashboard
+    [[ "$rel" =~ ^00\ -\ Dashboard/ ]] && continue
+    if ! grep -Fxq "$base" "$TARGETS_TMP"; then
+      INCOMING_ORPHANS+=("$rel")
+      incoming_orphan_count=$((incoming_orphan_count+1))
+    fi
+  done < <(find "$VAULT" -type f -name "*.md" \
+              -not -path "*/_archive/*" -not -path "*/.trash/*" \
+              -not -path "*/_drafts/*" -not -path "*/node_modules/*" \
+              -not -path "*/.obsidian/*" -not -path "*/.onyx-backups/*" \
+              -not -path "*/.onyx-locks/*" -not -path "*/.onyx-checkpoints/*" \
+              -not -path "*/.git/*" \
+              -print0 2>/dev/null)
+  rm -f "$TARGETS_TMP"
+fi
+
 # === Report ===
 echo "=== heal-scan: $VAULT ==="
 echo
@@ -171,12 +211,24 @@ if [[ "$MODE" == "all" || "$MODE" == "--cross-links-only" ]]; then
   echo
 fi
 
+if [[ "$MODE" == "all" || "$MODE" == "--incoming-only" ]]; then
+  echo "[Rule incoming] Files with no incoming wikilinks (Obsidian-style orphans): $incoming_orphan_count"
+  if [[ $incoming_orphan_count -gt 0 ]]; then
+    for o in "${INCOMING_ORPHANS[@]:0:30}"; do echo "  $o"; done
+    if [[ $incoming_orphan_count -gt 30 ]]; then
+      echo "  ... and $((incoming_orphan_count - 30)) more"
+    fi
+  fi
+  echo
+fi
+
 echo "=== Summary ==="
-printf "  Orphans:     %d\n" "$orphan_count"
-printf "  Cross-links: %d\n" "$crosslink_count"
+printf "  Orphans (no up:):    %d\n" "$orphan_count"
+printf "  Cross-links:         %d\n" "$crosslink_count"
+printf "  Incoming-orphans:    %d\n" "$incoming_orphan_count"
 echo
 
-total=$((orphan_count + crosslink_count))
+total=$((orphan_count + crosslink_count + incoming_orphan_count))
 if [[ $total -gt 0 ]]; then
   echo "Run heal (Steps 7 + 8 in 08 - System/Operations/heal.md) to apply fixes."
   exit 1
