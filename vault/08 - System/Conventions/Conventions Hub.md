@@ -20,3 +20,5 @@ up: System Hub
 
 - [[Minimal Code Max Utility]] — authoring principle for skills/directives/profiles. Start here.
 - [[Browser Automation for Services Without APIs]] — the CDP-attach pattern for services that refuse APIs.
+- [[Tag Convention]] — seven tag families, ordering, Obsidian colour scheme, graph groups. Applies to every note.
+- [[Fractal Linking Convention]] — parent-only `up:` rule, hubs link up-only, leaves don't reach grandparents. Enforced by `heal-fractal-links`.
