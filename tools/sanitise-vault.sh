@@ -56,7 +56,6 @@ read -r -d '' MECHANICAL <<'EOF' || true
 /home/jamal/	<home>/
 /Users/jamal/	<home>/
 jamal@fanvue.com	<email>
-jamalahmed2001	<github-user>
 ManiPlus	My Podcast
 mani-plus	my-podcast
 maniplus	my-podcast
@@ -107,8 +106,18 @@ GREP_EXCLUDES=(
   --exclude-dir=.git
   --exclude-dir=node_modules
   --exclude-dir=dist
+  --exclude-dir=.next
+  --exclude-dir=.cache
   --exclude-dir=.trash
   --exclude-dir=.obsidian
+  --exclude-dir=.claude
+  --exclude-dir=.onyx-locks
+  --exclude-dir=.onyx-checkpoints
+  --exclude-dir=.onyx-backups
+  --exclude=sanitise-vault.sh
+  --exclude=*.lock
+  --exclude=package-lock.json
+  --exclude=pnpm-lock.yaml
   --binary-files=without-match
 )
 

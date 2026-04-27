@@ -11,6 +11,7 @@ dist/
 
 # Dashboard build artifacts
 dashboard/.next/
+dashboard/.cache/
 dashboard/node_modules/
 dashboard/tsconfig.tsbuildinfo
 
