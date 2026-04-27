@@ -100,7 +100,7 @@ Segment count and length follow the project's Bible (different shows use differe
 ## Forbidden patterns
 
 - Day-of-week framing in narrative beats ("last Tuesday", "Sunday night before your appointment"). Generalise.
-- Speaker tags ("Mani:", "Host:") in spoken text — the TTS will voice them aloud.
+- Speaker tags ("Host:", "Narrator:", any name + colon) in spoken text — the TTS will voice them aloud.
 - Markdown emphasis (`**bold**`, `*italic*`) — TTS reads the markers. Use voice settings or scene composition for emphasis instead.
 - "Awesome", "folks", "let's unpack" — podcast-bro cadence is forbidden in every project unless the Bible explicitly invokes it.
 - Hype claims ("miracle", "game-changer", "revolutionary") unless quoting a source.

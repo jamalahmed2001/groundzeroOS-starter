@@ -12,7 +12,7 @@ up: Principles Hub
 
 **Rule.** Strip stage directions, action descriptions, parentheticals, and speaker tags from the text sent to a TTS narrator. The narrator voices the spoken words only.
 
-**Why.** TTS engines voice every character of the input. A line written as `(long silence)` becomes the narrator literally saying "long silence". A speaker tag like `Mani:` becomes the narrator reading "Mani" before the line. Brackets, stage directions, italics-as-emphasis-markers — they all get spoken. The script-as-read-by-a-human assumes the human filters; the script-as-read-by-TTS doesn't get that filter for free.
+**Why.** TTS engines voice every character of the input. A line written as `(long silence)` becomes the narrator literally saying "long silence". A speaker tag like `Host:` becomes the narrator reading "Host" before the line. Brackets, stage directions, italics-as-emphasis-markers — they all get spoken. The script-as-read-by-a-human assumes the human filters; the script-as-read-by-TTS doesn't get that filter for free.
 
 **How to apply.**
 - Before sending any segment to the TTS provider, sanitise it: strip `(parentheticals)`, strip `**markdown emphasis**` markers, strip `[Hook]` / `[Insight 1]` / `[Story]` segment labels, strip `Speaker:` prefixes, strip `*(Source: …)*` inline citations, strip `✂️` or `▶` editorial markers.

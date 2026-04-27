@@ -99,7 +99,7 @@ export function generateAss(chunks: Chunk[], style: StyleConfig = defaultStyle):
 
   const lines: string[] = [];
   lines.push('[Script Info]');
-  lines.push('Title: Cartoon Remakes Subtitle Track');
+  lines.push('Title: My Show Subtitle Track');
   lines.push('ScriptType: v4.00+');
   lines.push('Collisions: Normal');
   lines.push(`PlayResX: ${style.resolution_w}`);

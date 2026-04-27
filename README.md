@@ -95,7 +95,8 @@ vault/
     ├── Agent Skills/               # skill overviews + _onyx-runtime/ primitives
     ├── Conventions/                # authoring guides (minimal-code, fractal-linking, tags, browser-automation)
     ├── Operations/                 # the nine runtime operations (heal, route, atomise, execute, …)
-    ├── Principles/                 # distilled wisdom (M2 — coming next)
+    ├── Principles/                 # distilled wisdom (universal + storytelling + engineering principles)
+    ├── Memory/                     # decision tree for Plan/Memory/Cross-Project/Principles + entry examples
     ├── Profiles/                   # project-type contracts (engineering, content, audio-production, …)
     └── Templates/                  # copy-and-fill scaffolds for every artefact type
 ```
@@ -131,7 +132,9 @@ One profile per project — set `profile:` in the project's `Overview.md`. The p
 | `experimenter` | A/B testing, prompt engineering, ML experiments | `hypothesis`, `success_metric`, `baseline_value` | Result recorded + Cognition Store updated |
 | `accounting` | Financial records, reconciliation, reporting | `ledger_path`, `reporting_period` | Trial balance verified |
 | `legal` | Contracts, research, compliance | `jurisdiction`, `matter_type` | Evidence hierarchy + citations verified |
-| `audio-production` | Music/audio-first pipelines (My Podcast, My Album) | `voice_profile`, `lufs_target` | Mastered audio + LUFS target met |
+| `audio-production` | Audio-first pipelines (podcast, music album, narration) | `voice_profile`, `lufs_target` | Mastered audio + LUFS target met |
+| `video-production` | Video pipelines (animated short, serial cartoons, music videos) | `aspect_ratio`, `target_duration_s`, `render_engine` | Shot list duration matches audio + final render exists |
+| `publishing` | Publish-day fan-out across platforms | `target_platforms`, `scheduled_publish_at` | Live verified + publish ledger updated |
 
 Profiles are **invariants**. If a rule only applies to some phases of a project-type, it's a directive rule, not a profile.
 
@@ -208,11 +211,11 @@ After `My First Project` runs end-to-end, the repo ships ready-to-fork pipeline 
 | Starter | Profile | Demonstrates | Status |
 |---|---|---|---|
 | `My First Project` | `general` | Hello-world phase, the loop runs end-to-end | shipped |
-| Engineering — Greenfield Service | `engineering` | 10-phase build → test → harden → deploy → observe pipeline (language-agnostic) | M4 — pending |
-| Research — Investigation | `research` | 5-phase scope → gather → synthesise → write → review | M4 — pending |
-| Video — Animated Short | `video-production` | 9-phase animated short pipeline (audio-first, character continuity, model routing) | M5 — pending |
-| Music — Album Release | `audio-production` | 11-phase concept → generate → master → release → engagement pipeline | M5 — pending |
-| Podcast — Spoken Audio Show | `audio-production` | 7-phase plan → research → script → audio → render → publish → engage | M6 — pending |
+| Engineering — Greenfield Service | `engineering` | 10-phase build → test → harden → deploy → observe pipeline (language-agnostic) | shipped |
+| Research — Investigation | `research` | 5-phase scope → gather → synthesise → write → review | shipped |
+| Video — Animated Short | `video-production` | 9-phase animated short pipeline (audio-first, character continuity, model routing) | shipped |
+| Music — Album Release | `audio-production` | 11-phase concept → generate → master → release → engagement pipeline | shipped |
+| Podcast — Spoken Audio Show | `audio-production` | 7-phase plan → research → script → audio → render → publish → engage | shipped |
 
 Each starter pulls the relevant directives from `08 - System/Agent Directives/` and the relevant Templates from `08 - System/Templates/`, so every starter shares the same foundation. See [`PIPELINES.md`](./PIPELINES.md) for the full index.
 
@@ -220,9 +223,11 @@ Each starter pulls the relevant directives from `08 - System/Agent Directives/` 
 
 ## Wisdom: the Principles library
 
-`08 - System/Principles/` *(M2 — coming next)* distils ~25-30 generalised principles earned from running real pipelines. Things like "audio-first pipeline", "QC gate between every phase", "no invented day-of-week framing", "character continuity stack", "verifiable contact details only". Directives wikilink them and assume the reader has read them.
+`08 - System/Principles/` distils ~18 generalised principles earned from running real pipelines. Universal pipeline principles (audio-first pipeline, QC gate between every phase, single canonical tool per task, vault frontmatter as source of truth, memory as feedback not state). Engineering principles (phase atomisation discipline, fail and fix not bypass, backwards compat only at boundaries, no features beyond task, CDP attach over persistent profile). Storytelling / content principles (avatar diversity across episodes, no invented specifics, no chained identity signifiers, verifiable contact details only, no dated citations you can't pin, show don't say, concept mandate, narrator no stage directions).
 
-The operator graduates patterns up the chain: `project Knowledge.md` → `Cross-Project Knowledge.md` → `Principles/`. Most things stay in project Knowledge; only what truly generalises ascends.
+Directives wikilink the principles they enforce — read once when you set up, read again when you hit the situation they describe.
+
+`08 - System/Memory/` documents the four-store model: **Plan/Task** (in-session) → **Memory** (per-machine, about the user) → **Cross-Project Knowledge** (per-vault accreted wisdom) → **Principles** (framework-canonical, shipped via PR). Most learnings stay at the project level; only what truly generalises ascends.
 
 ---
 

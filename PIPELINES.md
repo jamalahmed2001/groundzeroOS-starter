@@ -31,35 +31,35 @@ After `onyx run` writes `hello.txt` and the phase transitions to `completed`, yo
 - **Profile:** `engineering`
 - **Phases:** 10 (Discovery → Architecture → Schema → Skeleton → Core feature → Tests → Hardening → Deploy → Observability → First iteration)
 - **Demonstrates:** language-agnostic build pipeline. Phase atomisation discipline. Per-phase QC gate. Profile-routed shell whitelist. The kind of work most agentic-framework users actually want to do.
-- **Status:** ⏳ M4 — pending
+- **Status:** ✅ shipped (`01 - Projects/Engineering — Greenfield Service/`)
 
 ### Research — Investigation
 
 - **Profile:** `research`
 - **Phases:** 5 (Scope → Gather → Synthesise → Write → Review)
 - **Demonstrates:** how the same engine handles non-creative knowledge work. Source verification. Evidence hierarchy. The lightest starter — good for a first-non-trivial-pipeline run.
-- **Status:** ⏳ M4 — pending
+- **Status:** ✅ shipped (`01 - Projects/Research — Investigation/`)
 
 ### Video — Animated Short
 
 - **Profile:** `video-production`
 - **Phases:** 9 (Premise → Script → Scenes → Visual package → Render → Audio → Export → Launch → Engagement)
 - **Demonstrates:** audio-first pipeline; character continuity stack; last-frame seeding; per-shot model routing; brand-via-locked-sigil. The most directive-dense starter (~17 specialist directives loaded).
-- **Status:** ⏳ M5 — pending
+- **Status:** ✅ shipped (`01 - Projects/Video — Animated Short/`)
 
 ### Music — Album Release
 
 - **Profile:** `audio-production`
 - **Phases:** 11 (Concept + Tracklist → Lyrics → Generate + Curate → Master Audio → Visual Package → Metadata + SEO → Rollout + Pre-save → Playlist Pitching → Launch Day Ops → Post-Release Engagement → Analytics)
 - **Demonstrates:** per-track style variation; single-workspace-per-brand; LUFS targets; distributor-wizard discipline (never auto-submit paid actions); pre-save campaign timing.
-- **Status:** ⏳ M5 — pending
+- **Status:** ✅ shipped (`01 - Projects/Music — Album Release/`)
 
 ### Podcast — Spoken Audio Show
 
 - **Profile:** `audio-production`
 - **Phases:** 7 (Plan → Research → Script → Audio → Render → Publish → Engage)
 - **Demonstrates:** avatar diversity across episodes; verifiable-contact-details-only; pronunciation dictionary discipline; locale-first source priority; dated-citation discipline.
-- **Status:** ⏳ M6 — pending
+- **Status:** ✅ shipped (`01 - Projects/Podcast — Spoken Audio Show/`)
 
 ---
 

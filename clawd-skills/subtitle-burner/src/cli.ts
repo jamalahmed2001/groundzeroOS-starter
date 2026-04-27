@@ -90,7 +90,7 @@ async function main() {
   if (noSpeakerChip) {
     style.speaker_chip = false;
   }
-  // Per-speaker colours for Cypher Lane (v18 locked palette)
+  // Per-speaker colours for Example Show (v18 locked palette)
   if (styleName === 'default') {
     style.speaker_colours = {
       narrator: '#FFFFFF',

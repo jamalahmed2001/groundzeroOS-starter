@@ -6,7 +6,7 @@ replaces: (new — no predecessor TS module)
 lines_replaced: 0
 version: 0.1
 created: 2026-04-24
-updated: 2026-04-27T11:59:53Z
+updated: 2026-04-27T12:50:12Z
 status: draft
 ---
 
@@ -32,9 +32,37 @@ Enforce the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Link
 
 **Recursive folder walk (universal).** The skill walks **every folder** under the projects glob — not just canonical `Phases/`, `Logs/`, `Directives/`, `Episodes/`, `Albums/` subfolders. Every folder containing ≥2 markdown files (excluding archive-like folders such as `_archive/`, `_drafts/`, `_assets/`, `qc-reports/`) gets a hub if one is missing. Sub-bundles (a character folder, a location folder, an episode subfolder with `reviews/` and `shots/` etc.) follow the same fractal pattern recursively — every depth level, every folder.
 
+### Parent-target resolution (added 2026-04-27 after <character>/reviews/ chain-break)
+
+When computing the `up:` target for a newly-created hub, do NOT assume the immediate parent folder will get its own hub. The parent folder may have only sub-folders (no md files of its own), in which case forward-referencing a non-existent `<parent> Hub` would create a dangling chain.
+
+**Walk up the folder tree, picking the FIRST real parent encountered:**
+
+1. **Existing hub** at any ancestor folder (matched by `* Hub.md` filename).
+2. **Existing Overview / Bible** (`*Overview.md`, `*Show Bible.md`, `*Universe Bible.md`, `*Bible.md`) at any ancestor folder.
+3. **Same-name-as-folder file at the grandparent** — when `Characters/<Character>/` has no md children of its own but `Characters/<Character>.md` exists as a sibling-of-folder file, that's the natural parent. Common pattern in media bundles where a character / location is BOTH a description file (sibling) AND a folder (with subfolders for assets / reviews / generations).
+4. **Domain hub** at the top of the walk if nothing above resolves.
+
+If none of the four resolves → emit `orphan_leaf_no_inference` detection; the human picks the parent.
+
+This rule ensures `<character>/reviews/Reviews Hub.md`'s `up:` resolves to the character file, not to a non-existent `<Character> Hub`. The chain then walks: Reviews Hub → character (file) → Characters Hub → Example Show Hub → … to root.
+
 This was promoted from "canonical-folder-only" to "every-folder" on 2026-04-27 after the recursive-heal pass discovered 55 missing hubs in `My Show/Shows/<show>/{Characters,Locations}/<entity>/reviews/` subtrees and similar nested production structures.
 
-**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `My Show - Bramble - Reviews Hub.md`).
+**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `My Show - <Character> - Reviews Hub.md`).
+
+### Hub-name fallback when no project Overview ancestor exists
+
+Some folders sit OUTSIDE any project bundle — `00 - Dashboard/`, `08 - System/Templates/`, `08 - System/Agent Context/Memory Archive/`. Walking up from those folders never reaches an `Overview.md` / `Bible.md`, so the path-derived naming pattern's `<project_id>` segment is undefined.
+
+**Fallback rule (added 2026-04-27 after the null.md bug):**
+
+When `findProjectRoot(folder)` returns null:
+- Hub name = `<folder-basename> Hub.md` (e.g. `Memory Archive Hub.md`, `Dashboard Hub.md`, `Quick Start Overviews Hub.md`).
+- The hub's `up:` resolves via the parent-target walk-up (existing hub / Overview / domain hub at top of vault).
+- **Never** generate a hub name that contains the literal string `"null"` — if any path segment is undefined, halt the hub creation for that folder and emit `hub_name_underivable` detection.
+
+This keeps `08 - System/` and `00 - Dashboard/` walkable as their own self-contained subtrees without forcing them to be project bundles.
 
 For every project bundle under `projects_glob`, perform the five checks in order. Skip files carrying `context-only` tag (per Tag Convention).
 
