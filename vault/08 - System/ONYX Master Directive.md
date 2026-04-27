@@ -106,6 +106,17 @@ These rules hold for every iteration, without exception. If any rule is about to
 13. **Always log.** Every non-trivial action appends one line to `00 - Dashboard/ExecLog.md`. No silent operations.
 14. **Respect profile constraints.** The project's profile (§12) defines what's allowed; never exceed it without a human override in the phase file.
 15. **Respect directive constraints.** If a directive declares "do not do X," don't do X, even if the phase would otherwise succeed.
+16. **Enforce fractal linking.** Every note has exactly one `up:` pointing at its direct parent. Leaves (phases, directives, logs, per-item overviews) point at their hub, not at the project Overview. Hubs point at their Overview. The body `## 🔗 Navigation` block is UP-only — a single link to the parent. Sideways links to siblings (Knowledge, Kanban, other hubs) are forbidden in nav blocks; they belong in body prose if needed. Full spec: [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]]. Healer skill: [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/SKILL.md|heal-fractal-links]] (invoked from [[08 - System/Operations/heal.md|heal]] step 7).
+
+17. **Enforce the shell whitelist before every Bash call.** Check in this exact order; first match wins:
+
+    a. Split the command on whitespace; the first token is the binary.
+    b. If the first token ∈ `profile.denied_shell` → refuse with reason `"denied by profile.denied_shell"`.
+    c. Else if the first token ∉ `profile.allowed_shell` → refuse with reason `"not in profile.allowed_shell"`.
+    d. Else scan the full command string for destructive substrings (`rm -rf`, redirects to `/dev/sd*`, fork bombs `:(){ :|:& };:`, `mkfs`, `> /dev/null` is fine but `> /dev/sd*` is not) → refuse with reason `"matched destructive pattern: <substring>"`.
+    e. Otherwise execute via native Bash.
+
+    A refused command marks its task `- [!]` with the reason string. Refusal does **not** block the phase — execution continues with the next task. This invariant replaces the old `src/executor/runPhase.ts` `isSafeShellCommand` function; the whitelist now lives in each profile's frontmatter.
 
 ---
 
@@ -256,6 +267,20 @@ If you encounter any other `status:` value, treat it as INTEGRITY error (§9) an
 ---
 
 ## 6. The Five Operations
+
+> **Migration note (2026-04-24).** Each operation is being extracted into a dedicated file under [[08 - System/Operations/Operations Hub.md|Operations/]]. Until the target file's `status:` frontmatter is `active`, **this section remains the canonical source**. When an operation promotes to `active`, its subsection here collapses to a one-line pointer. See the [[08 - System/ONYX - Decomposition Plan.md|Decomposition Plan]] for staging.
+>
+> | Operation | Target file | Current status |
+> |---|---|---|
+> | atomise | [[08 - System/Operations/atomise.md]] | stub → Stage 4 |
+> | wait | *(no-op, §6.2 below)* | — |
+> | execute | [[08 - System/Operations/execute-phase.md]] | stub → Stage 5 |
+> | surface_blocker | [[08 - System/Operations/surface-blocker.md]] | stub → Stage 3 |
+> | skip / consolidate | [[08 - System/Operations/consolidate.md]] | stub → Stage 4 |
+> | heal | [[08 - System/Operations/heal.md]] | stub → Stage 3 (not dispatched by §5 — runs at step 1) |
+> | route | [[08 - System/Operations/route.md]] | stub → Stage 2 |
+> | decompose-project | [[08 - System/Operations/decompose-project.md]] | stub → Stage 6 (invoked via `onyx plan`, not §5) |
+> | replan | [[08 - System/Operations/replan.md]] | stub → Stage 6 |
 
 ### 6.1 `atomise` — turn a `backlog` phase into a ready-to-execute task list
 
@@ -956,19 +981,48 @@ Multiple directive-runtime agents (or a directive-agent + the TypeScript `onyx` 
 - Scheduled event fired (INFO)
 
 ### 15.2 How
-Invoke the `notify` skill: `~/clawd/skills/notify/bin/notify <priority> <message>`. The skill handles delivery channels (stdout, file, openclaw push, WhatsApp). Specs live at `08 - System/Agent Skills/notify - Skill Overview.md`.
+Run `openclaw` via native Bash with the arguments below. The `tools/notify.sh` wrapper was retired on 2026-04-24 — format consistency now lives in this section, not a shell script. Every operation that dispatches a notification reads from this table to construct the invocation.
 
 Priorities: `INFO`, `WARN`, `ALERT`. ALERT triggers all channels; INFO may be batched.
 
-### 15.3 Message format
+### 15.3 Event format
+
+Every notification is one `openclaw` invocation:
 ```
-[<level>] <project>/<phase>: <summary>
+openclaw \
+  --event <event-name> \
+  --project <project-id> \
+  --phase <phase-id-or-"-"> \
+  --severity <info|warn|alert> \
+  --message "<short summary>"
+```
+
+`<event-name>` must be one of the canonical events below. Adding a new event requires an explicit phase in `08 - System/`.
+
+| Event | Severity | When | Required fields | Example message |
+|---|---|---|---|---|
+| `phase_completed` | info | `active → completed` transition | project, phase | `P14 complete — script ready for audio` |
+| `phase_blocked` | warn | `active → blocked` transition | project, phase, + first line of `## Human Requirements` | `P14 blocked — missing ELEVENLABS_API_KEY` |
+| `phase_started` | info | `ready → active` (optional, batchable) | project, phase | `P14 started — script writing` |
+| `integrity_error` | alert | any INTEGRITY-class error | project (if known), phase (if known), full error text | `Vault integrity: phase P14 has duplicate lock` |
+| `rate_limit_backoff` | warn | retries exhausted on RECOVERABLE error | project, phase, tool-or-skill name | `P14: openrouter rate limit, 3 retries exhausted` |
+| `long_running` | warn | phase has held lock >2 hours | project, phase, start-time | `P14 running 2h15m — check agent health` |
+| `schedule_fired` | info | scheduled job triggered | project (if scoped), job-id | `Scheduled: monthly-consolidate fired` |
+| `heal_action` | info | (optional, batchable) heal made non-trivial repair | heal-check name, count | `Healed 3 stale locks` |
+
+### 15.4 Message format
+
+The single-line prose summary for human readers:
+```
+[<severity>] <project>/<phase>: <summary>
 ```
 
 E.g.
 ```
-[WARN] mani-plus/P14: Phase blocked — ELEVENLABS_API_KEY missing
+[WARN] example-project/P14: Phase blocked — ELEVENLABS_API_KEY missing
 ```
+
+This is the `--message` argument. The event name, severity, project, and phase are separate args per §15.3.
 
 ### 15.4 Don't spam
 If the same notification would fire within 10 minutes of an identical one (same project, same phase, same level), suppress it.
@@ -1136,7 +1190,7 @@ When a node conceptually relates to something in another branch (e.g. a project 
   | **`M`** | **Maintenance** | Cleanup, dependency upgrades, refactors, bugfixes that span more than one task. `M1 - Dedupe Phase Groups`. |
 
   Numbering is per-prefix within a project (P01, P02, … and separately O1, O2, …). Decimal suffixes like `O3.5` are fine for fractional/interstitial phases. Prefix reflects the phase's *own* lifecycle role — a research step *inside* an ops pipeline is still `O<N>` because the parent unit of work is an ops run.
-- **Hubs:** `<Project> - <Category> Hub.md` (e.g. `ManiPlus - Directives Hub`, `ManiPlus - Episodes Hub`, `Suno Albums - Directives Hub`).
+- **Hubs:** `<Project> - <Category> Hub.md` (e.g. `My Podcast - Directives Hub`, `My Podcast - Episodes Hub`, `My Album - Directives Hub`).
 - **Archives:** `<Project> - Phase Group <N> - Archive.md`. Created by `onyx consolidate`; originals go to `.trash/_onyx_consolidated/<run-stamp>/`.
 - **Skill Overviews:** `<skill-name> - Skill Overview.md`. Filename shape is load-bearing — `Agent Skills Hub` filters on the `" - Skill Overview.md"` suffix.
 
@@ -1146,13 +1200,13 @@ When a node conceptually relates to something in another branch (e.g. a project 
 
 **Never:**
 - `**Related:** [[system-directive]]` in a project directive's nav block
-- `[[maniplus-researcher]]` in a system profile or convention
+- `[[my-podcast-researcher]]` in a system profile or convention
 - A "Cross-references" section in a profile listing specific bundle examples
 
 **Always:**
 - `up: <parent>` in every artefact's frontmatter
 - Hub pages list their children (one direction: down) in a plain bulleted list
-- Plain-text mentions ("the ManiPlus audio-producer directive") in body prose are fine — only `[[wikilinks]]` count against the rule
+- Plain-text mentions ("the my-podcast audio-producer directive") in body prose are fine — only `[[wikilinks]]` count against the rule
 - Deeper relationships: `profile: <name>`, `directive: <name>`, `based_on: <name>` in frontmatter
 
 ### 19.5 When to create vs extend
@@ -1703,7 +1757,7 @@ Never try to paste the full phase note or repo listing into the prompt. Referenc
 
 ### 20.3 Skill authoring
 
-- **Skills are project-agnostic.** If your skill has `if (project === 'X')` branches or "ManiPlus defaults," split it. Project-specific parts belong in directives or per-project config files that the skill takes as parameters (e.g. the ManiPlus pronunciation dictionary).
+- **Skills are project-agnostic.** If your skill has `if (project === 'X')` branches or per-project hardcoded defaults, split it. Project-specific parts belong in directives or per-project config files that the skill takes as parameters (e.g. a project-owned pronunciation dictionary).
 - **Pass 1 ships. Pass 2 optimises.** DOM-driven recipes for new integrations are a fine starting point — direct-HTTP is the graduation target, not the starting requirement. Don't ship nothing trying to ship the perfect thing.
 - **Document interface, not implementation.** The vault-facing Skill Overview describes verbs + flags + output shape. Implementation details (ffmpeg filter chains, DOM selectors) live in `~/clawd/skills/<name>/SKILL.md` and the source. Rewriting implementation shouldn't force directive updates.
 - **One canonical home per artefact.** `Tools/` + `Agent Skills/` as parallel folders = cognitive tax. Merged 2026-04-20. Never re-introduce the split.

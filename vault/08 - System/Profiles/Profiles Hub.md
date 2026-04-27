@@ -18,6 +18,14 @@ status: active
 
 ---
 
+## Shell command policy (added 2026-04-24)
+
+Profiles now declare `allowed_shell:` and `denied_shell:` frontmatter — the whitelist + deny list that used to live inside `src/executor/runPhase.ts` as `isSafeShellCommand`. The Master Directive invariant requires the agent to check these before any Bash call. See [[08 - System/Profiles/engineering.md|engineering profile]] for the reference port.
+
+**TODO (Stage 1.5 follow-up):** add `allowed_shell:` / `denied_shell:` to the remaining 8 profiles with domain-appropriate scopes. `content` / `research` should be stricter than engineering; `operations` may need extras (`systemctl`, `docker`); `trading` should block git pushes on production branches. Only `engineering` has been ported so far.
+
+---
+
 ## Available Profiles
 
 Nine profiles. Each one is a genuinely distinct mechanical contract — different required fields, different bundle structure, different acceptance gate.

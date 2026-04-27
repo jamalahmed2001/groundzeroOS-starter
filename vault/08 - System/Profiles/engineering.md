@@ -1,7 +1,7 @@
 ---
 name: engineering
 type: profile
-version: 1.0
+version: 1.1
 required_fields:
   - repo_path
   - test_command
@@ -12,6 +12,34 @@ phase_fields:
 init_docs:
   - Repo Context
 tags: [onyx-profile]
+allowed_shell:
+  - ls
+  - test
+  - grep
+  - rg
+  - cat
+  - sed
+  - awk
+  - echo
+  - git
+  - pnpm
+  - npm
+  - npx
+  - node
+  - timeout
+  - mkdir
+  - wc
+  - find
+  - which
+denied_shell:
+  - rm
+  - mv
+  - cp
+  - dd
+  - mkfs
+  - chmod
+  - chown
+  - sudo
 ---
 
 ## 🔗 Navigation
@@ -66,6 +94,21 @@ branch: feature/my-feature    # git branch the agent should work on
 - `light` → haiku (trivial changes, docs, config tweaks)
 - `standard` → sonnet (normal feature work, default if omitted)
 - `heavy` → opus (architecture decisions, security-critical, complex refactors)
+
+---
+
+## Shell command policy
+
+The `allowed_shell:` and `denied_shell:` frontmatter fields replace the old `src/executor/runPhase.ts` `isSafeShellCommand` whitelist. The agent **must** check these before any Bash invocation, per [[08 - System/ONYX Master Directive.md|Master Directive]] invariant.
+
+**Rule.**
+1. Split the command on whitespace; the first token is the binary name.
+2. If the first token appears in `denied_shell`, refuse and mark the task `- [!]` with reason `"denied by profile.denied_shell"`.
+3. Else if the first token appears in `allowed_shell`, run via native Bash.
+4. Else refuse and mark the task `- [!]` with reason `"not in profile.allowed_shell"`.
+5. Additionally, scan the full command for destructive substrings (`rm -rf`, `> /dev/sd*`, `:(){ :|:& };:`, etc.) — refuse on match regardless of first token.
+
+Other profiles can be stricter (content may omit `npm`/`pnpm`; research may omit `git tag`).
 
 ---
 
