@@ -8,6 +8,7 @@ version: 0.1
 created: 2026-04-27
 updated: 2026-04-27
 status: draft
+up: Agent Skills - _onyx-runtime Hub
 ---
 
 # Skill: heal-bundle-shape
@@ -135,6 +136,34 @@ For media bundles, surface missing:
 ### Rule 6 — No cross-bundle wikilinks (delegated to heal-cross-link)
 
 This skill doesn't duplicate cross-link checking — that's [[heal-cross-link]]'s job. heal-bundle-shape just re-flags any cross-link surfaced by heal-cross-link as a `bundle_shape:cross_link` detection so it shows up in the bundle-shape report alongside the structural issues.
+
+### Rule 6.5 — Hubs don't link sideways to sibling hubs
+
+A hub's body wikilinks should only point at:
+- Its **own children** (the files that have `up: <this hub>`).
+- Its **single parent** via the nav block's `**UP:**` line.
+
+Sideways links from one hub to a sibling hub (e.g. Phases Hub → Episodes Hub → Directives Hub) create graph "cross-beams" between sibling clusters, which is exactly the visual tangle the branch-out leaf-tree fractal is supposed to prevent.
+
+**Detect:** any hub file whose body contains a wikilink to a file ending in ` Hub.md` that is **not** its parent (per the nav block) and **not** in its own `## Children` section.
+
+**Auto-fix:** rewrite the offending wikilink as a backticked text reference. Example:
+- Before: `- [[<Project> - Episodes Hub|Episodes Hub]] — per-episode files`
+- After: `Related project nodes are reachable via [[<Project> - Overview]]'s Children section.`
+
+The pattern: replace the entire `## Related` section (or whatever section contains the sideways links) with a single line pointing at the Overview as the single hub-of-hubs. Project-level Overview is the only place the cross-cutting "everything links to everything" pattern is allowed; intermediate hubs stay narrowly scoped.
+
+**Detection-only:** if a sideways link exists but no auto-replaceable pattern matches (e.g. it's prose-embedded, not in a list), surface as `sideways_hub_link` detection.
+
+### Rule 6.6 — Catalog files use text references, not wikilinks, for graph-parented children
+
+When a project has a Catalog file (`<Project> - Album Catalog.md`, `<Project> - Episode Catalog.md`) AND a sibling Hub that is the canonical graph parent of those children (`Albums/<Project> - Albums Hub.md`), the Catalog should show child names as **backticked text** or in a status table, not wikilinks. Wikilinks from the Catalog duplicate parentage and create extra graph edges that the Hub already provides.
+
+**Detect:** Catalog file contains wikilinks to children that are also wikilinked from the canonical Hub.
+
+**Auto-fix:** convert Catalog's child wikilinks to backticked path references. The Hub's wikilinks remain (canonical parent). Example:
+- Before: `| 1 | Drift | JammieD | 9 | mastered | [[Drift - Overview\|Drift]] |`
+- After: `| 1 | Drift | JammieD | 9 | mastered | Albums/Drift/ |`
 
 ### Rule 7 — Per-unit Phases (target, detection-only)
 
