@@ -24,7 +24,7 @@ The repo ships six starter projects covering the common work shapes. Each is a c
 | [[My First Project/My First Project - Overview\|My First Project]] | `general` | 1 | Smoke test — the loop runs end-to-end |
 | [[Engineering — Greenfield Service/Engineering — Greenfield Service - Overview\|Engineering — Greenfield Service]] | `engineering` | 10 | Empty repo → first deployed iteration |
 | [[Research — Investigation/Research — Investigation - Overview\|Research — Investigation]] | `research` | 5 | Question → sources → synthesis → written deliverable |
-| [[Video — Animated Short/Video — Animated Short - Overview\|Video — Animated Short]] | `video-production` | 9 | Animated short pipeline (audio-first, character continuity, model routing) |
+| [[Video — Animated Short/Video — Animated Short - Overview\|Video — Animated Short]] | `my-show` | 9 | Animated short pipeline (audio-first, character continuity, model routing) |
 | [[Music — Album Release/Music — Album Release - Overview\|Music — Album Release]] | `audio-production` | 11 | Album from concept to release-day |
 | [[Podcast — Spoken Audio Show/Podcast — Spoken Audio Show - Overview\|Podcast — Spoken Audio Show]] | `audio-production` | 7 | Research-driven spoken audio show |
 

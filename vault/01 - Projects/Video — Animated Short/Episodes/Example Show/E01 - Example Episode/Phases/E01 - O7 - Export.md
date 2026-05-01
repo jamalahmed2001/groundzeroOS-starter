@@ -3,7 +3,7 @@ project: Video — Animated Short
 phase_number: 7
 phase_name: Export
 status: backlog
-profile: video-production
+profile: my-show
 directive: audio-producer
 blocked_by: [6]
 tags: [project-phase, phase-backlog]

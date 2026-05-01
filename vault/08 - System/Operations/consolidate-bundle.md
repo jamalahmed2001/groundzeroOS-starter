@@ -29,6 +29,6 @@ superseded_by: "[[consolidate]]"
 
 - **Tiers + modes deleted.** One operation handles new-parent and existing-parent cases, narrative children and structured children, by reading what's there and picking the right shape.
 - **Idempotency markers unchanged.** `consolidation_state: applied` + `consolidated_from` + `consolidated_from_sha` still work — the new operation reads them as before.
-- **Archived artefacts unaffected.** AI Sentiment Analysis pt3, Cypher Lane (both consolidated under the previous version) need no migration.
+- **Archived artefacts unaffected.** AI Sentiment Analysis pt3, Example Show (both consolidated under the previous version) need no migration.
 
 See [[consolidate]] for the canonical procedure.

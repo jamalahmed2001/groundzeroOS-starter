@@ -3,7 +3,7 @@ project: Video — Animated Short
 phase_number: 4
 phase_name: Scene Composition
 status: backlog
-profile: video-production
+profile: my-show
 directive: scene-composer
 blocked_by: [3]
 tags: [project-phase, phase-backlog]

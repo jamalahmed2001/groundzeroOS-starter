@@ -8,7 +8,7 @@ type: episode
 episode_number: 1
 title: Example Episode
 status: backlog
-profile: video-production
+profile: my-show
 tags:
   - episode
 created: 2026-04-27T00:00:00Z

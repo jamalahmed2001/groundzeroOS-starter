@@ -36,7 +36,7 @@ Twelve profiles. Each one is a genuinely distinct mechanical contract — differ
 | [[08 - System/Profiles/engineering.md\|engineering]] | Software projects with a git repo | `repo_path`, `test_command` | test command exits 0 |
 | [[08 - System/Profiles/content.md\|content]] | Podcast, video, newsletter, social pipelines | `voice_profile`, `pipeline_stage` | safety filter + voice check |
 | [[08 - System/Profiles/audio-production.md\|audio-production]] | Audio-first pipelines (podcast, music album, narration) | `voice_target_lufs`, `music_style_guide` | mastered audio + LUFS target met |
-| [[08 - System/Profiles/video-production.md\|video-production]] | Video pipelines (animated short, serial cartoons, music videos) | `aspect_ratio`, `target_duration_s`, `render_engine` | shot list duration matches audio + final render exists |
+| [[08 - System/Profiles/my-show.md\|my-show]] | Video pipelines (animated short, serial cartoons, music videos) | `aspect_ratio`, `target_duration_s`, `render_engine` | shot list duration matches audio + final render exists |
 | [[08 - System/Profiles/publishing.md\|publishing]] | Publish-day fan-out across platforms | `target_platforms`, `scheduled_publish_at` | live verified + publish ledger updated |
 | [[08 - System/Profiles/research.md\|research]] | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | source count + confidence level |
 | [[08 - System/Profiles/operations.md\|operations]] | System ops, monitoring, incident response, e-commerce, events | `monitored_systems`, `runbook_path` | runbook_followed + outcome documented |

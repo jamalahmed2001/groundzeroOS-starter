@@ -40,7 +40,7 @@ Exit codes: `0` ok, `1` usage / fal error, `2` no output images returned.
 ## Used by
 
 - [[08 - System/Agent Directives/scene-composer.md|scene-composer]] — for per-shot keyframe composition
-- video-production pipeline phases that combine character + location refs
+- my-show pipeline phases that combine character + location refs
 
 ## Prerequisites
 

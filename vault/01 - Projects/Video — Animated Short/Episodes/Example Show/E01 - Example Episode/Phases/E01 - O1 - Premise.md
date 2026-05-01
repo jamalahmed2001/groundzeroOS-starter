@@ -3,7 +3,7 @@ project: Video — Animated Short
 phase_number: 1
 phase_name: Premise
 status: backlog
-profile: video-production
+profile: my-show
 directive: creative-director
 tags: [project-phase, phase-backlog]
 created: 2026-04-27T00:00:00Z

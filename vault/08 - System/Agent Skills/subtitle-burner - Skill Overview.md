@@ -49,7 +49,7 @@ Burned-in video at `--output`. Intermediate ASS file at `<output>.ass`.
 
 ## Used by
 
-- video-production pipelines that ship short-form vertical content (TikTok / Reels / Shorts)
+- my-show pipelines that ship short-form vertical content (TikTok / Reels / Shorts)
 - audio-production pipelines that ship a video version of a podcast episode
 
 ## Prerequisites

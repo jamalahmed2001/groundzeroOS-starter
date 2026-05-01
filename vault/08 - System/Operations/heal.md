@@ -164,8 +164,8 @@ No skill — this runs inline at the end. For every phase file, verify it contai
 - [[08 - System/Agent Skills/_onyx-runtime/heal-orphan-locks/heal-orphan-locks.md|heal-orphan-locks]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-dup-nav/heal-dup-nav.md|heal-dup-nav]] — full procedure
 - [[08 - System/Agent Skills/_onyx-runtime/heal-fractal-links/heal-fractal-links.md|heal-fractal-links]] — full procedure
-- [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.md|heal-cross-link]] — full procedure (added 2026-04-27 after the maniplus-marketer cross-link regression)
-- [[08 - System/Agent Skills/_onyx-runtime/heal-bundle-shape/heal-bundle-shape.md|heal-bundle-shape]] — full procedure (added 2026-04-27 after the Suno Albums bundle-layout restructure)
+- [[08 - System/Agent Skills/_onyx-runtime/heal-cross-link/heal-cross-link.md|heal-cross-link]] — full procedure (added 2026-04-27 after the my-podcast-marketer cross-link regression)
+- [[08 - System/Agent Skills/_onyx-runtime/heal-bundle-shape/heal-bundle-shape.md|heal-bundle-shape]] — full procedure (added 2026-04-27 after the My Album bundle-layout restructure)
 
 ## Skills NOT invoked routinely (one-shot, human-gated)
 
@@ -207,7 +207,7 @@ One line per heal action:
 
 Example:
 ```
-2026-04-24T10:47:12Z | - | P14 | HEAL | 0 | stale-locks:cleared path=mani-plus/Phases/P14 - Script.md
+2026-04-24T10:47:12Z | - | P14 | HEAL | 0 | stale-locks:cleared path=my-podcast/Phases/P14 - Script.md
 ```
 
 ## Shadow-mode comparison criteria

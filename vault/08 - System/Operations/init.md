@@ -52,7 +52,7 @@ Required answers (prompt operator if not supplied as args):
 | `vault_root` | `Vault root (absolute path):` | `config.vault_root` | must exist on disk |
 | `repo_path` (engineering/trading/experimenter only) | `Repo path [<cwd>]:` | `process.cwd()` | must exist on disk |
 
-For multi-glob `projects_glob` (e.g. `{02 - Fanvue/**, 03 - Ventures/**}`), prompt the operator to pick which top-level section. For single-glob, use the section automatically.
+For multi-glob `projects_glob` (e.g. `{02 - <workplace>/**, 03 - Ventures/**}`), prompt the operator to pick which top-level section. For single-glob, use the section automatically.
 
 ### Step 2 — Resolve target paths
 

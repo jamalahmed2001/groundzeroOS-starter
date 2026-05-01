@@ -59,6 +59,8 @@ jamal@fanvue.com	<email>
 ManiPlus	My Podcast
 mani-plus	my-podcast
 maniplus	my-podcast
+Video Production Pipeline	My Show
+video-production	my-show
 Cartoon Remakes	My Show
 cartoon-remakes	my-show
 Suno Albums	My Album

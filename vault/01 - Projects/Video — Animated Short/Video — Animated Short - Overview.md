@@ -1,7 +1,7 @@
 ---
 project: Video — Animated Short
 type: overview
-profile: video-production
+profile: my-show
 status: active
 aspect_ratio: 16:9
 target_duration_s: 60

@@ -3,7 +3,7 @@ project: Video — Animated Short
 phase_number: 6
 phase_name: Render
 status: backlog
-profile: video-production
+profile: my-show
 directive: general
 blocked_by: [5]
 tags: [project-phase, phase-backlog]

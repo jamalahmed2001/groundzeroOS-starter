@@ -42,8 +42,8 @@ If neither holds, **don't consolidate** — it's still active work.
 
 - `parent_target: string` — where the consolidated content lands. Two cases:
   - **Existing file** (e.g. shipped episode `E01 - The Night the Rift Opened.md`): augment in place. The episode keeps its identity; the consolidated content goes into its body.
-  - **New path** (e.g. `Cypher Lane - Consolidated.md` beside an abandoned bundle folder): create a fresh consolidated node.
-- `children: folder | string[]` — the folder of children OR an explicit list of files. The folder gets walked; explicit lists let the caller include sources from multiple folders (e.g. `Shows/Cypher Lane/` + `Episodes/Cypher Lane/`).
+  - **New path** (e.g. `Example Show - Consolidated.md` beside an abandoned bundle folder): create a fresh consolidated node.
+- `children: folder | string[]` — the folder of children OR an explicit list of files. The folder gets walked; explicit lists let the caller include sources from multiple folders (e.g. `Shows/Example Show/` + `Episodes/Example Show/`).
 - `archive_dir: string` — where children move on apply. Default: `<parent-folder>/_archive/<consolidation_date>/<children-folder-basename>/`.
 - `dry_run: bool` — default `true`. Always dry-run first. Apply only after the human reviews the plan.
 - `force: bool` — default `false`. Bypass the trigger check. Used when frontmatter is stale but the human knows the work is done (e.g. AI Sentiment pt3 had `status: active` Overview but the user said "it's shipped").
@@ -250,7 +250,7 @@ Per-source archive lines NOT emitted — the source manifest in the parent body 
 
 The weekly routine needs to find candidates without manual nomination. Discovery rules — pure-read, no writes:
 
-1. Glob every parent file across `02 - Fanvue/**`, `03 - Ventures/**`, `10 - OpenClaw/**`, `01 - Life/**`. Parent files are: `*Overview.md`, `* - Show Bible.md`, `*Bible.md`, `Episodes/*/E\d+ *.md`, `Albums/*/* - T\d+ *.md`.
+1. Glob every parent file across `02 - <workplace>/**`, `03 - Ventures/**`, `10 - OpenClaw/**`, `01 - Life/**`. Parent files are: `*Overview.md`, `* - Show Bible.md`, `*Bible.md`, `Episodes/*/E\d+ *.md`, `Albums/*/* - T\d+ *.md`.
 2. For each parent, check trigger conditions (status / consolidation_state).
 3. Locate associated children:
    - Sibling folders matching `<parent-id> - *` (e.g. `E01 - shots/`, `E01 - storyboards/`)
@@ -282,25 +282,25 @@ The weekly routine globs once, then invokes `consolidate` per candidate parent +
 
 ### Example 1 — Engineering project shipped (AI Sentiment Analysis pt3)
 
-- `parent_target = Fanvue Core/AI Sentiment Analysis pt3 - Consolidated.md` (new path)
+- `parent_target = <workplace> Core/AI Sentiment Analysis pt3 - Consolidated.md` (new path)
 - `children = AI Sentiment Analysis pt3/` (entire bundle: Overview, Knowledge, Kanban, 8 phases, 8 logs, 2 hubs)
 - Result: agent-composed prose node with Overview / Final state / Children (per-phase paragraphs) / Activity timeline (per-log) / Knowledge / Decisions / Source manifest / Archive sections. 47 KB consolidated node from 110 KB of sources.
 
-### Example 2 — Cartoon episode shipped (E01 Higher Branch)
+### Example 2 — Cartoon episode shipped (E01 Example Show)
 
 - `parent_target = E01 - The Night the Rift Opened.md` (existing file — augment)
 - `children = E01 - shots/` (30 shot files)
 - Result: episode body gains a `## Children` section as a 30-row table (shot, status, scene intent, narrator, duration, Veo model, keyframe, audio, verdict). Existing episode body untouched. 30 shots archived. Episode grew 290%.
 
-### Example 3 — Show retired (Cypher Lane)
+### Example 3 — Show retired (Example Show)
 
-- `parent_target = Cartoon Remakes/Cypher Lane - Consolidated.md` (new path)
-- `children = [Shows/Cypher Lane/, Episodes/Cypher Lane/]` (cross-folder list — show bible + 4 episode drafts + hub)
-- Result: agent-composed prose node — tells the story of the abandoned concept, preserves the 5 mandatory legal gates, catalogs the 4 E01 attempts, names what carried forward to The Higher Branch. 12 KB from 139 KB of sources.
+- `parent_target = My Show/Example Show - Consolidated.md` (new path)
+- `children = [Shows/Example Show/, Episodes/Example Show/]` (cross-folder list — show bible + 4 episode drafts + hub)
+- Result: agent-composed prose node — tells the story of the abandoned concept, preserves the 5 mandatory legal gates, catalogs the 4 E01 attempts, names what carried forward to The Example Show. 12 KB from 139 KB of sources.
 
 ### Example 4 — Suno album distributed (hypothetical)
 
-- `parent_target = Suno Albums/Albums/Late Check-In - Consolidated.md` (new path)
+- `parent_target = My Album/Albums/Late Check-In - Consolidated.md` (new path)
 - `children = Late Check-In/` (album Overview + 9 tracks + per-track takes folders if present)
 - Result: agent-composed node — album narrative, per-track lyrics + Suno generation prompts, mix decisions, distributor IDs, cover art reference. Sub-bundles (per-track takes) consolidate first (bottom-up) then folded into the album consolidation.
 
@@ -315,5 +315,5 @@ The same operation handles all five cases. The agent reads the children, sees wh
 ## Migration / rollout
 
 - v1.0 (this version, 2026-04-27): unifies the previously-separate `consolidate-bundle` and `consolidate-children` operations into one. The previous tier/mode distinctions were artificial — the operation is the same regardless. Both `consolidate-bundle.md` and `consolidate-children.md` are retained as **redirects** for any wikilinks pointing at them.
-- Existing applied artefacts (AI Sentiment pt3, Cypher Lane, E01 + E02 shot tables) work unchanged — same idempotency markers, same archive paths.
+- Existing applied artefacts (AI Sentiment pt3, Example Show, E01 + E02 shot tables) work unchanged — same idempotency markers, same archive paths.
 - The weekly scan routine now invokes `consolidate` per candidate (no tier branching).

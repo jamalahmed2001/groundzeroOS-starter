@@ -106,7 +106,7 @@ A single RED run blocks graduation. The directive author either tightens the pro
 An operation directive may move `status: draft → active` when:
 
 1. **Seven consecutive GREEN runs** across **distinct phases** (different bundles, different profiles when the operation is profile-aware) appear in `08 - System/Shadow Logs/<op>.md`.
-2. **At least one run** under each profile the operation supports (engineering, content, audio-production, video-production, research, etc. — whichever the operation routes for).
+2. **At least one run** under each profile the operation supports (engineering, content, audio-production, my-show, research, etc. — whichever the operation routes for).
 3. **Any RED run** since the last graduation attempt resets the streak.
 
 Once active:

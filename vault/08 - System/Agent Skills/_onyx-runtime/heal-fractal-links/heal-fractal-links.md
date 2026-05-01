@@ -12,14 +12,14 @@ status: draft
 
 # Skill: heal-fractal-links
 
-> **Validated 2026-04-24** by manual application to the three `Automated Distribution Pipelines/` projects (ManiPlus, Suno Albums, Cartoon Remakes). Applied against 28 phases + 6 per-album Overviews + 8 hubs. Net effect: tree-shaped graph instead of star topology.
+> **Validated 2026-04-24** by manual application to the three `Automated Distribution Pipelines/` projects (My Podcast, My Album, My Show). Applied against 28 phases + 6 per-album Overviews + 8 hubs. Net effect: tree-shaped graph instead of star topology.
 
 ## Purpose
 Enforce the [[08 - System/Conventions/Fractal Linking Convention.md|Fractal Linking Convention]] across the vault — every note has exactly one parent, leaves don't link to grandparents, hubs don't link sideways to siblings.
 
 ## Inputs
 - `vault_path: string`
-- `projects_glob: string` — default `"{02 - Fanvue/**,03 - Ventures/**,10 - OpenClaw/**}"`
+- `projects_glob: string` — default `"{02 - <workplace>/**,03 - Ventures/**,10 - OpenClaw/**}"`
 - `scope: "project" | "domain" | "all"` — default `"all"`. Optionally restricts to one project (e.g. scope=project + project_id=Clutr) or one domain.
 - `project_id: string | null` — when scope=project.
 - `dry_run: bool` — default false. When true, report intended fixes without writing.
@@ -45,11 +45,11 @@ When computing the `up:` target for a newly-created hub, do NOT assume the immed
 
 If none of the four resolves → emit `orphan_leaf_no_inference` detection; the human picks the parent.
 
-This rule ensures `Bramble/reviews/Reviews Hub.md`'s `up:` resolves to `Bramble` (the character file), not to a non-existent `Bramble Hub`. The chain then walks: Reviews Hub → Bramble (file) → Characters Hub → Higher Branch Hub → … to root.
+This rule ensures `Bramble/reviews/Reviews Hub.md`'s `up:` resolves to `Bramble` (the character file), not to a non-existent `Bramble Hub`. The chain then walks: Reviews Hub → Bramble (file) → Characters Hub → Example Show Hub → … to root.
 
-This was promoted from "canonical-folder-only" to "every-folder" on 2026-04-27 after the recursive-heal pass discovered 55 missing hubs in `Cartoon Remakes/Shows/<show>/{Characters,Locations}/<entity>/reviews/` subtrees and similar nested production structures.
+This was promoted from "canonical-folder-only" to "every-folder" on 2026-04-27 after the recursive-heal pass discovered 55 missing hubs in `My Show/Shows/<show>/{Characters,Locations}/<entity>/reviews/` subtrees and similar nested production structures.
 
-**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `Cartoon Remakes - Bramble - Reviews Hub.md`).
+**Step 1's hub inference table** lists the canonical folders for naming convenience, but the recursive walk in Steps 2/5 applies to ALL folders. Hubs for non-canonical folders use the path-derived naming pattern: `<project_id> - <parent-segment> - <folder-name> Hub.md` (e.g. `My Show - Bramble - Reviews Hub.md`).
 
 ### Hub-name fallback when no project Overview ancestor exists
 
@@ -163,7 +163,7 @@ Return aggregated `fixes` + `detections`. Caller decides whether to treat detect
 
 ## Examples
 
-**Example 1 — double-linked phase file (fixture case from ManiPlus, 2026-04-24):**
+**Example 1 — double-linked phase file (fixture case from My Podcast, 2026-04-24):**
 
 Input frontmatter:
 ```yaml
@@ -173,20 +173,20 @@ Input nav:
 ```markdown
 ## 🔗 Navigation
 
-- [[ManiPlus - Overview|ManiPlus]]
+- [[My Podcast - Overview|My Podcast]]
 - [[L21 - Research [episode topic]|L21 — Execution Log]]
 ```
 
 After skill:
 Frontmatter:
 ```yaml
-up: ManiPlus - Phases Hub
+up: My Podcast - Phases Hub
 ```
 Nav:
 ```markdown
 ## 🔗 Navigation
 
-**UP:** [[ManiPlus - Phases Hub|Phases Hub]]
+**UP:** [[My Podcast - Phases Hub|Phases Hub]]
 ```
 
 **Example 2 — hub with sideways link (Book Hub):**
@@ -195,16 +195,16 @@ Input nav:
 ```markdown
 ## 🔗 Navigation
 
-- [[ManiPlus - Overview|ManiPlus]]
-- [[ManiPlus - Episodes Hub|Episodes]]
-- [[ManiPlus - Knowledge|Knowledge]]
+- [[My Podcast - Overview|My Podcast]]
+- [[My Podcast - Episodes Hub|Episodes]]
+- [[My Podcast - Knowledge|Knowledge]]
 ```
 
 After skill:
 ```markdown
 ## 🔗 Navigation
 
-**UP:** [[ManiPlus - Overview|ManiPlus]]
+**UP:** [[My Podcast - Overview|My Podcast]]
 ```
 
 Sideways links (Episodes Hub, Knowledge) removed. Body content unchanged.

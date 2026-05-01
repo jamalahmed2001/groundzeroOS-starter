@@ -1,5 +1,5 @@
 ---
-name: video-production
+name: my-show
 type: profile
 version: 1.0
 required_fields:
@@ -41,7 +41,7 @@ denied_shell:
 
 **UP:** [[08 - System/Profiles/Profiles Hub.md|Profiles Hub]]
 
-# Profile: video-production
+# Profile: my-show
 
 > For phases that produce video — animated shorts, serial cartoons, scripted live-action with synthesised audio, music videos, mixed-media. This profile sits between `content` and `audio-production`: video pipelines are content pipelines that also produce audio that also produce visuals. It pulls disciplines from both.
 
@@ -62,7 +62,7 @@ Use *with* `audio-production` for video pipelines (the audio side runs on audio-
 ## Required Overview fields
 
 ```yaml
-profile: video-production
+profile: my-show
 aspect_ratio: 16:9                       # 16:9 | 9:16 | 1:1 | 4:5 — drives every shot, render, and export
 target_duration_s: 60                    # sum of all shot durations; audio drives this
 render_engine: remotion                  # remotion | ffmpeg-only | external
@@ -86,7 +86,7 @@ render_output: output/video/E03.mp4      # final video target
 
 ## Acceptance gate
 
-Before a video-production phase transitions to `completed`:
+Before a my-show phase transitions to `completed`:
 
 1. **Audio-first invariant.** The shot list's total duration matches the audio segment's actual duration ±100ms. (See [[08 - System/Principles/audio-first-pipeline.md|audio-first-pipeline]].)
 2. **Aspect ratio honoured.** Every keyframe and the final render are exactly the declared `aspect_ratio`.
@@ -98,7 +98,7 @@ Before a video-production phase transitions to `completed`:
 
 ## Bundle structure
 
-When `onyx init` creates a video-production project, it generates:
+When `onyx init` creates a my-show project, it generates:
 
 ```
 01 - Projects/<Show>/

@@ -12,7 +12,7 @@ status: draft
 
 # Skill: heal-cross-link
 
-> Detect and fix wikilinks that cross the system ↔ bundle boundary, or one bundle ↔ another. Per the [[Fractal Linking Convention]] and the no-cross-link rule, system-level docs (`08 - System/`) never wikilink to project-bundle specifics (`01 - Projects/`, `02 - Fanvue/`, `03 - Ventures/`, `10 - OpenClaw/`) and vice versa. Cross-bundle wikilinks (one project bundle wikilinking another) are also forbidden. Relationships across boundaries live in **frontmatter only** (`parent_directive:`, `references:`, `applies_to:`, `derived_from:` etc.).
+> Detect and fix wikilinks that cross the system ↔ bundle boundary, or one bundle ↔ another. Per the [[Fractal Linking Convention]] and the no-cross-link rule, system-level docs (`08 - System/`) never wikilink to project-bundle specifics (`01 - Projects/`, `02 - <workplace>/`, `03 - Ventures/`, `10 - OpenClaw/`) and vice versa. Cross-bundle wikilinks (one project bundle wikilinking another) are also forbidden. Relationships across boundaries live in **frontmatter only** (`parent_directive:`, `references:`, `applies_to:`, `derived_from:` etc.).
 
 ## Purpose
 
@@ -23,7 +23,7 @@ Find every cross-boundary wikilink in the vault and fix it by either:
 
 ## Why the rule exists
 
-The vault is a fractal graph: every bundle is a self-contained unit with its own hub at the root. Wikilinks across bundles or to system globals fail the "rip out one bundle" test — if you delete `ManiPlus/` to share its directives publicly, every wikilink to `ManiPlus - Knowledge` from a system doc becomes a broken graph edge in the recipient vault. Same in reverse: a public starter-vault that copies system directives shouldn't carry orphaned `[[ManiPlus - Knowledge]]` references.
+The vault is a fractal graph: every bundle is a self-contained unit with its own hub at the root. Wikilinks across bundles or to system globals fail the "rip out one bundle" test — if you delete `My Podcast/` to share its directives publicly, every wikilink to `My Podcast - Knowledge` from a system doc becomes a broken graph edge in the recipient vault. Same in reverse: a public starter-vault that copies system directives shouldn't carry orphaned `[[My Podcast - Knowledge]]` references.
 
 Frontmatter relationships solve both: they're declarative, they're keyable, they don't render as broken graph edges, and they're trivial to rewrite when bundles move or get sanitised.
 
@@ -51,7 +51,7 @@ Every markdown file in the vault belongs to one of these zones:
 
 - **system** — under `08 - System/`
 - **dashboard** — under `00 - Dashboard/`, `04 - Reading/`, `05 - Inbox/`, etc. (vault-meta)
-- **bundle:<bundle-id>** — under any project-bundle root (one of `01 - Projects/`, `02 - Fanvue/`, `03 - Ventures/`, `10 - OpenClaw/`). The bundle-id is derived from the path segment immediately under the domain (e.g. `10 - OpenClaw/Automated Distribution Pipelines/ManiPlus/...` → bundle = `ManiPlus`).
+- **bundle:<bundle-id>** — under any project-bundle root (one of `01 - Projects/`, `02 - <workplace>/`, `03 - Ventures/`, `10 - OpenClaw/`). The bundle-id is derived from the path segment immediately under the domain (e.g. `10 - OpenClaw/Automated Distribution Pipelines/My Podcast/...` → bundle = `My Podcast`).
 
 Two files are in the **same zone** if they share the same classification (same bundle, both system, etc.). Otherwise they cross a boundary.
 
@@ -92,7 +92,7 @@ A bundle directive references a system directive. Pattern: `[[content-marketer]]
 
 #### `system_to_bundle`
 
-A system doc wikilinks to a bundle file (e.g. `[[ManiPlus - Knowledge]]` from a system principle). Always wrong — system docs are bundle-agnostic. Strip and replace with the literal name in backticks. If the system doc genuinely needs a bundle example, lift it to a code block: `` `ManiPlus - Knowledge.md` `` rather than a wikilink.
+A system doc wikilinks to a bundle file (e.g. `[[My Podcast - Knowledge]]` from a system principle). Always wrong — system docs are bundle-agnostic. Strip and replace with the literal name in backticks. If the system doc genuinely needs a bundle example, lift it to a code block: `` `My Podcast - Knowledge.md` `` rather than a wikilink.
 
 #### `bundle_to_bundle`
 
@@ -133,54 +133,54 @@ Return aggregated `fixes` + `detections`.
 
 ## Examples
 
-**Example 1 — bundle→system body wikilink (the maniplus-marketer case from 2026-04-27):**
+**Example 1 — bundle→system body wikilink (the my-podcast-marketer case from 2026-04-27):**
 
 Input body line:
 ```markdown
-You wrap the generic [[content-marketer|Content Marketer]] directive with ManiPlus-specific voice…
+You wrap the generic [[content-marketer|Content Marketer]] directive with My Podcast-specific voice…
 ```
 
 Input frontmatter (no parent_directive key):
 ```yaml
-name: maniplus-marketer
+name: my-podcast-marketer
 type: directive
-tags: [directive, maniplus, content, marketing]
-up: ManiPlus - Directives Hub
+tags: [directive, my-podcast, content, marketing]
+up: My Podcast - Directives Hub
 ```
 
 After skill (auto-replace + frontmatter add):
 
 Frontmatter:
 ```yaml
-name: maniplus-marketer
+name: my-podcast-marketer
 type: directive
-tags: [directive, maniplus, content, marketing]
-up: ManiPlus - Directives Hub
+tags: [directive, my-podcast, content, marketing]
+up: My Podcast - Directives Hub
 parent_directive: content-marketer
 ```
 
 Body:
 ```markdown
-You wrap the generic `content-marketer` directive (declared as `parent_directive:` in this file's frontmatter) with ManiPlus-specific voice…
+You wrap the generic `content-marketer` directive (declared as `parent_directive:` in this file's frontmatter) with My Podcast-specific voice…
 ```
 
 **Example 2 — system→bundle hub wikilink (from a system Convention or Principle):**
 
 Input body:
 ```markdown
-See [[ManiPlus - Knowledge]] for an example of how a content bundle compounds learnings.
+See [[My Podcast - Knowledge]] for an example of how a content bundle compounds learnings.
 ```
 
 After skill:
 ```markdown
-See `ManiPlus - Knowledge.md` (under `10 - OpenClaw/Automated Distribution Pipelines/ManiPlus/`) for an example of how a content bundle compounds learnings.
+See `My Podcast - Knowledge.md` (under `10 - OpenClaw/Automated Distribution Pipelines/My Podcast/`) for an example of how a content bundle compounds learnings.
 ```
 
 (Backticked path, not a wikilink. The system doc remains bundle-agnostic; the example is illustrative, not navigational.)
 
-**Example 3 — bundle→bundle wikilink (the Cypher Lane → Higher Branch case from earlier development):**
+**Example 3 — bundle→bundle wikilink (the Example Show → Example Show case from earlier development):**
 
-If a Cartoon Remakes show bible wikilinks `[[The Higher Branch - Universe Bible]]` from inside `Cypher Lane/`, the skill replaces with backticked literal and emits a `bundle_to_bundle` fix. If both bundles are inside the same project (Cartoon Remakes is one project with multiple shows), this isn't a cross-link — same-bundle within-project wikilinks are fine. The skill's zone-classifier checks bundle-id, not show-id.
+If a My Show show bible wikilinks `[[The Example Show - Universe Bible]]` from inside `Example Show/`, the skill replaces with backticked literal and emits a `bundle_to_bundle` fix. If both bundles are inside the same project (My Show is one project with multiple shows), this isn't a cross-link — same-bundle within-project wikilinks are fine. The skill's zone-classifier checks bundle-id, not show-id.
 
 ## How to invoke
 

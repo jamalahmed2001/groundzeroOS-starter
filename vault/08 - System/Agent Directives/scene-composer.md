@@ -1,7 +1,7 @@
 ---
 name: scene-composer
 type: directive
-profile: video-production
+profile: my-show
 status: active
 version: 1
 tags:

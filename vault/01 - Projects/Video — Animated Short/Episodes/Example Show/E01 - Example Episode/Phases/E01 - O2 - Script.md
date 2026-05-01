@@ -3,7 +3,7 @@ project: Video — Animated Short
 phase_number: 2
 phase_name: Script
 status: backlog
-profile: video-production
+profile: my-show
 directive: script-writer
 blocked_by: [1]
 tags: [project-phase, phase-backlog]

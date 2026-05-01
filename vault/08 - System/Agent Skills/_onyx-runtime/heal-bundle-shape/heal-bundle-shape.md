@@ -15,7 +15,7 @@ up: Agent Skills - _onyx-runtime Hub
 
 > Detect and fix bundle-layout violations: root-level archive files that should be in `_archive/`, "shared phase template" folders named like operational `Phases/`, multiple overlapping documentation buckets (`Docs/` + `Insights/` + root files), missing canonical bridge files (`<Project> - Master Pipeline.md`, `<Project> - <Catalog>.md`).
 >
-> Surfaced by the Suno Albums restructure on 2026-04-27 — the bundle had grown organically and no longer matched the canonical fractal pattern that Cartoon Remakes (and every other media bundle) follows.
+> Surfaced by the My Album restructure on 2026-04-27 — the bundle had grown organically and no longer matched the canonical fractal pattern that My Show (and every other media bundle) follows.
 
 ## Purpose
 
@@ -23,7 +23,7 @@ Enforce **branch-out leaf-tree fractal**: every project bundle is a root with su
 
 ## The canonical bundle shape
 
-For a media-style bundle (content / video-production / audio-production / publishing profiles):
+For a media-style bundle (content / my-show / audio-production / publishing profiles):
 
 ```
 <Project>/
@@ -95,7 +95,7 @@ For each project bundle (folder containing an `Overview.md` or `Bible.md` or a f
 
 **Detect:** a `Phases/` folder at bundle root **AND** units folders (e.g. `Albums/`, `Episodes/`, `Issues/`) exist as siblings. The combination signals that the project's `Phases/` is actually shared *templates* that get instantiated per unit; the canonical name for that is `_<unit-name>-phases-template/`.
 
-Example: Suno Albums had `Phases/Suno Albums - O0...md` (templates) plus `Albums/<album>/` (where ops should run per-album). The right shape: rename to `_album-phases-template/`.
+Example: My Album had `Phases/My Album - O0...md` (templates) plus `Albums/<album>/` (where ops should run per-album). The right shape: rename to `_album-phases-template/`.
 
 **Fix (apply only if no per-unit Phases folders exist yet):**
 - Rename `Phases/` → `_<unit>-phases-template/` where `<unit>` is the singular form of the units folder name (`Episodes` → `episode`, `Albums` → `album`).
@@ -162,12 +162,12 @@ When a project has a Catalog file (`<Project> - Album Catalog.md`, `<Project> - 
 **Detect:** Catalog file contains wikilinks to children that are also wikilinked from the canonical Hub.
 
 **Auto-fix:** convert Catalog's child wikilinks to backticked path references. The Hub's wikilinks remain (canonical parent). Example:
-- Before: `| 1 | Drift | JammieD | 9 | mastered | [[Drift - Overview\|Drift]] |`
-- After: `| 1 | Drift | JammieD | 9 | mastered | Albums/Drift/ |`
+- Before: `| 1 | Drift | Example Artist | 9 | mastered | [[Drift - Overview\|Drift]] |`
+- After: `| 1 | Drift | Example Artist | 9 | mastered | Albums/Drift/ |`
 
 ### Rule 7 — Per-unit Phases (target, detection-only)
 
-For media bundles where the canonical pattern is per-unit operations (Cartoon Remakes pattern), detect:
+For media bundles where the canonical pattern is per-unit operations (My Show pattern), detect:
 - Each `<UnitsFolder>/<unit>/` HAS a `Phases/` subfolder containing `<Project> - <unit> - O<N> - <stage>.md` (or similar).
 
 **Action:** detect-only. Bulk-instantiating per-unit Phases from a shared template is destructive (changes phase numbering, may break run-history references). Surface a `missing_per_unit_phases` detection per unit so the operator can manually instantiate when ready.
@@ -209,18 +209,18 @@ emit fixes[] + detections[]
 
 ## Examples
 
-### Example 1 — Suno Albums fixture (2026-04-27)
+### Example 1 — My Album fixture (2026-04-27)
 
 Pre-state:
 ```
-Suno Albums/
-├── Suno Albums - Phase Group 1 (Build P01-P07) - Archive.md   ← root archive
-├── Suno Albums - Phase Group 2 (Ops O1-O8).md                 ← root archive
-├── Suno Albums - Phase Group 2b (Ops O9-O10).md               ← root archive
-├── Phases/Suno Albums - O0...O10.md                           ← shared templates
+My Album/
+├── My Album - Phase Group 1 (Build P01-P07) - Archive.md   ← root archive
+├── My Album - Phase Group 2 (Ops O1-O8).md                 ← root archive
+├── My Album - Phase Group 2b (Ops O9-O10).md               ← root archive
+├── Phases/My Album - O0...O10.md                           ← shared templates
 ├── Docs/                                                      ← split docs
-│   ├── Suno Albums - Genre Profiles.md
-│   ├── Suno Albums - QC Standards.md
+│   ├── My Album - Genre Profiles.md
+│   ├── My Album - QC Standards.md
 │   └── Suno Track Library.md
 ├── Insights/                                                  ← research artefacts
 └── Albums/<album>/<album> - Overview.md + tracks
@@ -229,22 +229,22 @@ Suno Albums/
 Healer applies:
 - Rule 1 → moves 3 root archives to `_archive/`.
 - Rule 2 → renames `Phases/` → `_album-phases-template/` (safe: no per-unit Phases yet).
-- Rule 3 → lifts Docs/* to root (`Suno Track Library.md` → `Suno Albums - Track Library.md`).
+- Rule 3 → lifts Docs/* to root (`Suno Track Library.md` → `My Album - Track Library.md`).
 - Rule 4 → tags Insights/* with `context-only`.
 
 Healer detects:
-- Rule 5 → "Missing: `Suno Albums - Album Catalog.md`, `Suno Albums - Master Pipeline.md`."
+- Rule 5 → "Missing: `My Album - Album Catalog.md`, `My Album - Master Pipeline.md`."
 - Rule 7 → "Each `Albums/<album>/` is missing a `Phases/` subfolder. The operator can instantiate via the album-cycle directive."
 
-### Example 2 — Cartoon Remakes (already canonical)
+### Example 2 — My Show (already canonical)
 
 Pre-state:
 ```
-Cartoon Remakes/
-├── Cartoon Remakes - Overview.md
-├── Cartoon Remakes - Universe Bible.md
-├── Cartoon Remakes - Master Pipeline.md
-├── Cartoon Remakes - Episode Catalog.md
+My Show/
+├── My Show - Overview.md
+├── My Show - Universe Bible.md
+├── My Show - Master Pipeline.md
+├── My Show - Episode Catalog.md
 ├── _episode-phases-template/
 ├── Shows/<show>/...
 └── _archive/

@@ -10,7 +10,7 @@ what the acceptance gate looks like.
 ---
 project: <Project Name>
 type: overview
-profile: <engineering | content | audio-production | video-production | research | publishing | accounting | legal | trading | experimenter | operations | general>
+profile: <engineering | content | audio-production | my-show | research | publishing | accounting | legal | trading | experimenter | operations | general>
 status: active
 repo_path: <absolute path or relative path the agent will work in>
 tags:

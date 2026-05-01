@@ -17,7 +17,7 @@ type: episode
 episode_number: <N>
 title: <Episode Title>
 status: backlog
-profile: <content | audio-production | video-production>
+profile: <content | audio-production | my-show>
 tags:
   - episode
 created: 2026-04-27T00:00:00Z
