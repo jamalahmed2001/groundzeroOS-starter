@@ -1,281 +1,175 @@
 # Getting Started with ONYX
 
-> The orchestration layer for Obsidian. Install in 10 minutes. First project running in another 5.
+> The vault-native AI runtime. Your Obsidian vault is the OS. Claude Code is the executor. Setup takes 10 minutes.
 
 ---
 
 ## What you're setting up
 
-ONYX is a local CLI that runs AI agents against your projects — phase by phase, under your direction — with an Obsidian vault as the single source of truth. After setup:
-
-- `onyx run` — executes all `phase-ready` phases autonomously
-- `onyx status` — shows every project and its current state
-- Obsidian — shows the live execution, logs, and accumulated knowledge
+ONYX is not a CLI or a SaaS. It is a **vault convention + a runtime directive**. Claude Code reads your vault, follows the Master Directive, and executes phases as markdown operations. State lives in frontmatter. Knowledge compounds. Sessions are disposable — the vault remembers everything.
 
 ---
 
 ## Prerequisites
 
-| Requirement | Minimum | Install |
-|---|---|---|
-| Node.js | 18+ | https://nodejs.org |
-| npm | 8+ | comes with Node |
-| Claude Code | latest | `npm install -g @anthropic-ai/claude-code` |
-| Obsidian | latest | https://obsidian.md (recommended, not required for headless use) |
-| OpenRouter API key | — | https://openrouter.ai |
+| Requirement | Install |
+|---|---|
+| Claude Code | `npm install -g @anthropic-ai/claude-code`, then `claude login` |
+| Obsidian | https://obsidian.md |
 
-Verify:
-```bash
-node --version    # v18+
-npm --version     # v8+
-claude --version  # installed
-```
-
-If `claude` isn't installed: `npm install -g @anthropic-ai/claude-code`, then `claude login`.
+That's it. No Node build step. No API keys at the framework level — each external skill manages its own credentials.
 
 ---
 
-## Step 1 — Install
+## Step 1 — Clone and open the vault
 
 ```bash
 git clone https://github.com/jamalahmed2001/onyx
-cd onyx
-npm install
 ```
 
-`npm install` triggers `postinstall` which runs `tsc`. Build output goes to `dist/`. The `onyx` binary is now available locally.
-
-Verify:
-```bash
-node dist/cli/onyx.js --help | head -5
-```
+Open `./vault/` as an Obsidian vault. This is your starter vault — it ships with the Master Directive, example project, templates, directives, profiles, conventions, and skill overviews.
 
 ---
 
-## Step 2 — Configure `.env`
+## Step 2 — Configure
+
+Copy the example config and set your vault path:
 
 ```bash
-cp .env.example .env
+cp onyx.config.json.example onyx.config.json
 ```
 
-Edit `.env`:
-
-```bash
-ONYX_VAULT_ROOT=/absolute/path/to/your/obsidian/vault
-OPENROUTER_API_KEY=sk-or-...
-```
-
-Don't have an Obsidian vault? Use the bundled starter vault:
-```bash
-ONYX_VAULT_ROOT=/absolute/path/to/onyx/vault
-```
-
-**Agent driver keys are not required if you're logged in:**
-- Claude Code uses session auth from `claude login`
-- Cursor uses your Cursor account session
-
----
-
-## Step 3 — Configure `onyx.config.json`
+Edit `onyx.config.json`:
 
 ```json
 {
   "vault_root": "/absolute/path/to/your/vault",
-  "agent_driver": "claude-code",
-  "llm": { "model": "anthropic/claude-sonnet-4-6" },
-  "model_tiers": {
-    "planning": "anthropic/claude-opus-4-6",
-    "light":    "anthropic/claude-haiku-4-5-20251001",
-    "standard": "anthropic/claude-sonnet-4-6",
-    "heavy":    "anthropic/claude-opus-4-6"
-  },
-  "max_iterations": 20,
-  "stale_lock_threshold_ms": 300000,
-  "projects_glob": "01 - Projects/**"
+  "projects_glob": "01 - Projects/**",
+  "stale_lock_threshold_ms": 300000
 }
 ```
 
-Match `vault_root` to `ONYX_VAULT_ROOT` from `.env`. The `projects_glob` defines which vault areas ONYX scans for project bundles.
+If you're using the bundled starter vault, set `vault_root` to the absolute path of `./vault/`.
 
 ---
 
-## Step 4 — Make `onyx` global
+## Step 3 — Open Claude Code in the vault directory
 
 ```bash
-# Option A: npm link (recommended)
-npm link
-
-# Option B: shell alias
-echo 'alias onyx="node /absolute/path/to/onyx/dist/cli/onyx.js"' >> ~/.bashrc
-source ~/.bashrc
+cd /absolute/path/to/your/vault
+claude
 ```
 
-Verify:
-```bash
-onyx --help
-```
+`CLAUDE.md` loads automatically on session start. Claude reads it and announces the current active work. You're now talking to the ONYX runtime.
 
 ---
 
-## Step 5 — Run doctor
+## Step 4 — Create your first project
 
-```bash
-onyx doctor
-```
-
-Every dependency gets a green ✓ or a red ✗ with the exact fix command. Fix everything red before proceeding.
-
-Common issues:
-
-| Error | Fix |
-|---|---|
-| `vault_root not set` | Set in `.env` and `onyx.config.json` |
-| `claude CLI not found` | `npm install -g @anthropic-ai/claude-code` |
-| `OPENROUTER_API_KEY missing` | Set in `.env` |
-| `vault_root path does not exist` | Create the directory or correct the path |
-
----
-
-## Step 6 — Create your first project
-
-```bash
-onyx init "My First Project"
-```
-
-Interactive prompt asks for the repo path. Enter the absolute path to the codebase you want ONYX to work on.
-
-ONYX auto-scans `package.json`, `README.md`, and directory structure. It detects stack, extracts key areas, and creates a full bundle in your vault:
+Tell Claude:
 
 ```
-{Area}/My First Project/
-├── My First Project - Overview.md          ← source of truth
-├── My First Project - Knowledge.md         ← learnings compound here
-├── My First Project - Kanban.md            ← phase state board
-├── My First Project - Agent Log Hub.md     ← log index
-├── My First Project - Repo Context.md      ← engineering profile doc
+New project: My App, engineering
+```
+
+Claude creates a full project bundle in your vault:
+
+```
+01 - Projects/My App/
+├── My App - Overview.md       ← source of truth for direction
+├── My App - Knowledge.md      ← learnings compound here
 ├── Phases/
+│   └── My App - P1 - Bootstrap.md
 └── Logs/
 ```
 
----
-
-## Step 7 — Review the Overview
-
-Open Obsidian and find `My First Project - Overview.md`.
-
-This is the **source of truth for project direction**. Verify the auto-detected fields. Add:
-- `## Scope` — what you want built
-- `## Goals` — success criteria
-- `## Architecture Notes` — patterns agents must follow
-- `## Agent Constraints` — hard rules agents must never violate
-
-Everything ONYX does flows from this file.
+Open `My App - Overview.md` in Obsidian. Fill in `## Scope`, `## Goals`, and any `## Agent Constraints`.
 
 ---
 
-## Step 8 — Generate phases
+## Step 5 — Plan
 
-```bash
-onyx plan "My First Project"
+```
+Plan My App
 ```
 
-ONYX reads your Overview and proposes 4-8 phase stubs. Each appears under `Phases/` as `P{n} - {name}.md` tagged `phase-backlog`.
+Claude reads the Overview and decomposes it into phases, then atomises each phase into tasks with files, steps, and definition of done. Each phase note appears under `Phases/` with `status: ready` once atomised.
 
-Run the command again to atomise each backlog phase into tasks:
+Review the phase notes in Obsidian. Edit any tasks that look wrong — the agent treats them as the contract.
 
-```bash
-onyx plan "My First Project"
+---
+
+## Step 6 — Execute
+
+```
+Execute next
 ```
 
-Each phase now has atomic tasks with files, steps, validation, and definition of done.
+Claude locks the highest-priority ready phase, runs the task loop, verifies acceptance criteria, consolidates learnings into `Knowledge.md`, and marks the phase complete.
+
+Watch the phase note update in real time in Obsidian — checkboxes tick, log entries appear, frontmatter transitions.
 
 ---
 
-## Step 9 — Review tasks
+## Step 7 — Iterate
 
-Open each phase note in Obsidian. Under `## Tasks` you'll see checkboxes the agent will execute.
+After each phase, Claude automatically moves on or surfaces blockers:
 
-**Edit anything that looks wrong before running.** The agent treats these tasks as the contract.
-
-When a phase looks ready, change its tag from `phase-backlog` to `phase-ready` in frontmatter.
-
----
-
-## Step 10 — Execute
-
-```bash
-onyx run
-```
-
-ONYX now loops over all `phase-ready` phases, acquires locks, spawns Claude Code, runs the task loop, verifies acceptance, consolidates learnings, and moves to the next phase.
-
-Watch the log note fill up in real time in Obsidian.
-
----
-
-## What success looks like
-
-| During execution | Obsidian shows |
+| Outcome | What happens |
 |---|---|
-| Lock acquired | `locked_by` + `locked_at` appear in phase frontmatter; tag flips to `phase-active` |
-| Task started | New timestamped entry in log note |
-| Task completed | Checkbox ticks in phase note |
-| Acceptance passed | All acceptance checkboxes tick, tag flips to `phase-completed` |
-| Learnings extracted | New entries in `Knowledge.md` under `## Learnings`, `## Decisions`, `## Gotchas` |
+| Phase completed | Learnings → `Knowledge.md`, next phase picked up |
+| Phase blocked | `## Human Requirements` written, status → `blocked`, Claude stops and tells you what's needed |
+
+For blocked phases: resolve the requirement in Obsidian, then say `Execute My App P2` to resume.
 
 ---
 
-## Everyday commands
+## Everyday operations
 
-```bash
-onyx run                                # full autonomous loop
-onyx run --once                         # single pass then exit (for cron)
-onyx run --project "My First Project"   # scope to one project
-onyx run --dry-run                      # preview without executing
-onyx status                             # all projects + states
-onyx logs --recent                      # most recent execution logs
-onyx heal                               # fix vault drift, stale locks
-onyx reset <phase-number>               # reset blocked/active to ready
-```
+| Say | What happens |
+|---|---|
+| `"Status"` | Active/ready/blocked queue across all projects |
+| `"Execute next"` | Run the highest-priority ready phase |
+| `"Execute My App P3"` | Run a specific phase |
+| `"Plan My App"` | Decompose Overview + atomise phases |
+| `"Heal vault"` | Fix stale locks, frontmatter drift, broken links |
+| `"Doctor"` | Full audit report — read-only, no fixes |
+| `"Review My App P3"` | Extract learnings → Knowledge.md |
+| `"New project: X, engineering"` | Create new project bundle |
 
 ---
 
 ## When scope changes
 
-Update `Overview.md` first. Add the new direction. Then:
+Edit `Overview.md` first. Then:
 
-```bash
-onyx plan "My First Project" --extend
+```
+Plan My App
 ```
 
-ONYX reads the updated Overview + existing phases + Knowledge.md and proposes 2-4 new phases aligned with the new scope.
+Claude reads the updated Overview + existing phases + Knowledge.md and proposes new phases aligned with the new direction.
 
 ---
 
 ## When a phase blocks
 
-Agent writes the blocker under `## Human Requirements` and sets tag to `phase-blocked`.
+Claude writes the blocker under `## Human Requirements` in the phase note and sets `status: blocked`.
 
-You:
-1. Read the blocker in Obsidian
-2. Resolve it (add info, update Overview, fix environment, etc.)
-3. Change tag back to `phase-ready`
-4. `onyx run` again
-
-The replanner retries 2 times automatically before blocking.
+1. Open the phase note in Obsidian
+2. Read `## Human Requirements`
+3. Resolve it (add info to Overview, fix environment, etc.)
+4. Tell Claude: `"Execute My App P<n>"`
 
 ---
 
-## Running unattended
+## Running unattended (cron)
 
-Cron:
 ```bash
-*/30 * * * * cd ~/clawd/onyx && onyx run --once >> /var/log/onyx.log 2>&1
-```
+# Daily heal
+0 5 * * * claude -p "Heal vault" --add-dir /path/to/vault >> /var/log/onyx-heal.log 2>&1
 
-Persistent:
-```bash
-onyx run   # loops until idle
+# Execute next phase
+*/30 * * * * claude -p "Execute next" --add-dir /path/to/vault >> /var/log/onyx-run.log 2>&1
 ```
 
 ---
@@ -284,43 +178,23 @@ onyx run   # loops until idle
 
 | Symptom | Fix |
 |---|---|
-| `onyx run` exits immediately | No `phase-ready` phases. Edit a phase note's tags in Obsidian |
-| Phase stuck as `phase-active` | `onyx heal` — auto-clears locks older than 5 min |
-| Agent failed 3x on a task | Edit task in Obsidian to be more specific, `onyx reset <n>`, rerun |
-| Atomiser wrote bad tasks | Improve Overview Summary/Scope, reset to backlog, rerun `onyx plan` |
-| Knowledge.md not updating | Consolidator runs automatically on `phase-completed`; check lock status |
-| TypeScript build fails | `npm run build` and read errors |
-| `onyx doctor` shows red | Follow the printed fix command |
+| Nothing to execute | No `ready` phases. Tell Claude `"Plan My Project"` |
+| Phase stuck `active` | `"Heal vault"` — clears stale locks |
+| Agent repeated a mistake | Edit the task in Obsidian to be more specific, tell Claude `"Execute My App P<n>"` |
+| Knowledge.md not updating | Consolidation runs on phase completion — ask Claude `"Review My App P<n>"` |
+| Vault looks wrong | `"Doctor"` — full read-only audit report |
 
 ---
 
 ## Next steps
 
-- Open `./vault/` in Obsidian → read `00 - Dashboard/What is ONYX.md`
-- Read `08 - System/ONYX - Summary.md` for one-page reference
-- Read `08 - System/ONYX - Inner Workings.md` for the complete technical reference
-- Read `08 - System/ONYX — The Orchestration Layer for Obsidian.md` for full philosophy + architecture
+Open `./vault/` in Obsidian and read:
+
+- `08 - System/ONYX Master Directive.md` — the runtime spec; everything flows from here
+- `08 - System/Agent Context/CLAUDE.md` — the session bootstrap Claude reads on every start
+- `00 - Dashboard/What is ONYX.md` — mental model and use cases
+- [`PIPELINES.md`](./PIPELINES.md) — ready-to-fork pipeline starters
 
 ---
 
-## Architecture glance
-
-```
-ONYX Core (shared)
-├── phase lifecycle
-├── logging
-├── knowledge compounding
-├── FSM
-└── healing
-
-+ Profile (engineering, content, research, operations, ...)
-├── extra frontmatter keys
-├── extra templates
-└── verification strategy
-
-= Bundle (your project in the vault)
-```
-
-**Core = nervous system. Profile = specialized region. Bundle = instantiated project.**
-
-That's ONYX.
+**Vault is state. Master Directive is program. Skills are effectors. Phases are work units. Claude is the runtime.**

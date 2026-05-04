@@ -248,15 +248,15 @@ Each starter pulls the relevant directives from `08 - System/Agent Directives/` 
 | `heal-cross-link` | Frontmatter relations (`profile:`, `directive:`, `based_on:`) verified to point at real files. |
 | `heal-migrate-logs` | Ad-hoc per-phase log files folded back into the bundle's canonical `Logs/` structure. |
 
-Run the meta from the CLI:
+Tell Claude:
 
-```bash
-onyx heal                  # run all sub-skills in order
-onyx heal --dry-run        # report what would change without writing
-onyx heal --skill heal-kind-tag    # invoke one sub-skill directly
+```
+"Heal vault"                         → run all sub-skills in order
+"Heal vault, dry run"                → report what would change without writing
+"Run heal-kind-tag"                  → invoke one sub-skill directly
 ```
 
-A daily cron (`0 5 * * *` UTC) running `onyx heal` keeps long-lived vaults self-consistent without manual triage.
+A daily cron running `claude -p "Heal vault" --add-dir <vault>` keeps long-lived vaults self-consistent without manual triage.
 
 ---
 
@@ -264,10 +264,10 @@ A daily cron (`0 5 * * *` UTC) running `onyx heal` keeps long-lived vaults self-
 
 `consolidate` collapses N children into one info-dense parent, then archives the children. There are no modes or tiers — the agent reads every child, picks the right output shape (prose for narrative, table for structured atoms like shots/takes/beats, mixed for both), rewrites incoming wikilinks to the new anchors, and moves the originals to `_archive/`.
 
-```bash
-onyx consolidate "<bundle>"           # collapse a bundle's child notes into the Overview
-onyx consolidate --children "<parent>" # absorb same-folder atoms into the parent's body
-onyx monthly-consolidate --prune --delete-dailies     # roll daily notes into a monthly digest
+```
+"Consolidate My Project"             → collapse bundle's child notes into Overview
+"Consolidate children under <note>"  → absorb same-folder atoms into parent's body
+"Monthly consolidate, prune dailies" → roll daily notes into a monthly digest
 ```
 
 Earlier names (`absorb-shots`, `consolidate-bundle`, `consolidate-children`) remain as redirect files so existing wikilinks still resolve, but all paths point at the same `consolidate` directive. KISS — there is one operation for "merge children into parent" because that is one principle.
@@ -288,84 +288,48 @@ Directives wikilink the principles they enforce — read once when you set up, r
 
 ```bash
 git clone https://github.com/jamalahmed2001/onyx
-cd onyx
-npm install                       # postinstall runs tsc → dist/
-cp .env.example .env              # set ONYX_VAULT_ROOT + OPENROUTER_API_KEY
-onyx doctor                       # verify every dependency
-onyx init "My First Project"      # create a bundle (prompts for profile)
-onyx plan "My First Project"      # decompose Overview → phases → tasks
-onyx run                          # execute phase-ready phases
 ```
 
-Full setup: [`GETTING_STARTED.md`](./GETTING_STARTED.md). The bundled `./vault/` is a working starter with example project, templates, directives, profiles, conventions, skill overviews, and the Master Directive.
+1. Open `./vault/` in Obsidian
+2. Copy `onyx.config.json.example` → `onyx.config.json`, set `vault_root` to your vault path
+3. Open Claude Code in the vault directory — `CLAUDE.md` loads automatically
+4. Tell Claude: **"Status"** to see what's active, or **"New project: My App, engineering"** to begin
+
+That's it. Claude is the runtime. Full walkthrough: [`GETTING_STARTED.md`](./GETTING_STARTED.md). The bundled `./vault/` ships with example project, templates, directives, profiles, conventions, skill overviews, and the Master Directive.
 
 ---
 
-## CLI — thin helpers around the vault
+## Operations — what you say to Claude
 
-The `onyx` CLI is convenience, not authority. Everything it does is expressible as reads and writes of markdown files in the vault. The Master Directive is what makes an agent ONYX-shaped; the CLI just saves keystrokes.
+There is no CLI binary. Claude Code running against the vault **is** the runtime. You give instructions in natural language; Claude maps them to the right operation.
 
-```bash
-# Execution
-onyx run                             # autonomous loop — all phase-ready phases
-onyx run --project "My Project"      # scope to one project
-onyx run --once                      # single iteration then exit (safe for cron)
-onyx run --phase 2                   # run a specific phase
+| Say | Operation | What happens |
+|---|---|---|
+| "Status" / "What's next?" | `status` | Active/ready/blocked queue + suggested next action |
+| "Execute next" / "Execute My Project P3" | `execute` | Lock → task loop → acceptance gate → consolidate |
+| "Plan My Project" / "Plan P3" | `plan` | Decompose if needed + atomise → ready |
+| "New project: My App, engineering" | `new` | Create bundle — Overview, Knowledge, P1 Bootstrap |
+| "Import Linear ENG-245" | `import` | Pull Linear issues → phases at backlog |
+| "Review My Project P3" | `review` | Extract learnings → Knowledge.md + Linear sync |
+| "Heal vault" | `heal` | Fix stale locks, frontmatter drift, broken links, nav |
+| "Doctor" | `doctor` | Full audit report — no auto-fixes |
 
-# Observability
-onyx status                          # all projects + phase states
-onyx explain                         # plain English: what every project is doing
-onyx logs "My Project"               # execution log
-
-# Project creation + planning
-onyx init "My Project"               # create bundle (prompts for profile, repo path)
-onyx plan "My Project"               # decompose + atomise
-onyx atomise "My Project" 1          # atomise a specific phase
-
-# Phase state
-onyx next                            # highest-priority ready phase → run
-onyx ready "My Project" 3            # set phase 3 to ready
-onyx block / onyx reset              # blocker management
-onyx consolidate "My Project"        # phase-group archive (two-pass: archive + trash)
-onyx monthly-consolidate --prune --delete-dailies    # monthly daily-note consolidation
-
-# Maintenance
-onyx doctor                          # pre-flight checks
-onyx heal                            # clear stale locks, fix drift, repair graph
-onyx check "My Project"              # validate bundle shape (read-only)
-
-# Scaffolding
-onyx new phase "My Project" "Name"
-onyx new directive <name>
-onyx new profile <name>
-```
+Full specs: `08 - System/Operations/<name>.md` in the vault.
 
 ---
 
 ## Configuration
 
-**`.env`** — secrets, never commit:
-```
-ONYX_VAULT_ROOT=/absolute/path/to/your/obsidian/vault
-OPENROUTER_API_KEY=sk-or-...
-```
-
-**`onyx.config.json`** — behaviour:
+**`onyx.config.json`** — vault root and project paths:
 ```json
 {
   "vault_root": "/absolute/path/to/your/obsidian/vault",
-  "agent_driver": "claude-code",
   "projects_glob": "01 - Projects/**",
-  "model_tiers": {
-    "planning": "anthropic/claude-opus-4-6",
-    "light":    "anthropic/claude-haiku-4-5-20251001",
-    "standard": "anthropic/claude-sonnet-4-6",
-    "heavy":    "anthropic/claude-opus-4-6"
-  },
-  "max_iterations": 20,
   "stale_lock_threshold_ms": 300000
 }
 ```
+
+Set `vault_root` to your Obsidian vault. That's the only required field. External skills that call APIs (Linear, ElevenLabs, etc.) read their own keys from `~/clawd/skills/<name>/.env` — see each skill's `SKILL.md`.
 
 ---
 
