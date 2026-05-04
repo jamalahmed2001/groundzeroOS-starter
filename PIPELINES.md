@@ -84,10 +84,10 @@ You can run multiple starters side-by-side. They don't conflict — each is a se
 1. Copy the entire starter folder under `01 - Projects/`. Rename it to your real project name.
 2. Open the project's Overview, fill in the placeholders.
 3. If the starter has a Show Bible / Album Overview / Pronunciation Dictionary, fill those in next — those are the foundational documents the per-phase directives read first.
-4. Set `status: backlog` on phase 1, `status: blocked` (with `blocked_by:` chain) on the rest. Run `onyx atomise` to prepare phase 1 for execution.
-5. `onyx run` to execute.
+4. Set `status: backlog` on phase 1, `status: blocked` (with `blocked_by:` chain) on the rest.
+5. Tell Claude: `"Plan My Project"` to atomise phase 1, then `"Execute next"` to begin.
 
-The healer normalises any frontmatter drift on the first iteration; you don't need to get every field right by hand.
+The heal step runs automatically before every execution and normalises any frontmatter drift — you don't need to get every field right by hand.
 
 ---
 
