@@ -1,40 +1,19 @@
 {
   "name": "onyx",
   "version": "0.1.0",
-  "description": "ONYX — vault-native agent orchestration. Start a vault, run agents, maintain everything.",
+  "description": "ONYX — vault-native agent orchestration. Claude is the runtime.",
   "type": "module",
-  "bin": {
-    "onyx": "./dist/cli/onyx.js"
-  },
   "files": [
-    "dist/",
     "vault/",
     "skills/",
-    "config/",
-    "src/",
     "onyx.config.json",
     ".env.example",
     "CLAUDE.md",
     "README.md",
     "GETTING_STARTED.md",
-    "tsconfig.json",
     "vault-viewer.html"
   ],
-  "scripts": {
-    "build": "tsc",
-    "postbuild": "node -e \"const fs=require('fs');const f='dist/cli/onyx.js';if(fs.existsSync(f)){const c=fs.readFileSync(f,'utf8');if(!c.startsWith('#!/'))fs.writeFileSync(f,'#!/usr/bin/env node\\n'+c);}\"",
-    "dev": "tsc --watch",
-    "postinstall": "npm run build",
-    "onyx": "node dist/cli/onyx.js"
-  },
   "dependencies": {
-    "commander": "^12.1.0",
-    "fast-glob": "^3.3.2",
-    "gray-matter": "^4.0.3",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "gray-matter": "^4.0.3"
   }
 }
