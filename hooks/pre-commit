@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# pre-commit: block commits containing API keys or secrets
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+PATTERNS=(
+  'sk-[A-Za-z0-9_-]{20,}'           # OpenAI
+  'sk-or-[A-Za-z0-9_-]{20,}'        # OpenRouter
+  'gsk_[A-Za-z0-9]{20,}'            # Groq
+  'lin_api_[A-Za-z0-9_-]{20,}'      # Linear
+  'xox[bpas]-[A-Za-z0-9_-]{20,}'    # Slack
+  'ghp_[A-Za-z0-9]{36}'             # GitHub PAT
+  'gho_[A-Za-z0-9]{36}'             # GitHub OAuth
+  'AKIA[0-9A-Z]{16}'                # AWS access key
+  'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}' # JWT
+  'AIza[0-9A-Za-z_-]{35}'           # Google API key
+)
+
+FOUND=0
+
+# Build combined pattern
+COMBINED=$(IFS='|'; echo "${PATTERNS[*]}")
+
+# Scan staged files (text only)
+while IFS= read -r file; do
+  # Skip binary files
+  if git show ":$file" 2>/dev/null | file - | grep -q "binary"; then
+    continue
+  fi
+  if git show ":$file" 2>/dev/null | grep -qE "$COMBINED"; then
+    MATCHES=$(git show ":$file" | grep -nE "$COMBINED" | sed 's/\(.\{12\}\).\{8\}/\1[REDACTED]/')
+    echo "🚨 SECRET DETECTED in staged file: $file"
+    echo "$MATCHES"
+    FOUND=1
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ "$FOUND" -eq 1 ]; then
+  echo ""
+  echo "Commit blocked. Remove the secrets above before committing."
+  echo "If this is a false positive, use: git commit --no-verify (use sparingly)"
+  exit 1
+fi
+
+exit 0

@@ -1,6 +1,22 @@
 node_modules/
 dist/
+# Secrets — never commit any variant
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+# Binary archives that may contain secrets
+*.zip
+*.tar.gz
+*.tgz
+*.tar
+*.gz
 *.DS_Store
 ._*
 .onyx-locks/
