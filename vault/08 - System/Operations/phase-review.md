@@ -5,15 +5,12 @@ tags:
   - operation
   - onyx
 type: operation-directive
-replaces: src/skills/phaseReview.ts
-lines_replaced: 91
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -132,15 +129,6 @@ None — this directive is the agent reading + writing.
 - A new entry appears in the phase's log under `## Entries` with event `phase_completed` and the review body.
 - (If openclaw configured) one notification was fired.
 - No mutation to phase frontmatter or status.
-
-## Shadow-mode comparison criteria
-For each shadow run (`tools/shadow-run.sh phase-review "<phase>"` against a freshly-completed engineering phase):
-
-- **RED:** different log entry structure (missing required fields), different verdict label that the canonical TS path produced, log file truncated.
-- **YELLOW:** review wording differs (the TS path used OpenRouter; the directive uses the running agent — wording will diverge but should reach the same verdict label most of the time).
-- **GREEN:** semantic equivalence — same Verdict label and same general assessment (LGTM / REVIEW NEEDED / NEEDS WORK). Wording differences are expected.
-
-Three GREEN runs across distinct projects (the bar is lower than other ops because review wording is inherently subjective) → graduate to `status: active`, delete `src/skills/phaseReview.ts`.
 
 ## Forbidden patterns
 - **Never** call OpenRouter directly. The agent IS the LLM when running this directive.

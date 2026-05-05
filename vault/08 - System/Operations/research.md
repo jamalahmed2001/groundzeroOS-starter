@@ -5,15 +5,12 @@ tags:
   - operation
   - onyx
 type: operation-directive
-replaces: src/cli/research.ts
-lines_replaced: 162
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -172,15 +169,6 @@ None — pure agent-native operation.
 - It has all four sections (Don't Hand-Roll, Key Files to Touch, Common Pitfalls, Recommended Approach).
 - The body is under 600 words.
 - No vault file other than the new note + (optionally) Overview's `repo_path` was modified.
-
-## Shadow-mode comparison criteria
-For each shadow run (`tools/shadow-run.sh research "<phase>"`):
-
-- **RED:** different file written, different sections present, different `repo_path` written back to Overview, missing frontmatter fields.
-- **YELLOW:** prose content differences (the LLM wording will diverge between the TS path's OpenRouter call and the directive's running-agent call).
-- **GREEN:** all four sections exist with at least one bullet/sentence each, file at the expected path, frontmatter intact.
-
-Three GREEN runs across two distinct projects → graduate to `status: active`, delete `src/cli/research.ts`.
 
 ## Forbidden patterns
 - **Never call OpenRouter directly.** The agent IS the LLM.

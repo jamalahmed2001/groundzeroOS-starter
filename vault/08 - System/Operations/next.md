@@ -5,15 +5,12 @@ tags:
   - operation
   - onyx
 type: operation-directive
-replaces: src/cli/next.ts
-lines_replaced: 169
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -143,19 +140,6 @@ None.
 - Either: a single phase was selected + dispatched (Case A with confirmation).
 - Or: a "what to do next" message was printed (Case B branches), no dispatch, no writes.
 - The output names exactly one project + one phase number when dispatching, OR exactly one suggested action when not.
-
-## Shadow-mode comparison criteria
-For each shadow run (`tools/shadow-run.sh next "<phase>"` against a bundle with at least one ready phase):
-
-- **RED:**
-  - Different phase chosen as top candidate.
-  - Different sort order in the queue.
-  - Different blocked-reason extracted from `## Human Requirements`.
-  - Different recommended action in Case B branches.
-- **YELLOW:** wording of the suggestion lines.
-- **GREEN:** same phase identified, same recommendations.
-
-Five GREEN runs across distinct projects → graduate to `status: active`, delete `src/cli/next.ts`.
 
 ## Forbidden patterns
 - **Never** auto-dispatch without `--yes`. The default is interactive — humans see the candidate before commitment.

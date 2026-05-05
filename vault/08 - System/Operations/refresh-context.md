@@ -5,15 +5,12 @@ tags:
   - operation
   - onyx
 type: operation-directive
-replaces: src/cli/refresh-context.ts
-lines_replaced: 108
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -172,20 +169,6 @@ None — agent-native operation. The repo scan is similar to what [[08 - System/
 - Stack and Key Areas managed blocks contain fresh content.
 - Frontmatter `stack:` updated.
 - Any non-managed content (Architecture Notes, Agent Constraints, custom sections) is byte-equal to before.
-
-## Shadow-mode comparison criteria
-For each shadow run (`tools/shadow-run.sh refresh-context "<bundle>/Overview.md"`):
-
-- **RED:**
-  - Stack frontmatter value differs.
-  - Stack managed block content differs (must be byte-equal — same manifest read should produce same paragraph).
-  - Key Areas list differs in which directories are mentioned (wording can vary, content cannot).
-  - Any non-managed body content differs from pre-run state.
-  - Overview's `repo_path` differs after writeback.
-- **YELLOW:** order of bullets in Key Areas differs (semantic match — same areas listed).
-- **GREEN:** managed blocks updated, everything else byte-identical.
-
-Five GREEN runs across two distinct projects → graduate to `status: active`, delete `src/cli/refresh-context.ts`.
 
 ## Forbidden patterns
 - **Never** rewrite content outside a managed block. The block boundary is the only place this op writes.

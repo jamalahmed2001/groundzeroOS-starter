@@ -3,7 +3,7 @@ tags: [skill, status-active]
 graph_domain: system
 status: active
 skill_name: suno-generate
-source_skill_path: clawd-skills/suno-generate/SKILL.md
+source_skill_path: skills/suno-generate/SKILL.md
 up: Agent Skills Hub
 ---
 ## 🔗 Navigation
@@ -43,7 +43,7 @@ Set `SUNO_PROVIDER`:
 - `gateway` — paid SaaS (PiAPI / GoAPI / SunoAPI.org), set `SUNO_API_KEY`
 - `selfhosted` — gcui-art/suno-api wrapper, set `SUNO_API_BASE` and `SUNO_COOKIE`
 
-See SKILL.md in `clawd-skills/suno-generate/` for full provider config.
+See SKILL.md in `skills/suno-generate/` for full provider config.
 
 ## Used by
 

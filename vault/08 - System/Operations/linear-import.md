@@ -6,15 +6,12 @@ tags:
   - onyx
   - linear
 type: operation-directive
-replaces: src/linear/import.ts + src/linear/merge.ts + src/cli/import-linear.ts
-lines_replaced: 410
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -24,7 +21,7 @@ migration_stage: 7
 
 > Pull a Linear project into a fresh ONYX vault bundle. Each Linear issue becomes a phase. The bundle's Overview/Knowledge/Kanban/Phases/Logs are written from scratch on first import; on re-import, existing phases with matching `linear_issue_id` get a frontmatter + Overview-block merge (vault wins on Tasks / Acceptance / Blockers / Human Requirements; Linear wins on phase_name + frontmatter ids + the managed Overview block).
 >
-> The directive is the orchestration. The HTTP boundary lives in [[clawd-skills/linear|the linear skill]]. This directive replaces `src/linear/import.ts` (283 LOC) + `src/linear/merge.ts` (84 LOC) + the corresponding CLI command.
+> The directive is the orchestration. The HTTP boundary lives in [[skills/linear|the linear skill]]. This directive replaces `src/linear/import.ts` (283 LOC) + `src/linear/merge.ts` (84 LOC) + the corresponding CLI command.
 
 ## Preconditions
 - `LINEAR_API_KEY` set in env (or via `.env`).
@@ -37,7 +34,7 @@ migration_stage: 7
 
 ## Read order
 1. This directive.
-2. `clawd-skills/linear/SKILL.md` — verb reference for the linear skill.
+2. `skills/linear/SKILL.md` — verb reference for the linear skill.
 3. `onyx.config.json` — `vault_root`, `projects_glob`, `linear.team_id`.
 4. The bundle (if it already exists) — to detect existing phases for merge.
 
@@ -224,7 +221,7 @@ The directive's "return value" is the bundle path + a counts summary `{created, 
 
 ## Skills invoked
 
-- `clawd-skills/linear/bin/linear` — every Linear API call goes through this skill. Verbs used: `project`, `project-issues`.
+- `skills/linear/bin/linear` — every Linear API call goes through this skill. Verbs used: `project`, `project-issues`.
 
 ## Tools invoked
 
@@ -244,24 +241,6 @@ The directive's "return value" is the bundle path + a counts summary `{created, 
 - Each created phase has its log file created.
 - The import log records the counts.
 - `linear_import_done` notification fired.
-
-## Shadow-mode comparison criteria
-
-For each shadow run (`tools/shadow-run.sh linear-import "<bundle>/Phases/P1.md"`):
-
-- **RED gates:**
-  - Different number of phases created (TS vs directive).
-  - Phase frontmatter differs on any of: `project_id`, `phase_number`, `phase_name`, `linear_issue_id`, `linear_identifier`, `status`, `tags`.
-  - The Linear-managed Overview block content differs (must be byte-equal — Linear is source of truth for that block).
-  - Any phase outside the managed block has differing content.
-  - Kanban / Knowledge / Overview top-level frontmatter differs.
-
-- **Acceptable divergences:**
-  - `created:` timestamp (one ISO line; both should land on today's date but exact second differs).
-  - Log file `### <ISO> — IMPORT` timestamps (semantic match — same event, same details, may differ by milliseconds).
-  - Stable but cosmetic: trailing newlines, exact whitespace inside frontmatter values.
-
-Seven consecutive GREEN runs across at least two distinct Linear projects → graduate to `status: active`, delete `src/linear/import.ts` + `src/linear/merge.ts`.
 
 ## Forbidden patterns
 

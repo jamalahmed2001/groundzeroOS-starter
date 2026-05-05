@@ -6,12 +6,12 @@ tags:
   - onyx
   - shadow-mode
 type: operation-directive
-version: 1.0
+version: 1.1
 created: 2026-04-27
-updated: 2026-04-27
+updated: 2026-05-05
 graph_domain: system
 up: Operations Hub
-status: active
+status: retired
 ---
 ## 🔗 Navigation
 
@@ -19,9 +19,11 @@ status: active
 
 # Operation: _shadow (meta — how operations graduate)
 
-> Shadow mode is the bridge between a `draft` operation directive and an `active` one. It runs the TS source path *and* the directive path against the same input, snapshots both, and classifies divergence. After 7 consecutive `GREEN` shadow runs across distinct phases, the directive's `status:` graduates from `draft` → `active` and its `replaces:` TS source is eligible for deletion.
+> **Retired 2026-05-05.** The TS runtime this compared against has been archived. All operation directives are now `status: active` by default. The `tools/shadow-*.sh` scripts have been deleted. This document is kept for historical reference only.
 
-This is not itself an operation in the routing sense — Master Directive §5 never dispatches to it. It's the protocol every operation passes through on its way from "prose in a markdown file" to "deleted-the-old-code reality".
+Shadow mode was the bridge between a `draft` operation directive and an `active` one. It ran the TS source path *and* the directive path against the same input, snapshotted both, and classified divergence. After 7 consecutive `GREEN` shadow runs across distinct phases, the directive's `status:` graduated from `draft` → `active` and its `replaces:` TS source was eligible for deletion.
+
+This is not itself an operation in the routing sense — Master Directive §5 never dispatches to it.
 
 ---
 

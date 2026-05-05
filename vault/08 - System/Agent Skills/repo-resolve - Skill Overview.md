@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: repo-resolve
 version: 1.0.0
-source_skill_path: ~/clawd/onyx/clawd-skills/repo-resolve/SKILL.md
+source_skill_path: ~/clawd/onyx/skills/repo-resolve/SKILL.md
 created: 2026-04-27
 updated: 2026-04-27
 up: Agent Skills Hub
@@ -37,4 +37,4 @@ repo-resolve --project-id <id> [--explicit <path>] [--repos-root <path>]
 
 Anywhere a directive needs a project's actual code path: `init`, `research`, `refresh-context`, `phase-review`.
 
-See full SKILL.md at `~/clawd/onyx/clawd-skills/repo-resolve/SKILL.md`.
+See full SKILL.md at `~/clawd/onyx/skills/repo-resolve/SKILL.md`.

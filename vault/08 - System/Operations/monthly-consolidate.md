@@ -6,15 +6,12 @@ tags:
   - onyx
   - consolidate
 type: operation-directive
-replaces: src/cli/monthly-consolidate.ts
-lines_replaced: 307
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -230,24 +227,6 @@ None irreducible. The directive uses native primitives.
 - File is ≥ 2KB.
 - (If `--prune`) Daily Archive contains the moved files OR they're deleted.
 - (If hub exists) Hub has a new wikilink to the overview.
-
-## Shadow-mode comparison criteria
-
-For each shadow run (`tools/shadow-run.sh monthly-consolidate "<Daily - YYYY-MM-01.md>"`):
-
-- **RED:**
-  - Different filename written (the path naming is deterministic from the month label).
-  - Different mandatory sections present (all 7 must exist).
-  - Different counts of dailies pruned/deleted.
-  - Hub link missing when hub exists.
-  - File written but < 2KB and pruning still happened (guardrail violation).
-- **YELLOW:**
-  - Wording of the body content (LLM output varies).
-  - Order of bullets within a section.
-  - Number of bullets per section (TS path's chunked-then-merged shape vs directive's single-pass shape may produce slightly different bullet counts).
-- **GREEN:** all 7 sections present, file ≥ 2KB, frontmatter correct, hub updated, prune-guardrail respected.
-
-Three GREEN runs across distinct months → graduate to `status: active`, delete `src/cli/monthly-consolidate.ts`.
 
 ## Forbidden patterns
 - **Never write back-links to the daily notes** in the overview body. Dailies are leaf nodes; the overview replaces them in the graph.
