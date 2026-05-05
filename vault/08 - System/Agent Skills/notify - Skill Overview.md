@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: notify
 version: 1.0.0
-source_skill_path: ~/clawd/onyx/clawd-skills/notify/SKILL.md
+source_skill_path: ~/clawd/onyx/skills/notify/SKILL.md
 created: 2026-04-27
 updated: 2026-04-27
 up: Agent Skills Hub
@@ -39,4 +39,4 @@ notify --event <name> --project <pid> --phase <pid|-> --severity <info|warn|aler
 - Don't fail the caller on notification failure (fire-and-forget).
 - Don't call this for high-frequency events (aggregate at the phase boundary).
 
-See full SKILL.md at `~/clawd/onyx/clawd-skills/notify/SKILL.md`.
+See full SKILL.md at `~/clawd/onyx/skills/notify/SKILL.md`.

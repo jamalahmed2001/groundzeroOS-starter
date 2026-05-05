@@ -24,7 +24,7 @@ migration_stage: 7
 
 > Pull a Linear project into a fresh ONYX vault bundle. Each Linear issue becomes a phase. The bundle's Overview/Knowledge/Kanban/Phases/Logs are written from scratch on first import; on re-import, existing phases with matching `linear_issue_id` get a frontmatter + Overview-block merge (vault wins on Tasks / Acceptance / Blockers / Human Requirements; Linear wins on phase_name + frontmatter ids + the managed Overview block).
 >
-> The directive is the orchestration. The HTTP boundary lives in [[clawd-skills/linear|the linear skill]]. This directive replaces `src/linear/import.ts` (283 LOC) + `src/linear/merge.ts` (84 LOC) + the corresponding CLI command.
+> The directive is the orchestration. The HTTP boundary lives in [[skills/linear|the linear skill]]. This directive replaces `src/linear/import.ts` (283 LOC) + `src/linear/merge.ts` (84 LOC) + the corresponding CLI command.
 
 ## Preconditions
 - `LINEAR_API_KEY` set in env (or via `.env`).
@@ -37,7 +37,7 @@ migration_stage: 7
 
 ## Read order
 1. This directive.
-2. `clawd-skills/linear/SKILL.md` — verb reference for the linear skill.
+2. `skills/linear/SKILL.md` — verb reference for the linear skill.
 3. `onyx.config.json` — `vault_root`, `projects_glob`, `linear.team_id`.
 4. The bundle (if it already exists) — to detect existing phases for merge.
 
@@ -224,7 +224,7 @@ The directive's "return value" is the bundle path + a counts summary `{created, 
 
 ## Skills invoked
 
-- `clawd-skills/linear/bin/linear` — every Linear API call goes through this skill. Verbs used: `project`, `project-issues`.
+- `skills/linear/bin/linear` — every Linear API call goes through this skill. Verbs used: `project`, `project-issues`.
 
 ## Tools invoked
 

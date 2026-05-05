@@ -1,7 +1,7 @@
 ---
 title: ONYX Runtime Bootstrap (onyx/ subpackage)
 type: system-config
-updated: 2026-05-04T00:00:00Z
+updated: 2026-05-05T00:00:00Z
 ---
 
 # ONYX — onyx/ subpackage
@@ -12,9 +12,9 @@ updated: 2026-05-04T00:00:00Z
 
 ## What lives here
 
-- `skills/` — external skill scripts invokable by Claude
+- `skills/` — executable skill CLIs invokable by Claude (installed to `~/clawd/skills/<name>/` at runtime)
 - `dashboard/` — Next.js dashboard UI (read-only view, not the runtime)
-- `vault/` — bundled starter vault for new installs
+- `vault/` — bundled starter vault for new installs; orchestration skill specs live under `08 - System/Agent Skills/_onyx-runtime/`
 - `src/` — **ARCHIVED** TypeScript runtime (do not use)
 - `dist/` — **ARCHIVED** compiled output (do not use)
 

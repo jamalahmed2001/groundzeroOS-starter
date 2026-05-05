@@ -3,7 +3,7 @@ tags: [skill, status-active]
 graph_domain: system
 status: active
 skill_name: nano-banana-compose
-source_skill_path: clawd-skills/nano-banana-compose/SKILL.md
+source_skill_path: skills/nano-banana-compose/SKILL.md
 up: Agent Skills Hub
 ---
 ## 🔗 Navigation

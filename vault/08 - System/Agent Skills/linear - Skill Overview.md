@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: linear
 version: 1.0.0
-source_skill_path: ~/clawd/onyx/clawd-skills/linear/SKILL.md
+source_skill_path: ~/clawd/onyx/skills/linear/SKILL.md
 created: 2026-04-27
 updated: 2026-04-27
 up: Agent Skills Hub
@@ -36,7 +36,7 @@ This is the "skill" pole of the no-code split. The "directive" pole is the two o
 | `issue-create --team-id ...` | Create a new issue (returns id + identifier) |
 | `issue-update --id ... [...]` | Update an existing issue's title/description/state |
 
-Full reference + flag list: see the SKILL.md at `~/clawd/onyx/clawd-skills/linear/SKILL.md`.
+Full reference + flag list: see the SKILL.md at `~/clawd/onyx/skills/linear/SKILL.md`.
 
 ## Auth
 

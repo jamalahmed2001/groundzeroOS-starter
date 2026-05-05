@@ -3,7 +3,7 @@ tags: [skill, status-active]
 graph_domain: system
 status: active
 skill_name: subtitle-burner
-source_skill_path: clawd-skills/subtitle-burner/SKILL.md
+source_skill_path: skills/subtitle-burner/SKILL.md
 up: Agent Skills Hub
 ---
 ## 🔗 Navigation

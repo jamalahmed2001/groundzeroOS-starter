@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: config-load
 version: 1.0.0
-source_skill_path: ~/clawd/onyx/clawd-skills/config-load/SKILL.md
+source_skill_path: ~/clawd/onyx/skills/config-load/SKILL.md
 created: 2026-04-27
 updated: 2026-04-27
 up: Agent Skills Hub
@@ -52,4 +52,4 @@ The `.env` file's `KEY=value` lines pass through verbatim.
 - Standalone scripts that need vault-aware behaviour.
 - Shadow-mode tests comparing config resolution against the legacy TS path.
 
-See full SKILL.md at `~/clawd/onyx/clawd-skills/config-load/SKILL.md`.
+See full SKILL.md at `~/clawd/onyx/skills/config-load/SKILL.md`.

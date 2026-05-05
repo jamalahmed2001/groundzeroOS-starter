@@ -24,7 +24,7 @@ migration_stage: 7
 
 > Push a vault bundle's phases back to Linear as sub-issues of a single project parent issue. Each phase gets a Linear issue (created if absent, updated if present). The vault's frontmatter is the source of truth for `linear_issue_id`; the directive writes new IDs back to phase frontmatter on first uplink.
 >
-> The directive is the orchestration. The HTTP boundary lives in [[clawd-skills/linear|the linear skill]]. This directive replaces `src/linear/uplink.ts` (244 LOC) + the corresponding CLI command.
+> The directive is the orchestration. The HTTP boundary lives in [[skills/linear|the linear skill]]. This directive replaces `src/linear/uplink.ts` (244 LOC) + the corresponding CLI command.
 
 ## Preconditions
 
@@ -41,7 +41,7 @@ migration_stage: 7
 ## Read order
 
 1. This directive.
-2. `clawd-skills/linear/SKILL.md` — verb reference.
+2. `skills/linear/SKILL.md` — verb reference.
 3. `onyx.config.json` — `linear.team_id`.
 4. The bundle's Overview.md — for `linear_project_id`, `linear_parent_issue_id`, `project_id`.
 5. Every phase under `Phases/*.md` — frontmatter + body.
@@ -163,7 +163,7 @@ Print a JSON summary on stdout: `{ created, updated, skipped, errors: [...] }`.
 
 ## Skills invoked
 
-- `clawd-skills/linear/bin/linear` — verbs used: `find-project`, `viewer`, `active-cycle`, `find-labels`, `issue-create`, `issue-update`.
+- `skills/linear/bin/linear` — verbs used: `find-project`, `viewer`, `active-cycle`, `find-labels`, `issue-create`, `issue-update`.
 
 ## Tools invoked
 

@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: audit-trail
 version: 1.0.0
-source_skill_path: ~/clawd/onyx/clawd-skills/audit-trail/SKILL.md
+source_skill_path: ~/clawd/onyx/skills/audit-trail/SKILL.md
 created: 2026-04-27
 updated: 2026-04-27
 up: Agent Skills Hub
@@ -37,4 +37,4 @@ audit-trail recover --vault <path> --projects-glob "01 - Projects/**"
 - Inside `heal` Step 1 — recover orphaned locks.
 - Inside `explain` / `next` — list recent activity.
 
-See full SKILL.md at `~/clawd/onyx/clawd-skills/audit-trail/SKILL.md`.
+See full SKILL.md at `~/clawd/onyx/skills/audit-trail/SKILL.md`.
