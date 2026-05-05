@@ -5,15 +5,12 @@ tags:
   - operation
   - onyx
 type: operation-directive
-replaces: src/cli/explain.ts
-lines_replaced: 209
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -152,15 +149,6 @@ None.
 - For every project encountered, the output has at minimum: header line, profile line, phase counts.
 - No file in the vault was modified.
 - No external API was called.
-
-## Shadow-mode comparison criteria
-For each shadow run (`tools/shadow-run.sh explain "<bundle>/Phases/P1.md"`):
-
-- **RED:** different phase counts per state, different active phase identification, different directive label resolution, different "Run:" hint at the bottom (the recommended-action logic must match exactly).
-- **YELLOW:** wording differences in narrative prose (the bullet content for "Knowledge: N topics" or experimenter hypotheses).
-- **GREEN:** semantic match — same projects identified, same counts, same recommendations.
-
-Five consecutive GREEN runs across distinct projects → graduate to `status: active`, delete `src/cli/explain.ts`.
 
 ## Forbidden patterns
 - **Never write to the vault.** This op is read-only.

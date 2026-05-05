@@ -6,15 +6,12 @@ tags:
   - onyx
   - linear
 type: operation-directive
-replaces: src/linear/uplink.ts + src/cli/linear-uplink.ts
-lines_replaced: 309
-version: 0.1
+version: 1.0
 created: 2026-04-27
 updated: 2026-04-27
 graph_domain: system
 up: Operations Hub
-status: draft
-migration_stage: 7
+status: active
 ---
 ## 🔗 Navigation
 
@@ -183,24 +180,6 @@ Print a JSON summary on stdout: `{ created, updated, skipped, errors: [...] }`.
 - Counts summary printed.
 - Notification fired.
 - Per-phase log entries appended.
-
-## Shadow-mode comparison criteria
-
-For each shadow run (`tools/shadow-run.sh linear-uplink "<bundle>/Overview.md"`):
-
-- **RED gates:**
-  - Different `linear_issue_id` written to any phase (TS vs directive).
-  - Different `linear_parent_issue_id` written to Overview.
-  - Different `created` / `updated` / `skipped` counts.
-  - The description string sent to Linear differs (the parent description body or any phase description body must be byte-equal).
-  - Different number of API calls (extra create where TS only updated, or vice versa).
-
-- **Acceptable divergences:**
-  - Order of API calls (parallelism is OK as long as final state matches).
-  - Log entry timestamps.
-  - The exact wording of the openclaw `--message` (semantic match).
-
-Seven consecutive GREEN runs across at least two distinct bundles → graduate to `status: active`, delete `src/linear/uplink.ts`.
 
 ## Forbidden patterns
 

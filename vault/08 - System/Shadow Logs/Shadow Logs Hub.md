@@ -7,12 +7,12 @@ tags:
   - shadow-mode
   - onyx
 type: hub
-version: 1.0
+version: 1.1
 created: 2026-04-27
-updated: 2026-04-27
+updated: 2026-05-05
 graph_domain: system
 up: System Hub
-status: active
+status: retired
 ---
 ## 🔗 Navigation
 
@@ -21,9 +21,9 @@ status: active
 
 # Shadow Logs Hub
 
-> One markdown file per operation in shadow mode. Each file is an append-only ledger of shadow runs — one row per run, recording date, run ID, target phase, verdict (GREEN / RED), and a link to the full diff. After 7 consecutive GREEN runs across distinct phases, the operation graduates from `status: draft` to `status: active` and its TS source is deleted.
+> **Retired 2026-05-05.** The TS runtime has been archived and all operation directives have graduated to `status: active`. The `tools/shadow-*.sh` scripts have been deleted. This hub and its logs are preserved as audit history only — no new runs will be added.
 
-The runs themselves are produced by `tools/shadow-run.sh`. See [[08 - System/Operations/_shadow.md|_shadow]] for the full protocol and graduation criteria.
+Shadow logs were an append-only ledger of TS vs directive comparison runs. See [[08 - System/Operations/_shadow.md|_shadow]] for the historical protocol.
 
 ---
 
