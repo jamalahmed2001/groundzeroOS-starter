@@ -58,6 +58,8 @@ Every file in the bundle carries the project prefix (`<Project> - <Type>.md`). P
 
 **That's the entire runtime surface.** No `atomise`, no `decompose`, no `replan`, no `route`. The agent handles those mentally when running `execute`.
 
+**Important: the verbs are agent procedures, not compiled CLIs.** `bin/onyx <verb>` is a thin shell dispatcher — it builds a prompt and spawns Claude Code. Claude then reads `08 - System/ONYX v2 Runtime.md` and follows the procedure for that verb. The "implementation" of `execute` is §B of the runtime contract; the "implementation" of `run` is §C. There's no scaffolder binary, no heal daemon, no compiled state machine. Everything is markdown + an agent that follows the contract. This is the whole point of v2.
+
 ---
 
 ## How a session plays out
@@ -176,11 +178,23 @@ You only need to know one folder outside your project bundles:
 
 ## Skills
 
-Skills live outside the vault in `~/clawd/skills/<name>/`. Each one ships with a `SKILL.md` and a `bin/<name>` entry point. The vault carries a **Skill Overview** for each skill describing its verbs, flags, and output shape — so the agent knows the interface without reading the implementation.
+Skills are the effectors agents call to do real work — talk to APIs, drive browsers, run ffmpeg, publish to platforms. Each skill is a standalone CLI with its own `SKILL.md` (the source-of-truth contract) and a `bin/<name>` entry point.
 
-Adding a new skill: scaffold under `~/clawd/skills/<name>/`, write the vault Skill Overview first, implement backwards from it. Skills with a plausible second backend (e.g. another LLM provider, another TTS engine) ship with `pickProvider()` and one stub on the first commit. Pluggability from day one prevents the rewrite.
+**Two-file pattern per skill:**
 
-This repo's `skills/` directory contains the skills used by the bundled starter projects — Linear, Suno, ElevenLabs, audio mastering, browser automation, and others. They run independently of ONYX; ONYX just calls them.
+| File | Lives at | Audience |
+|---|---|---|
+| `SKILL.md` | `skills/<name>/SKILL.md` | The skill itself — full reference: verbs, flags, env vars, output shape, prerequisites. |
+| `<name> - Skill Overview.md` | `vault/08 - System/Agent Skills/` | The agent — short vault-facing contract: when to call, when not to, how to invoke. Points at `SKILL.md` for the details. |
+
+The Overview keeps the agent's context window cheap. The full `SKILL.md` is loaded only if the agent decides it needs the details.
+
+**What ships in this repo** (`skills/`):
+
+- **User-facing effectors** (29) — each has both a `SKILL.md` and a vault Overview: `audio-master`, `browser-automate`, `captcha-solve`, `chatgpt-compose`, `cloudflare-dns-sync`, `comment-safety-filter`, `elevenlabs-tts`, `fal`, `headless-browser`, `housekeeping`, `instagram-publish`, `linear`, `music-distro`, `nano-banana-compose`, `notify`, `notion-context`, `obsidian`, `prompt-optimizer`, `pubmed-search`, `rss-fetch`, `rss-publish`, `spotify-creators`, `subtitle-burner`, `suno`, `suno-generate`, `tiktok-publish`, `whisper-groq`, `youtube-comments`, `youtube-publish`.
+- **Internal runtime helpers** (4) — `agent-spawn`, `audit-trail`, `config-load`, `repo-resolve`. No vault Overview; they're plumbing the dispatcher uses.
+
+Adding a new skill: scaffold under `skills/<name>/`, write the vault Overview first (describes the contract you're committing to), implement backwards from it. Skills with a plausible second backend ship with `pickProvider()` and one stub on the first commit — pluggability from day one prevents the rewrite.
 
 ---
 
@@ -189,12 +203,14 @@ This repo's `skills/` directory contains the skills used by the bundled starter 
 ```bash
 git clone https://github.com/jamalahmed2001/onyx.git
 cd onyx
-npm run setup                # installs everything: deps, builds, pre-commit hook, .env
+npm run setup
 ```
 
-`scripts/setup.sh` is idempotent. It installs all `skills/*` dependencies, builds the TypeScript skills, wires the pre-commit secret-scanner, and copies `.env.example` → `.env` if needed. See [INSTALL.md](./INSTALL.md) for the full walkthrough.
+`scripts/setup.sh` is idempotent. It runs `npm install && npm run build` for every skill in `skills/*/` that has a `package.json`, wires `core.hooksPath=hooks` so the pre-commit secret-scanner is active, copies `.env.example` → `.env` if missing, and marks `bin/onyx` + `tools/*.sh` executable. If a single skill fails to build it reports the offender and continues — fix and re-run.
 
-Verify the runtime works:
+Edit `.env` to add only the keys you actually need (most skills are off by default; only the ones you wire into pipelines need keys). See [INSTALL.md](./INSTALL.md) for the per-step troubleshooting walkthrough.
+
+Verify the runtime works with the bundled smoke test:
 
 ```bash
 cd vault                     # the bundled v2 starter
@@ -207,7 +223,9 @@ Tell Claude:
 execute example-app
 ```
 
-It scaffolds nothing — `example-app` already exists. The agent locks `P01 - Hello World`, ticks three steps, writes a Knowledge entry, runs the verify steps, and closes the phase. If that loop completes cleanly, your install is wired up correctly. Delete the bundle and create your real first project:
+The agent runs cold-start (reads Overview → Status → active phase → newest log), locks `P01 - Hello World`, ticks three steps (writes `artifacts/hello.txt`, appends to `Knowledge.md`, re-reads to confirm), runs the two `verify.steps`, closes the log with `outcome: done`, sets `status: done`, and rebuilds `Status.md`. If that loop completes cleanly, your install is wired up correctly.
+
+Delete `example-app` and scaffold your real first project:
 
 ```
 new my-app --kind engineering --repo ~/code/my-app
@@ -215,6 +233,19 @@ execute my-app
 ```
 
 Full walkthrough: [`GETTING_STARTED.md`](./GETTING_STARTED.md). Pipeline patterns: [`PIPELINES.md`](./PIPELINES.md).
+
+### What you get immediately vs what Claude builds at runtime
+
+| Pre-built (ships in the clone) | Built at runtime by Claude |
+|---|---|
+| `08 - System/ONYX v2 Runtime.md` — the contract | Project bundles via `new` (Overview/Status/Knowledge/Decisions, phases, pipelines) |
+| 12 templates with documented placeholder convention | Phase `## Steps` ticked one at a time, with `## Progress` overwritten after each |
+| 24 role briefs in `Roles/` | Pipeline journal rows, one per `run` invocation |
+| 29 user-facing Skill Overviews + the skills themselves in `skills/` | `Status.md` and `Central Dashboard.md` rebuilt by `heal` |
+| The `example-app` smoke-test bundle (phase + pipeline) | Cross-project `consolidate` diffs in `08 - System/Proposals/` |
+| `bin/onyx`, `scripts/setup.sh`, `hooks/pre-commit`, `tools/heal-scan.sh`, `tools/sanitise-vault.sh` | Promotion Queue rows, Risk Budget files, ADRs — all written by you / by Claude as work demands them |
+
+The clone gives you the *contract* and the *effectors*. Claude (or any capable agent that reads the contract) supplies the *behaviour*.
 
 ---
 
