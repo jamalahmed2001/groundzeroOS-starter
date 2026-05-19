@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: elevenlabs-tts
 source_skill_path: ~/clawd/skills/elevenlabs-tts/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -17,8 +20,8 @@ up: Agent Skills Hub
 
 ## When a directive should call this
 
-- Podcast / narration voice synthesis (e.g. My Podcast `my-podcast-audio-producer`)
-- Animated character voicing with a locked ElevenLabs voice per role (e.g. My Show `cartoon-voice-director`)
+- Podcast / narration voice synthesis (e.g. Example Podcast `example-audio-producer`)
+- Animated character voicing with a locked ElevenLabs voice per role (e.g. Example Cartoon Series `cartoon-voice-director`)
 - One-off narration or sting generation in any future project
 
 One skill handles every caller. Caller-specific details (which voice, which model, which format) are passed as CLI flags by the directive — never baked into the skill.
@@ -64,14 +67,14 @@ Emits structured JSON on stdout (`{ok, outputs[], voice_id, model_id, total_char
 
 | Project | Directive | Voice | Notes |
 |---|---|---|---|
-| My Podcast | `my-podcast-audio-producer` | `<voice-id>` (example voice) | Model: `eleven_multilingual_v2` |
-| My Show | `cartoon-voice-director` | locked per character in the Character Bible (P03) | Per-character stability/similarity settings |
+| Example Podcast | `example-audio-producer` | `YOUR_VOICE_ID` (your voice profile) | Model: `eleven_multilingual_v2` |
+| Example Cartoon Series | `cartoon-voice-director` | locked per character in the Character Bible (P03) | Per-character stability/similarity settings |
 
 Add rows here when new voices are adopted.
 
 ## Known issues
 
-- `eleven_v3` previously produced corrupted MP3s when concatenated with silence gaps — use `eleven_multilingual_v2` by default. See My Podcast Episode 8 post-mortem.
+- `eleven_v3` previously produced corrupted MP3s when concatenated with silence gaps — use `eleven_multilingual_v2` by default. See Example Podcast Episode 8 post-mortem.
 - The SDK's `output_format` enum is restrictive; our client accepts any string at runtime and casts. If you pass an unknown format the API will reject it cleanly.
 
 ## Implementation + source

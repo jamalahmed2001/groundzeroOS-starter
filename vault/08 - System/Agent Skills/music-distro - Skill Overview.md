@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: music-distro
 source_skill_path: ~/clawd/skills/music-distro/SKILL.md
-updated: 2026-04-19
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -34,7 +37,7 @@ export MUSIC_DISTRO_PROVIDER=distrokid   # default; or tunecore, amuse, etc.
 music-distro release-create \
   --audio ./mastered.mp3 \
   --title "Quiet Resolve" \
-  --artist "Example Artist" \
+  --artist "Mani+" \
   --art ./cover-3000.jpg \
   --release-date 2026-05-20 \
   --genre "Alternative" \
@@ -43,7 +46,38 @@ music-distro release-create \
 
 music-distro release-list [--limit 50] [--output releases.json]
 music-distro release-status --release-id <id>
+
+# Multi-track album release under any artist name — driven by a manifest
+music-distro album-create --manifest ./album.json
 ```
+
+### Album manifest shape
+
+```json
+{
+  "releaseType": "album",
+  "title": "Low Light Hours",
+  "artist": "Scrim Johnson",
+  "art": "/abs/path/cover.jpg",
+  "releaseDate": "2026-05-20",
+  "genre": "Reggae",
+  "secondaryGenre": "Lounge",
+  "language": "English",
+  "aiGenerated": true,
+  "explicit": false,
+  "tracks": [
+    { "number": 1, "title": "Porch Light Still On", "audio": "/abs/01.mp3" },
+    { "number": 5, "title": "Keep The Kettle On",   "audio": "/abs/05.mp3", "instrumental": true },
+    { "number": 9, "title": "First Birds",          "audio": "/abs/09.mp3" }
+  ]
+}
+```
+
+Per-track optional: `explicit`, `instrumental`, `featuring: [string]`, `songwriters: [string]`, `isrc`.
+
+### Multi-artist distribution
+
+`artist` is per-release (not per-account), so one DistroKid login can ship under multiple artist names — Musician Plus ($35/yr) or Label plan allows unlimited artist profiles. Release "Low Light Hours" as *Scrim Johnson* and "Slow Tide" as *Delia Cole* from the same DK session.
 
 ## Safety defaults
 

@@ -5,7 +5,7 @@
 - Writes dashboard/mailcow-accounts.json
 
 Config:
-  MAILCOW_URL   (default: https://mail.hitpapers.com)
+  MAILCOW_URL   (default: https://mail.example.com)
   MAILCOW_API_KEY (required)
   DEFAULT_PASS  (required unless you extend this script to do per-user secrets)
 
@@ -50,7 +50,7 @@ def get_json(url: str, api_key: str):
 
 
 def main() -> int:
-    base = os.environ.get("MAILCOW_URL", "https://mail.hitpapers.com").rstrip("/")
+    base = os.environ.get("MAILCOW_URL", "https://mail.example.com").rstrip("/")
     api_key = require_env("MAILCOW_API_KEY")
     default_pass = require_env("DEFAULT_PASS")
 

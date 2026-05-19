@@ -1,33 +1,25 @@
 #!/usr/bin/env bash
-# onyx — top-level dispatcher.
+# onyx — v2 dispatcher.
 #
-# This is the irreducible entry point: parse argv, source config, look up the
-# matching operation directive in the vault, hand the directive path + args
-# to the configured agent (Claude Code by default).
-#
-# After full no-code migration, the entire framework lives in:
-#   - vault/08 - System/Operations/*.md  (operation directives)
-#   - vault/08 - System/Agent Skills/_onyx-runtime/*  (runtime sub-skills)
-#   - vault/08 - System/Profiles/*.md  (profiles)
-#   - clawd-skills/*  (real-tool skills: linear, suno, fal, ffmpeg, openclaw, ...)
-#   - tools/*.sh  (deterministic shell helpers: heal-scan, shadow-*, sanitise)
-#   - bin/onyx (this file — the doorbell)
-#
-# No TypeScript. No build step. The shell dispatches; the agent does the work.
+# Builds a prompt for one of the six v2 verbs and spawns the configured
+# coding agent (Claude Code by default). The verb semantics live in
+# `08 - System/ONYX v2 Runtime.md` inside the vault — this script does not
+# embed them.
 #
 # Usage:
 #   onyx <verb> [args...]
 #
-# Examples:
-#   onyx doctor
-#   onyx init "My Project" --profile engineering
-#   onyx run                              # Master Directive loop
-#   onyx next                             # find + dispatch ready phase
-#   onyx atomise "My Project" 1
-#   onyx heal
-#   onyx consolidate "My Project"
-#   onyx linear-import <linear-project-id>
-#   onyx capture "remember to check X"
+# Verbs:
+#   new <project> [--kind X] [--repo path]      Scaffold a project bundle
+#   execute <project> [phase]                    Run the phase hot loop (system-changing)
+#   run <project> <pipeline> [--input X]         Run a pipeline (repeatable)
+#   heal                                          Rebuild Status + Dashboard, free stale locks
+#   compact <project>[/<file>]                   Archive + rewrite an append-only file
+#   consolidate                                   Emit cross-project wisdom diff for review
+#
+# Convenience aliases (mapped to verbs above):
+#   status [project]                              -> "read Status.md and report"
+#   resume [project]                              -> "cold-start, then execute the active phase"
 
 set -eo pipefail
 
@@ -42,45 +34,25 @@ VAULT_ROOT="${ONYX_VAULT_ROOT:-$ONYX_HOME/vault}"
 
 if [[ $# -eq 0 ]]; then
   cat <<USAGE
-onyx — vault-native agent orchestration
+onyx — vault-native agent orchestration (v2)
 
 usage: onyx <verb> [args...]
 
-operations (run via directive):
-  init <name>          bootstrap a new project bundle
-  doctor               pre-flight checks
-  status               summary of all projects
-  explain [project]    plain-English project summary
-  next [project]       find + dispatch the highest-priority ready phase
-  run                  Master Directive loop (heal → route → execute → ...)
-  heal                 healer sweep (orphans, frontmatter drift, fractal links, cross-links)
-  atomise <project> <phase>      generate tasks for a phase
-  decompose <project>  generate phases for a project
-  replan <project>     re-atomise blocked phases
-  consolidate <project>          fold a shipped/abandoned bundle
-  monthly-consolidate [YYYY-MM]  roll up daily plans
-  research <phase>     scout repo, write Research note
-  refresh-context <project>      rescan repo, update Repo Context.md
-  capture "<text>"     append to Inbox.md
-  logs <phase>         print a phase's log
-  reset [phase]        reset blocked phase to ready
-  ready <project> [phase]  set phase to phase-ready
-  block <project> [phase] "<reason>"   block a phase
-  new directive <name>     scaffold a directive
-  new profile <name>       scaffold a profile
-  new phase <project> "<name>"  add a new phase
-  check <project>      validate vault state before running
+verbs (full spec in $VAULT_ROOT/08 - System/ONYX v2 Runtime.md):
+  new <project> [--kind X] [--repo path]   scaffold a project bundle
+  execute <project> [phase]                run the phase hot loop
+  run <project> <pipeline> [--input X]     run a pipeline
+  heal                                      rebuild Status + Dashboard, free stale locks
+  compact <project>[/<file>]               archive + rewrite an append-only file
+  consolidate                               emit cross-project wisdom diff
 
-linear:
-  linear-import <id>   pull Linear project into a vault bundle
-  linear-uplink <project>  push vault phases back to Linear
-
-shadow-mode:
-  shadow <op> <phase>  run TS + directive in parallel, classify diff
+convenience aliases:
+  status [project]                          show what's active / blocked
+  resume [project]                          cold-start + execute the active phase
 
 env:
-  ONYX_VAULT_ROOT      path to your vault (overrides config)
-  ONYX_AGENT_DRIVER    claude-code (default) or cursor
+  ONYX_VAULT_ROOT     path to your vault (overrides config)
+  ONYX_AGENT_DRIVER   claude-code (default) or cursor
 
 config: $ONYX_HOME/onyx.config.json
 vault:  $VAULT_ROOT
@@ -91,69 +63,38 @@ fi
 
 VERB="$1"
 shift
+ARGS=("$@")
 
-# Map old "ready/block/check" alias verbs to phase-ops directive
 case "$VERB" in
-  ready|block|check) DIRECTIVE_VERB="phase-ops"; ARGS=("$VERB" "$@") ;;
-  new)               DIRECTIVE_VERB="new"; ARGS=("$@") ;;
-  decompose)         DIRECTIVE_VERB="decompose-project"; ARGS=("$@") ;;
-  shadow)
-    # shadow runs are special — they go through tools/shadow-run.sh, not a directive
-    if [[ -x "$ONYX_HOME/tools/shadow-run.sh" ]]; then
-      exec "$ONYX_HOME/tools/shadow-run.sh" "$@"
-    fi
-    echo "shadow harness not found at tools/shadow-run.sh" >&2
+  new|execute|run|heal|compact|consolidate|status|resume) ;;
+  *)
+    echo "[onyx] unknown verb: $VERB" >&2
+    echo "       Run 'onyx' with no args for the verb list." >&2
     exit 1
     ;;
-  *) DIRECTIVE_VERB="$VERB"; ARGS=("$@") ;;
 esac
 
-# Locate the operation directive
-DIRECTIVE_PATH="$VAULT_ROOT/08 - System/Operations/$DIRECTIVE_VERB.md"
-
-if [[ ! -f "$DIRECTIVE_PATH" ]]; then
-  echo "[onyx] No operation directive found: $DIRECTIVE_VERB" >&2
-  echo "       Searched: $DIRECTIVE_PATH" >&2
-  echo "       Run 'onyx' (no args) for the verb list." >&2
-  exit 1
-fi
-
-# Doctor + capture + logs run *as bash* directly — they're fast, deterministic,
-# and don't need agent reasoning. Detect this by reading the directive's
-# `replaces:` field for tags hinting at pure mechanical work. For now, hardcoded:
-case "$DIRECTIVE_VERB" in
-  doctor|capture|reset|status|run|heal|logs)
-    # These verbs map to directive procedures that an agent should execute.
-    # Hand them to the agent.
-    ;;
-esac
-
-# Build the prompt: directive content + args context
 PROMPT="$(cat <<EOF
-You are running the ONYX operation \`$DIRECTIVE_VERB\`.
+You are operating under ONYX v2. Read \`08 - System/ONYX v2 Runtime.md\` end-to-end if you have not already this session, then follow its procedures exactly.
 
-Read the directive at \`08 - System/Operations/$DIRECTIVE_VERB.md\` end-to-end.
-Follow its Procedure section exactly. Do not call any TypeScript tooling — only
-agent-native primitives (Read, Write, Edit, Bash, Glob) and the skills listed
-in the directive's \`## Skills invoked\` section.
-
+Verb: \`$VERB\`
 Operator arguments: ${ARGS[*]:-(none)}
 
 Vault root: $VAULT_ROOT
 Onyx home:  $ONYX_HOME
 
-Begin.
+If the verb is \`status\` or \`resume\`, run cold-start (§A) and report. For \`status\`, stop after the report. For \`resume\`, proceed into the phase hot loop (§B) on the active phase.
+
+Use only agent-native primitives (Read, Write, Edit, Bash, Glob) and the skills in \`08 - System/Agent Skills/\`. Never assume a v1 directive folder exists.
 EOF
 )"
 
-# Spawn the agent
 DRIVER="${ONYX_AGENT_DRIVER:-claude-code}"
 AGENT_SPAWN="$ONYX_HOME/clawd-skills/agent-spawn/bin/agent-spawn"
 
 if [[ -x "$AGENT_SPAWN" ]]; then
   echo "$PROMPT" | "$AGENT_SPAWN" --driver "$DRIVER" --repo "$ONYX_HOME"
 else
-  # Fallback — direct claude invocation
   case "$DRIVER" in
     claude-code)
       exec claude --dangerously-skip-permissions --output-format text --print "$PROMPT" --add-dir "$ONYX_HOME"

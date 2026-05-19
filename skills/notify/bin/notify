@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# notify — fire one openclaw notification per Master Directive §15.
+# notify — fire one openclaw notification per runtime contract (notifications).
 #
 # Usage:
 #   notify --event <name> --project <pid> --phase <pid|-> --severity <info|warn|alert> --message "<text>"
@@ -51,7 +51,7 @@ case "$SEVERITY" in
   *) echo "invalid --severity: $SEVERITY (must be info|warn|alert)" >&2; exit 2 ;;
 esac
 
-# Always log to stdout (Master Directive §15.4 format)
+# Always log to stdout (runtime contract (notifications).4 format)
 SEV_UPPER=$(echo "$SEVERITY" | tr '[:lower:]' '[:upper:]')
 echo "[ONYX] $EVENT · $PROJECT · $PHASE · $MESSAGE"
 

@@ -1,71 +1,37 @@
 ---
-tags: [hub-domain, status-active]
+type: hub
 graph_domain: system
-status: active
+up: "[[Central Dashboard]]"
+created: 2026-05-17
+updated: 2026-05-17
 ---
+
+## 🔗 Navigation
+**UP:** [[Central Dashboard]]
 
 # System Hub
 
-> Navigation hub for ONYX system docs — profiles, directives, and reference.
+> The `08 - System/` folder. Under ONYX v2, this is intentionally small. Most agent work lives in project bundles — system files are reference, read on demand.
 
----
 
-## Key Docs
+## What v2 gives you
 
-- [[ONYX - Quick Start|ONYX Quick Start]] — **start here**: step-by-step to your first running pipeline
-- [[ONYX - Reference|ONYX Reference]] — complete reference: architecture, profiles, directives, commands, internals, laws
-- [[ONYX Master Directive|ONYX Master Directive]] — the runtime, in prose
-- [[ONYX - Zero-Code Architecture Vision|Zero-Code Architecture Vision]] — why the runtime is moving into the vault
-- [[ONYX - Decomposition Plan|Decomposition Plan]] — staged migration from TS to vault (Operations + runtime skills)
-- [[Doctor Directive|Doctor Directive]] — pre-flight health checks (replaces `onyx doctor`)
-- [[Operations/Operations Hub|Operations Hub]] — the eight operation directives (heal, atomise, execute, …)
+- **6 primitives + Skills:** Project, Phase, Pipeline, Journal, Knowledge entry, Log entry, plus Skills as named external deps.
+- **4 phase states** (`backlog | active | blocked | done`); pipelines never reach `done`.
+- **Pipelines + Journals** for repeatable work (no phase file per invocation).
+- **4-read cold start** (Overview / Status / active Phase / newest Log) plus `git` probes when a `repo_path:` is declared.
+- **Every turn is a pause point** — sessions are disposable; the vault is the only source of truth.
 
----
+*This hub is intentionally short. The job of `08 - System/` is to disappear from the hot path; project bundles are what matters.*
 
-## Sub-Sections
+<!-- AUTO_CHILDREN_START -->
 
-- [[Profiles/Profiles Hub|Profiles]] — per-project mechanical contracts (engineering, content, research, operations, trading, experimenter)
-- [[Agent Directives/Agent Directives Hub|Agent Directives]] — per-phase agent identity
+## Children
 
----
+- [[ONYX v2 Runtime]]
+- [[PRINCIPLES]]
+- [[Roles Hub]]
+- [[Skills Hub]]
+- [[Templates Hub]]
 
-## System Directives
-
-These files are loaded automatically at session start. Customise them for your setup:
-
-- `Agent Directives/AGENTS.md` — operating rules for every session
-
----
-
-## Profiles
-
-Nine profiles, one per domain:
-
-| Profile | Use for |
-|---|---|
-| `general` | Catch-all — lightweight tasks, mixed domains, starting point |
-| `engineering` | Software projects with a git repo |
-| `content` | Podcast, video, newsletter, social pipelines |
-| `research` | Investigation, analysis, synthesis |
-| `operations` | System ops, monitoring, incident response |
-| `trading` | Algorithmic trading, strategy dev |
-| `experimenter` | Systematic A/B testing, prompt engineering, ML experiments |
-| `accounting` | Financial records, reconciliation, reporting |
-| `legal` | Contracts, research, compliance |
-
-→ [[Profiles/Profiles Hub|Profiles Hub]] for full specs
-
----
-
-## System Directives (cross-project, shared)
-
-| Directive | Purpose |
-|---|---|
-| `knowledge-keeper` | Maintains Knowledge.md as a structured wiki |
-| `experimenter-researcher` | LEARN/DESIGN phases: hypothesis + experiment spec |
-| `experimenter-engineer` | EXPERIMENT phases: execute + record raw results |
-| `experimenter-analyzer` | ANALYZE phases: interpret + update Cognition Store |
-| `observer` | Read-only state snapshot |
-| `ONYX Architecture Directive` | Deep technical reference for agents working on ONYX |
-
-→ [[Agent Directives/Agent Directives Hub|Agent Directives Hub]] for full index
+<!-- AUTO_CHILDREN_END -->

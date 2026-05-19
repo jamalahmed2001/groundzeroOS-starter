@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: suno
 source_skill_path: ~/clawd/skills/suno/SKILL.md
-updated: 2026-04-19
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -82,26 +85,7 @@ suno delete-workspace --workspace <id>    # POST /api/project/trash
 
 # Rename a track (preserves lyrics, caption, cover flags — only title changes)
 suno rename-track --track <uuid> --title "New Title"
-
-# Sequential two-voice duet via continue-clip — persona A sings part 1,
-# persona B extends the chosen take with part 2 lyrics. Each part-B take
-# renders the FULL assembled duet audio.
-suno duet \
-  --prompt-a "<part 1 lyrics>" --prompt-b "<part 2 lyrics>" \
-  --persona-a-name "Rasta" --persona-b-name "soulful hip - Female" \
-  --style "reggae-soul, 82 bpm, rhodes, warm dub bass" \
-  --title "Rising Up (Duet)" \
-  [--take 1|2|auto] [--continue-at <seconds>] \
-  [--workspace-name "Smoke & Tide"] [--output-dir ./out/] [--dry-run]
 ```
-
-### Duet flow
-
-1. `POST /api/generate/v2-web/` with persona A + `prompt-a` — 2 takes come back.
-2. Poll `/api/feed/v3` until both takes are terminal.
-3. Pick one take (default `--take auto` = the longer of the two; override with `--take 1|2`).
-4. `POST /api/generate/v2-web/` again, this time with `persona_id = B`, `prompt = prompt-b`, `continue_clip_id = selected_take.id`, `continue_at = selected_take.duration` (or `--continue-at <seconds>` to splice mid-clip). Returns 2 continuation takes.
-5. Each completed part-B clip contains the full assembled duet audio — downloaded to `--output-dir` and/or moved into `--workspace`.
 
 ### Track metadata fields
 
@@ -129,10 +113,30 @@ Host is `studio-api-prod.suno.com` (hyphen, not dot).
 - **Rename workspace** endpoint not discovered (all PATCH/PUT variants on `/project/<id>` return 405). Workaround: create new + move tracks + trash old.
 - **Delete / trash individual track** not yet sniffed — probably the same `POST /api/project/<ws>/clips` with `update_type: "remove"`.
 
+### Captcha bypass (Cloudflare Turnstile on generate)
+
+Suno wraps `POST /api/generate/v2-web/` in Cloudflare Turnstile. When the body's `token` field is `null` or stale, the endpoint returns `422 {"detail":"Token validation failed."}`.
+
+The skill auto-resolves this transparently:
+
+1. On 422 Token validation failed, it invokes [[captcha-solve - Skill Overview|captcha-solve]] with the known generate sitekey (`0x4AAAAAABd64Cd9aq5C--VE`, extracted from `_next/static/chunks/42598aa6…js` — constant `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`).
+2. 2Captcha returns a Turnstile token (~20-90 s, ~$0.02).
+3. The skill re-POSTs the same body with `token: <solved>`.
+4. If that still fails, it falls back to the DOM flow (`cmdGenerateDom`).
+
+Disable with `--no-captcha` to go straight to DOM fallback. Requires a 2Captcha account configured in `captcha-solve`:
+
+```bash
+captcha-solve account add default --provider 2captcha --field API_KEY=<your-key>
+```
+
+Auth / signup uses a DIFFERENT Turnstile sitekey (`0x4AAAAAABtnpJo7aKMs9JLQ` — `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY_AUTH`), not relevant here.
+
 ## Prerequisites
 
 - Signed in to `suno.com` in daily Chrome (daemon inherits on first start)
 - `browser-automate daemon` running (auto-starts)
+- **For captcha auto-solve**: 2Captcha API key configured via `captcha-solve account add default --provider 2captcha --field API_KEY=<key>` (optional — falls back to DOM flow without it)
 
 ## Output
 

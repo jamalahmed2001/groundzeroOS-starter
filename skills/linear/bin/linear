@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # linear — thin shell wrapper over the Linear GraphQL API.
 #
-# Used by directive-driven workflows (vault/08 - System/Operations/linear-*.md)
+# Used by directive-driven workflows (pipelines or phases that invoke this skill)
 # instead of the legacy `src/linear/*.ts`. Each verb does one HTTP call and
 # emits a single JSON line on stdout. Directives parse the JSON with jq.
 #

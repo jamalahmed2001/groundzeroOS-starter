@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: tiktok-publish
 source_skill_path: ~/clawd/skills/tiktok-publish/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -33,13 +36,13 @@ up: Agent Skills Hub
 tiktok-publish account list
 tiktok-publish account show <ref>
 tiktok-publish account add <ref> --backend browser \
-  --field TIKTOK_HANDLE=@your_handle \
-  --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@your_handle
+  --field TIKTOK_HANDLE=@cartoonremakes \
+  --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@cartoonremakes
 tiktok-publish account remove <ref>
 
 # Upload (browser or api backend decided from the env file's BACKEND= line)
 ~/clawd/skills/tiktok-publish/bin/tiktok-publish \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --video ./out-9x16.mp4 \
   --title "Episode 8 — 60s preview" \
   --privacy PUBLIC_TO_EVERYONE \
@@ -47,7 +50,7 @@ tiktok-publish account remove <ref>
 
 # API backend only — poll status
 ~/clawd/skills/tiktok-publish/bin/tiktok-publish \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --check-status <publish_id>
 ```
 
@@ -55,13 +58,13 @@ tiktok-publish account remove <ref>
 
 **Browser backend (recommended):**
 1. Sign in to the target TikTok account in the daemon Chrome (CDP 9222) — `studio.tiktok.com`.
-2. `tiktok-publish account add my-channel --backend browser --field TIKTOK_HANDLE=@your_handle --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@your_handle`
+2. `tiktok-publish account add example-cartoon-series --backend browser --field TIKTOK_HANDLE=@cartoonremakes --field TIKTOK_PROFILE_URL=https://www.tiktok.com/@cartoonremakes`
 3. First upload triggers a sniff of the Creator Studio upload flow; selectors get baked into the recipe.
 
 **API backend (needs approved TikTok Developers app):**
 1. Register app at developers.tiktok.com. Request the `video.publish` scope. Wait for approval.
 2. OAuth-flow per account → exchange code → get access token.
-3. `tiktok-publish account add my-channel --backend api --field TIKTOK_ACCESS_TOKEN=...`
+3. `tiktok-publish account add example-cartoon-series --backend api --field TIKTOK_ACCESS_TOKEN=...`
 
 ## Credentials
 
@@ -71,7 +74,8 @@ tiktok-publish account remove <ref>
 
 | Project | Directive | Which video(s) |
 |---|---|---|
-| My Podcast | `my-podcast-distributor` | Short clips from each episode |
+| Example Podcast | `example-distributor` | Short clips from each episode |
+| Example Cartoon Series | `cartoon-launch-ops` | Every episode as TikTok post (primary platform) |
 
 ## See also
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# heal-scan.sh — fast diagnostics for two heal-* skills:
-#   1. heal-fractal-links Rule 1 (orphans — files missing `up:`)
-#   2. heal-cross-link (system ↔ bundle and bundle ↔ bundle wikilinks)
+# heal-scan.sh — fast diagnostics consumed by the v2 `heal` verb:
+#   1. Orphans — files missing `up:` frontmatter
+#   2. Cross-branch wikilinks (system ↔ bundle and bundle ↔ bundle)
 #
-# Mechanical scanner — no auto-fixes. The heal operation directives
-# read this output and decide what to apply. Pure diagnostics.
+# Mechanical scanner — no auto-fixes. The `heal` verb reads this output
+# and decides what to apply. Pure diagnostics.
 #
 # Usage:
 #   tools/heal-scan.sh <vault-path> [--orphans-only|--cross-links-only]
@@ -120,7 +120,7 @@ if [[ "$MODE" == "all" || "$MODE" == "--cross-links-only" ]]; then
     "metadata-curator"
     "research-brief-writer"
     "script-writer"
-    "Master Directive"
+    "the runtime contract"
     "Fractal Linking Convention"
     "Tag Convention"
   )
@@ -234,7 +234,7 @@ echo
 
 total=$((orphan_count + crosslink_count + incoming_orphan_count))
 if [[ $total -gt 0 ]]; then
-  echo "Run heal (Steps 7 + 8 in 08 - System/Operations/heal.md) to apply fixes."
+  echo "Run heal (Steps 7 + 8 in the runtime contract (§E: heal verb)) to apply fixes."
   exit 1
 fi
 

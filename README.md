@@ -1,377 +1,283 @@
-# ONYX
+# ONYX v2
 
-> **The vault-native runtime for AI agents.** Your Obsidian vault is the OS. Markdown is the source of truth. Skills do the work. One directive tells every agent how to behave.
+> **A vault-native runtime for AI agents.** Your Obsidian vault is the operating system. Markdown is the source of truth. Claude is the executor. Six verbs run everything.
 
----
+ONYX is not a SaaS, not a framework, not a CLI you have to build. It is a **vault convention plus a short runtime contract** that any capable coding agent (Claude Code by default) can follow. Point an agent at your vault, give it one of six verbs, and it does the work — reading state, executing tasks, writing results back. Sessions are disposable. The vault persists.
 
-## What is ONYX?
-
-ONYX is not a framework or a SaaS. It is a **vault convention + a runtime directive**. You point an AI agent at your Obsidian vault; it reads the **ONYX Master Directive** and behaves as the system. State lives in frontmatter. Work is scoped to phases. Knowledge compounds. Every iteration runs the same loop:
-
-```
-heal → find work → lock → load context → execute → consolidate → release → repeat
-```
-
-No database. No message broker. No control plane. If it is not in a markdown file in the vault, it does not exist.
+This is **v2** — a deliberate rewrite of the original ONYX. The first version grew an 8-operation Master Directive, a Profiles registry, and a parallel TypeScript runtime. V2 deletes most of that. What remains is small enough to read in 150 lines and resume cleanly from any pause.
 
 ---
 
 ## Two-minute model
 
-ONYX is five primitives, one directive, one loop.
+**Three things move:**
 
-**The Master Directive** (`08 - System/ONYX Master Directive.md`) is the runtime's law. Every agent loads it first and follows its invariants, state model, and operation semantics. Update the directive → the runtime's behaviour changes. There is no other source of truth.
+1. **The vault** is state. Every fact lives in a markdown file with frontmatter. There is no database.
+2. **The runtime contract** (`08 - System/ONYX v2 Runtime.md`, ≤ 150 lines) is the program. The agent reads it once per session.
+3. **The verbs** are how you drive it. There are six — `new`, `execute`, `run`, `heal`, `compact`, `consolidate` — and most days you only use two.
 
-**The five primitives** that make up everything else:
+**Two kinds of work:**
 
-| Primitive | What it is | Where it lives |
+| Kind | Verb | Unit | Lock? | Output |
+|---|---|---|---|---|
+| **System-changing** | `execute` | A **phase** (one-off step) | Yes — one agent at a time | Tasks ticked, knowledge appended, `status: done` |
+| **Repeatable** | `run` | A **pipeline** (declared once, run many times) | No — append-safe journal | A row in the pipeline journal + an artifact |
+
+That distinction is the whole architecture. Building a new feature is a phase. Scoring 200 strategies every morning is a pipeline. Migrating a DB is a phase. Generating tomorrow's podcast episode is a pipeline. If you would do it again next week unchanged, it's a pipeline.
+
+**One bundle per project:**
+
+```
+<Project>/
+├── <Project> - Overview.md     ← anchor — identity, requires, verify defaults
+├── <Project> - Status.md       ← derived view — active phase + pipeline queue
+├── <Project> - Knowledge.md    ← append-only learnings
+├── <Project> - Decisions.md    ← append-only ADRs
+├── phases/                     ← one .md per phase
+├── pipelines/                  ← one .md per pipeline (with journal rows)
+├── logs/                       ← one .md per session
+├── artifacts/                  ← binary outputs
+├── refs/                       ← long-lived references
+└── repo  →  <abs path>         ← symlink for engineering projects
+```
+
+Every file in the bundle carries the project prefix (`<Project> - <Type>.md`). Project IDs are kebab-case and stable across renames.
+
+---
+
+## The six verbs
+
+| Verb | What it does | When you use it |
 |---|---|---|
-| **Skill** | A capability the agent can invoke (native tool or external CLI). | `~/clawd/skills/<name>/` (external) + vault Skill Overview |
-| **Directive** | One phase's agent brief — role, tools to call, outputs to write. | `08 - System/Agent Directives/` or `<project>/Directives/` |
-| **Profile** | Invariants for a whole project-type — required fields, acceptance gate. | `08 - System/Profiles/<name>.md` |
-| **Phase** | One unit of work — status, deps, tasks, acceptance, Human Requirements. | `<project>/Phases/<Prefix><N> - <Title>.md` |
-| **Skill Overview** | Vault-facing contract: verbs, flags, output shape. | `08 - System/Agent Skills/<name> - Skill Overview.md` |
+| **`new <project> [--kind X] [--repo path]`** | Scaffold a bundle from `08 - System/Templates/`. Engineering kinds get a `repo` symlink. | Start any new project. |
+| **`execute <project> [phase]`** | Phase hot loop: acquire lock → run tasks → tick checkboxes → run `verify:` steps → consolidate knowledge → release. | System-changing work. New feature, migration, refactor. |
+| **`run <project> <pipeline> [--input X] [--dry-run]`** | Pipeline loop: read inputs → execute stages → verify → append journal row → check promotion gates. | Repeatable work. Daily content, scoring, monitoring. |
+| **`heal`** | Rebuild every `<Project> - Status.md` and the Central Dashboard. Free stale locks. Fix broken `up:` links. Flag drift. | Anytime the vault feels off. Daily cron. |
+| **`compact <project>[/<file>]`** | Archive-then-rewrite an append-only file (Knowledge, journal, log digest). Originals preserved verbatim in `_archive/`. | Human-triggered only. Never automatic. |
+| **`consolidate`** | Scan all `<Project> - Knowledge.md` for cross-project repetition. Emit a diff proposal to `08 - System/Proposals/` for human review. | When wisdom starts repeating across projects. |
 
-**Every new thing must be one of these five.** No new category without evidence.
-
-**The two conventions** that hold the graph together:
-
-| Convention | What it enforces | Where it lives |
-|---|---|---|
-| **Tag Convention** | 8 canonical tag families with one **kind tag** per note (`onyx-phase`, `onyx-operative`, `onyx-directive`, `onyx-artefact`, `onyx-show`, `onyx-episode`, `onyx-track`, `hub-domain`/`hub-subdomain`/`hub-project`/`hub-bundle`). Drives Obsidian colour-coding so the graph is legible at a glance. | `08 - System/Conventions/Tag Convention.md` |
-| **Project ID Convention** | `project_id` is a **kebab-case slug ≤ 30 chars**, unique vault-wide. Everything else (folder name, hub names, phase prefixes, project tag) cascades from it. Renames go through one operation: [[heal-project-id-migrate]]. | `08 - System/Conventions/Project ID Convention.md` |
-
-Plus the **Fractal Linking Convention** — every folder with ≥ 2 markdown files has a hub; hubs walk up to a single parent; cross-branch relationships live in frontmatter, never in body wikilinks.
+**That's the entire runtime surface.** No `atomise`, no `decompose`, no `replan`, no `route`. The agent handles those mentally when running `execute`.
 
 ---
 
-## Why it exists
+## How a session plays out
 
-Knowledge work has no operating layer. You have:
+### Cold start (the 4 reads)
 
-- **Project tools** (Jira, Linear, Notion) — track work, don't execute it
-- **AI agents** (Claude, Cursor) — execute work, forget everything between sessions
-- **Knowledge bases** (Obsidian) — store facts, don't do anything
+When you say `execute my-app` or just open Claude in the vault, the agent runs §A of the runtime contract:
 
-ONYX connects all three with the thinnest viable glue: markdown frontmatter as state, a directive as program, phases as the unit of work. Plans live in the vault. Agents read plans, do work, write results back. Knowledge compounds automatically across every phase, every agent, every session.
+1. Read `<Project> - Overview.md` — identity, defaults, `requires:` invariants.
+2. Read `<Project> - Status.md` — active phase, last action, pipeline queue.
+3. Read the active phase file in full — `## Progress`, `touches:`, `verify:` steps.
+4. Read the newest `logs/*.md` — handoff via `## What's next`.
+
+If `repo_path:` is set, it also runs `git status --porcelain` and `git log -5 --oneline` inside the repo. That catches "vault says X but disk says Y" before any work happens.
+
+### The phase hot loop
+
+```
+acquire lock         ← only one agent on a phase at a time
+open session log     ← every turn is a pause point
+
+for each unchecked task in `## Steps`:
+    execute (Bash, Edit, Write, skill, sub-agent)
+    on success:
+        tick the box
+        append a bullet to the log
+        overwrite `## Progress` (Updated / Last step / Working hypothesis / Partial state)
+        refresh the lock — session can die here, next agent resumes cleanly
+    on failure: retry 3× with backoff. Three consecutive failures → BLOCKING.
+
+after all tasks ticked:
+    run every `verify.step` (shell exit 0, skill stages, human ticks)
+    red → BLOCKING
+    green → append to Knowledge, close log, `status: done`, rebuild Status
+```
+
+**Every turn is a pause point.** Progress is written after every meaningful action, not when the agent "plans to stop." Rate limits and terminal closes do not announce themselves.
+
+### The pipeline loop
+
+Pipelines are journal-only. No phase file per run, no exclusive lock. Each invocation:
+
+1. Reads its stages (`shell:` / `skill:` / `agent:` / `human:`).
+2. Executes them in order.
+3. Runs `verify.steps`. Red → `outcome: failed` row, abort.
+4. Green → `outcome: success` row with metrics + artifact path.
+5. Checks `gates.filter`. If matched and `hitl: false`, auto-promotes to the next pipeline. If `hitl: true`, writes a row to the Promotion Queue for human approval.
+
+Two pipelines can run in parallel if they don't share an output target.
 
 ---
 
-## The runtime loop
+## Heal, compact, consolidate
 
-Every iteration — whether triggered by `onyx run`, a cron job, or a human invoking the agent directly — executes the same eight steps from §3 of the Master Directive:
+**`heal`** is the daily janitor. It rebuilds derived files (every `Status.md`, the Central Dashboard), frees locks older than 30 minutes, fixes broken `up:` pointers, and flags files past compaction thresholds. It writes; it doesn't decide architecture. Run it via cron or whenever the vault feels stale.
 
-```
-1. Heal       — clear stale locks, repair hub back-links, normalise frontmatter drift
-2. Find work  — scan for the next actionable phase (priority + dependencies respected)
-3. Lock       — stamp the phase with agent-id + ISO timestamp
-4. Load ctx   — phase → overview → profile → directive → Knowledge.md → linked files
-5. Route      — atomise / wait / execute / surface_blocker / skip (the five operations)
-6. Execute    — call skills, follow the directive, write progress to the phase note
-7. Consolidate— on completion, merge learnings into Knowledge.md
-8. Release    — clear the lock, append to ExecLog, exit (or loop)
-```
+**`compact`** is human-triggered. Append-only files (`Knowledge.md`, pipeline journals, log digests) grow forever; eventually they need a rewrite that keeps the signal and drops the chatter. `compact` does the archive-then-rewrite: the original goes to `_archive/<file>.<iso>.md` verbatim, a denser version replaces it, and the new file carries a `compacted_from:` pointer so the lineage is recoverable. Never automatic — humans decide when wisdom is settled enough to compress.
 
-The agent is disposable. The vault persists the state that makes the next iteration possible.
+**`consolidate`** looks across every project's `Knowledge.md` for repetition. When the same lesson surfaces in three places, that's a candidate for `08 - System/PRINCIPLES.md`. The verb emits a **diff proposal** to `08 - System/Proposals/PRINCIPLES-diff-<iso>.md` for a human to review. It never writes to `PRINCIPLES.md` directly. Wisdom is promoted, not extracted.
 
 ---
 
-## Vault organisation
+## Promotion queues and HITL
 
-The vault is a **fractal tree, not a spider web**. Every node has one `up:` parent. Cross-branch relationships (profile-of, based-on, directive-for) live in frontmatter, not body wikilinks. Obsidian's graph view becomes a branching star, which is what you want.
+Money-touching pipelines default to human approval. A pipeline that publishes to Spotify, releases via DistroKid, or pushes a paid distribution wizard writes a row to the project's Promotion Queue with `approved_by:` empty. A human edits the row to approve. The next pipeline reads only rows whose `approved_by:` is a real person (not an agent identity).
 
-```
-vault/
-├── 00 - Dashboard/
-│   ├── ExecLog.md            # append-only runtime trace
-│   ├── Inbox.md              # quick-capture triage queue
-│   └── Daily/                # daily planning + log notes
-├── 01 - Projects/
-│   └── <My Project>/         # project bundle
-│       ├── <Project> - Overview.md
-│       ├── <Project> - Knowledge.md
-│       ├── Phases/
-│       │   ├── <Project> - P01 - Build a thing.md
-│       │   ├── <Project> - O3 - Run the pipeline.md
-│       │   └── <Project> - R1 - Investigate the spike.md
-│       ├── Logs/
-│       └── Directives/       # project-local directive overrides (optional)
-└── 08 - System/              # cross-project primitives
-    ├── ONYX Master Directive.md
-    ├── Cross-Project Knowledge.md  # principles graduated from project Knowledge.md
-    ├── Doctor Directive.md         # pre-flight health checks
-    ├── Agent Directives/           # role-archetype contracts
-    ├── Agent Skills/               # skill overviews + _onyx-runtime/ primitives
-    ├── Conventions/                # tag, project-id, fractal-linking, minimal-code, browser-automation
-    ├── Operations/                 # runtime operations (heal, consolidate, route, atomise, execute, …)
-    ├── Principles/                 # distilled wisdom (universal + storytelling + engineering principles)
-    ├── Memory/                     # decision tree for Plan/Memory/Cross-Project/Principles + entry examples
-    ├── Profiles/                   # project-type contracts (engineering, content, audio-production, …)
-    └── Templates/                  # copy-and-fill scaffolds for every artefact type
-```
-
-### Phase lifecycle prefixes
-
-Phase filenames carry a single letter describing the **lifecycle role** of that phase, not the sub-activity inside it. A research step inside an ops run is still `O<N>` — the enclosing unit is operational.
-
-| Prefix | Meaning | Typical use |
-|---|---|---|
-| **`P`** | Plan / Build | One-off setup, scaffolding, new feature, migration |
-| **`O`** | Ops | Recurring production runs of an established pipeline |
-| **`R`** | Research | Investigation, sniffing, feasibility, discovery |
-| **`E`** | Experiment | Experimenter-profile cycles (learn / design / experiment / analyze) |
-| **`M`** | Maintenance | Cleanup, dependency upgrades, refactors, non-trivial bugfixes |
-
-Numbers are per-prefix and per-project: `P01`, `P02`, …; separately `O1`, `O2`, …; decimals (`O3.5`) are fine for interstitial steps.
+A project can override this only when (a) a Decisions ADR explicitly authorises agent approval, (b) a `refs/<Project> - Risk Budget.md` defines hard caps the agent must respect, and (c) the Promotion Queue records the budget the auto-promotion ran under. All three are non-negotiable. Safety is enforced, not asserted.
 
 ---
 
-## Profiles
+## Frontmatter is the cheap index; bodies are the expensive read
 
-One profile per project — set `profile:` in the project's `Overview.md`. The profile defines required fields, the bundle skeleton created by `onyx init`, and the acceptance gate that must pass before a phase can complete.
+A scanner that rebuilds `Status.md` or the Central Dashboard only reads frontmatter across many files. An agent doing real work reads bodies. Same files, different cost. This is the reason ONYX puts dependency edges (`depends_on:`, `based_on:`, `supersedes:`, `role:`) in frontmatter rather than body wikilinks — graph operations stay cheap.
 
-| Profile | Use for | Required fields | Acceptance gate |
-|---|---|---|---|
-| `general` | Catch-all, lightweight tasks | none | All tasks checked + output documented |
-| `engineering` | Software projects with a git repo | `repo_path`, `test_command` | Test command exits 0 |
-| `content` | Podcast, video, newsletter, social pipelines | `voice_profile`, `pipeline_stage` | Safety filter + voice check |
-| `research` | Investigation, analysis, synthesis | `research_question`, `source_constraints`, `output_format` | Source count + gaps addressed |
-| `operations` | System ops, monitoring, incident response | `monitored_systems`, `runbook_path` | Runbook followed + outcome documented |
-| `trading` | Algorithmic trading, strategy development | `exchange`, `strategy_type`, `risk_limits`, `backtest_command` | Backtest passes + risk compliance |
-| `experimenter` | A/B testing, prompt engineering, ML experiments | `hypothesis`, `success_metric`, `baseline_value` | Result recorded + Cognition Store updated |
-| `accounting` | Financial records, reconciliation, reporting | `ledger_path`, `reporting_period` | Trial balance verified |
-| `legal` | Contracts, research, compliance | `jurisdiction`, `matter_type` | Evidence hierarchy + citations verified |
-| `audio-production` | Audio-first pipelines (podcast, music album, narration) | `voice_profile`, `lufs_target` | Mastered audio + LUFS target met |
-| `video-production` | Video pipelines (animated short, serial cartoons, music videos) | `aspect_ratio`, `target_duration_s`, `render_engine` | Shot list duration matches audio + final render exists |
-| `publishing` | Publish-day fan-out across platforms | `target_platforms`, `scheduled_publish_at` | Live verified + publish ledger updated |
-
-Profiles are **invariants**. If a rule only applies to some phases of a project-type, it's a directive rule, not a profile.
+**Cross-branch links are frontmatter fields.** Body wikilinks never cross bundles. Hubs list children **down**, never up. Every file has exactly one `up:`.
 
 ---
 
-## Directives
+## Useful workflows
 
-A directive is a markdown file prepended to the agent's context before it reads its phase. It tells the agent **who it is** — role, what to read first, behavioural constraints, output format.
+A non-exhaustive list of patterns that map cleanly to v2:
 
-```yaml
-# In phase frontmatter
-directive: clinical-researcher
+**Daily standup.** `heal` (cron, 6am) → Central Dashboard shows what's active, what's blocked, which pipelines failed overnight. You read one file.
+
+**Build a feature.** `new my-app --kind engineering --repo ~/code/my-app` → edit the scaffolded P01 phase to add your tasks → `execute my-app`. The agent locks the phase, ticks tasks, runs `verify.steps` (test command, type check, lint), appends what it learned. You read `logs/<latest>.md` to review.
+
+**Daily content pipeline.** Define a pipeline in `pipelines/<Project> - generate-episode.md` with stages: `skill: suno-generate` → `skill: audio-master` → `human: review` → `skill: rss-publish`. Schedule the verb (`run <project> generate-episode`) via cron. Each run is one journal row. Failed runs don't block tomorrow's run.
+
+**Strategy generation → backtest → promotion.** Three pipelines. `generate-strategies` fans candidates into `phases/<strategy>-<n>.md`. `backtest` runs each on historical data, writes scores to its journal. `promote` reads the journal, filters by `gates.filter` (e.g. `sharpe > 1.5`), and either auto-promotes (if a Risk Budget authorises) or queues for human approval.
+
+**Migration.** One phase. `## Steps` lists the migration script, the verification queries, the rollback. `verify:` is a shell stage that runs the queries. Pause-resumable: a session can die mid-migration and the next agent picks up at the next unticked box.
+
+**Investigation / debugging.** `new <project> --kind research` → one phase with `## Steps` as a hypothesis tree. The agent ticks branches as it eliminates them. `## Progress` reads like a lab notebook by the end.
+
+**Cron-driven monitoring.** A pipeline whose `agent:` stage scores incoming events and a `human:` stage that only fires when the score crosses a threshold. The journal is your audit trail.
+
+---
+
+## Vault layout (the system folder)
+
+You only need to know one folder outside your project bundles:
+
+```
+08 - System/
+├── ONYX v2 Runtime.md    ← THE runtime contract. Read once per session.
+├── PRINCIPLES.md         ← cross-project wisdom + gotchas. On demand.
+├── Proposals/            ← `consolidate` diffs awaiting human review
+├── Roles/                ← cross-project agent role briefs
+├── Agent Skills/         ← Skill Overviews (one per skill in ~/clawd/skills/)
+└── Templates/            ← templates `new` scaffolds from
 ```
 
-**Resolution order** (bundle-local wins over system-global):
-1. Phase's explicit `directive:` field
-2. Auto-wiring for experimenter phases (`cycle_type:` → `experimenter-<role>`)
-3. `<project>/Directives/<default>.md` if present
-4. Profile's default directive
-5. `08 - System/Agent Directives/general.md`
-
-**Context injection order for every phase:**
-```
-Master Directive → Directive → Profile → Overview → Knowledge → Context file → Phase → Skill Overviews
-```
-
-Each data-dependent directive declares the **skills** it needs (API clients, browser recipes, vault primitives) and the **sources** it can read from. Representative directives:
-
-| Directive | What it encodes |
-|---|---|
-| `clinical-researcher` | PubMed/ClinicalTrials.gov search, evidence hierarchy, Vancouver citations |
-| `data-analyst` | EDA, SQL, PostHog/Amplitude API access, observation-vs-interpretation discipline |
-| `investment-analyst` | SEC EDGAR, CoinGecko, Yahoo Finance; ratio calculation; investment memo |
-| `legal-researcher` | legislation.gov.uk, CourtListener, EUR-Lex; evidence hierarchy; citations |
-| `security-analyst` | npm audit, semgrep, secrets grep, OWASP checklist |
-| `journalist` | Multi-source corroboration, GDELT/Guardian search, right-of-reply protocol |
-| `universal-engagement` | Comment ingestion → safety filter → HITL approval → reply post |
-| `universal-publisher` | Pluggable publish fan-out (YouTube/Spotify/TikTok/Instagram) |
-| `knowledge-keeper` | Maintains Knowledge.md as structured wiki; contradiction detection |
-| `observer` | Read-only state snapshot; never mutates |
-| `general` | Catch-all; reads phase and executes without workflow encoding |
+**Read on demand, not on session start.** The runtime contract stands alone. Everything else is loaded by name when the agent decides it needs it.
 
 ---
 
 ## Skills
 
-The **skill surface layer** (§10 of the Master Directive) is everything an agent can invoke during a phase. There are exactly two categories:
+Skills live outside the vault in `~/clawd/skills/<name>/`. Each one ships with a `SKILL.md` and a `bin/<name>` entry point. The vault carries a **Skill Overview** for each skill describing its verbs, flags, and output shape — so the agent knows the interface without reading the implementation.
 
-**Native skills** — built into the runtime, always available:
-`read_file`, `write_file`, `edit_file`, `grep`, `glob`, `bash`, `web_fetch`, `web_search`. Plus vault convenience helpers (`read_frontmatter`, `append_to_section`, `check_box`, `append_execlog`).
+Adding a new skill: scaffold under `~/clawd/skills/<name>/`, write the vault Skill Overview first, implement backwards from it. Skills with a plausible second backend (e.g. another LLM provider, another TTS engine) ship with `pickProvider()` and one stub on the first commit. Pluggability from day one prevents the rewrite.
 
-**External skills** — installed under `~/clawd/skills/<name>/`, with a bin at `<name>/bin/<name>`. Each one has a **Skill Overview** in the vault describing verbs, flags, output shape, prerequisites. The starter vault ships overviews for a generic set:
-
-| Category | Skills |
-|---|---|
-| Agent Execution | `agent-spawn`, `onyx-controller`, `context-orchestrator` |
-| Integrations | `linear-fetch`, `linear-uplink`, `notion-context`, `rss-fetch` |
-| Media & Content | `whisper-groq`, `elevenlabs-tts`, `audio-master`, `suno`, `pubmed-search`, `remotion-best-practices` |
-| Distribution | `spotify-creators`, `music-distro`, `rss-publish`, `youtube-publish`, `youtube-comments`, `tiktok-publish`, `instagram-publish`, `analytics-pull` |
-| Personal & Productivity | `plan-my-day` |
-| Infrastructure | `headless-browser`, `browser-automate`, `cloudflare-dns-sync`, `housekeeping`, `obsidian`, `project-health` |
-| Utilities | `prompt-optimizer`, `clawdbot-cost-tracker`, `image-resize`, `pdf-extract`, `comment-safety-filter` |
-
-A phase, directive, or profile can declare `skills:` in frontmatter to whitelist its allowed surface. Outside that set → log a warning.
-
-Adding a new skill: scaffold under `~/clawd/skills/<name>/`, write the vault Skill Overview first, then implement backwards from it. Follow `08 - System/Conventions/Minimal Code Max Utility.md`. Ship with pluggable providers from day one if a second backend is plausible.
-
----
-
-## Pipeline starters
-
-After `My First Project` runs end-to-end, the repo ships ready-to-fork pipeline starters under `01 - Projects/`. Each is a complete phase/directive/skill scaffold for one work shape — copy it, rename it, swap in your project's specifics.
-
-| Starter | Profile | Demonstrates | Status |
-|---|---|---|---|
-| `My First Project` | `general` | Hello-world phase, the loop runs end-to-end | shipped |
-| Engineering — Greenfield Service | `engineering` | 10-phase build → test → harden → deploy → observe pipeline (language-agnostic) | shipped |
-| Research — Investigation | `research` | 5-phase scope → gather → synthesise → write → review | shipped |
-| Video — Animated Short | `video-production` | 9-phase animated short pipeline (audio-first, character continuity, model routing) | shipped |
-| Music — Album Release | `audio-production` | 11-phase concept → generate → master → release → engagement pipeline | shipped |
-| Podcast — Spoken Audio Show | `audio-production` | 7-phase plan → research → script → audio → render → publish → engage | shipped |
-
-Each starter pulls the relevant directives from `08 - System/Agent Directives/` and the relevant Templates from `08 - System/Templates/`, so every starter shares the same foundation. See [`PIPELINES.md`](./PIPELINES.md) for the full index.
-
----
-
-## Heal — the meta-operation
-
-`heal` is run before every iteration (and on a daily cron) to keep the vault graph self-consistent. It is a **meta-directive** that delegates to small, single-purpose sub-skills under `08 - System/Agent Skills/_onyx-runtime/`. Each sub-skill is independently invokable; the meta-directive just composes them in the right order.
-
-| Sub-skill | What it fixes |
-|---|---|
-| `heal-stale-locks` | Phase locks older than the threshold get cleared so work is no longer wedged behind a dead agent. |
-| `heal-frontmatter-drift` | Required fields per profile/kind get backfilled; aliases collapsed; ISO timestamps normalised. |
-| `heal-kind-tag` | Adds the canonical kind tag (one per note) using a 19-rule location + name classifier. |
-| `heal-project-id` | Validates `project_id` format + uniqueness across the vault; flags hub-name mismatches. |
-| `heal-project-id-migrate` | One-shot renamer: cascade a `project_id` change across the bundle's folder, hubs, phases, and tags. |
-| `heal-orphan-locks` | Frontmatter `lock:` entries that no agent claims any longer get released. |
-| `heal-dup-nav` | Duplicate `**UP:**` lines, parallel headings, navigation drift collapsed back to one. |
-| `heal-fractal-links` | Recursive bottom-up walker: every folder with ≥ 2 md gets a hub; orphan back-links and cross-branch wikilinks repaired. |
-| `heal-bundle-shape` | Bundle skeleton (Overview, Knowledge, Phases, Logs, Directives) enforced; cross-bundle wikilinks pruned. |
-| `heal-cross-link` | Frontmatter relations (`profile:`, `directive:`, `based_on:`) verified to point at real files. |
-| `heal-migrate-logs` | Ad-hoc per-phase log files folded back into the bundle's canonical `Logs/` structure. |
-
-Tell Claude:
-
-```
-"Heal vault"                         → run all sub-skills in order
-"Heal vault, dry run"                → report what would change without writing
-"Run heal-kind-tag"                  → invoke one sub-skill directly
-```
-
-A daily cron running `claude -p "Heal vault" --add-dir <vault>` keeps long-lived vaults self-consistent without manual triage.
-
----
-
-## Consolidate — one operation, one principle
-
-`consolidate` collapses N children into one info-dense parent, then archives the children. There are no modes or tiers — the agent reads every child, picks the right output shape (prose for narrative, table for structured atoms like shots/takes/beats, mixed for both), rewrites incoming wikilinks to the new anchors, and moves the originals to `_archive/`.
-
-```
-"Consolidate My Project"             → collapse bundle's child notes into Overview
-"Consolidate children under <note>"  → absorb same-folder atoms into parent's body
-"Monthly consolidate, prune dailies" → roll daily notes into a monthly digest
-```
-
-Earlier names (`absorb-shots`, `consolidate-bundle`, `consolidate-children`) remain as redirect files so existing wikilinks still resolve, but all paths point at the same `consolidate` directive. KISS — there is one operation for "merge children into parent" because that is one principle.
-
----
-
-## Wisdom: the Principles library
-
-`08 - System/Principles/` distils ~18 generalised principles earned from running real pipelines. Universal pipeline principles (audio-first pipeline, QC gate between every phase, single canonical tool per task, vault frontmatter as source of truth, memory as feedback not state). Engineering principles (phase atomisation discipline, fail and fix not bypass, backwards compat only at boundaries, no features beyond task, CDP attach over persistent profile). Storytelling / content principles (avatar diversity across episodes, no invented specifics, no chained identity signifiers, verifiable contact details only, no dated citations you can't pin, show don't say, concept mandate, narrator no stage directions).
-
-Directives wikilink the principles they enforce — read once when you set up, read again when you hit the situation they describe.
-
-`08 - System/Memory/` documents the four-store model: **Plan/Task** (in-session) → **Memory** (per-machine, about the user) → **Cross-Project Knowledge** (per-vault accreted wisdom) → **Principles** (framework-canonical, shipped via PR). Most learnings stay at the project level; only what truly generalises ascends.
+This repo's `skills/` directory contains the skills used by the bundled starter projects — Linear, Suno, ElevenLabs, audio mastering, browser automation, and others. They run independently of ONYX; ONYX just calls them.
 
 ---
 
 ## Quick start
 
 ```bash
-git clone https://github.com/jamalahmed2001/onyx
+git clone https://github.com/jamalahmed2001/onyx.git
+cd onyx
+npm run setup                # installs everything: deps, builds, pre-commit hook, .env
 ```
 
-1. Open `./vault/` in Obsidian
-2. Copy `onyx.config.json.example` → `onyx.config.json`, set `vault_root` to your vault path
-3. Open Claude Code in the vault directory — `CLAUDE.md` loads automatically
-4. Tell Claude: **"Status"** to see what's active, or **"New project: My App, engineering"** to begin
+`scripts/setup.sh` is idempotent. It installs all `skills/*` dependencies, builds the TypeScript skills, wires the pre-commit secret-scanner, and copies `.env.example` → `.env` if needed. See [INSTALL.md](./INSTALL.md) for the full walkthrough.
 
-That's it. Claude is the runtime. Full walkthrough: [`GETTING_STARTED.md`](./GETTING_STARTED.md). The bundled `./vault/` ships with example project, templates, directives, profiles, conventions, skill overviews, and the Master Directive.
+Verify the runtime works:
 
----
+```bash
+cd vault                     # the bundled v2 starter
+claude
+```
 
-## Operations — what you say to Claude
+Tell Claude:
 
-There is no CLI binary. Claude Code running against the vault **is** the runtime. You give instructions in natural language; Claude maps them to the right operation.
+```
+execute example-app
+```
 
-| Say | Operation | What happens |
-|---|---|---|
-| "Status" / "What's next?" | `status` | Active/ready/blocked queue + suggested next action |
-| "Execute next" / "Execute My Project P3" | `execute` | Lock → task loop → acceptance gate → consolidate |
-| "Plan My Project" / "Plan P3" | `plan` | Decompose if needed + atomise → ready |
-| "New project: My App, engineering" | `new` | Create bundle — Overview, Knowledge, P1 Bootstrap |
-| "Import Linear ENG-245" | `import` | Pull Linear issues → phases at backlog |
-| "Review My Project P3" | `review` | Extract learnings → Knowledge.md + Linear sync |
-| "Heal vault" | `heal` | Fix stale locks, frontmatter drift, broken links, nav |
-| "Doctor" | `doctor` | Full audit report — no auto-fixes |
+It scaffolds nothing — `example-app` already exists. The agent locks `P01 - Hello World`, ticks three steps, writes a Knowledge entry, runs the verify steps, and closes the phase. If that loop completes cleanly, your install is wired up correctly. Delete the bundle and create your real first project:
 
-Full specs: `08 - System/Operations/<name>.md` in the vault.
+```
+new my-app --kind engineering --repo ~/code/my-app
+execute my-app
+```
+
+Full walkthrough: [`GETTING_STARTED.md`](./GETTING_STARTED.md). Pipeline patterns: [`PIPELINES.md`](./PIPELINES.md).
 
 ---
 
 ## Configuration
 
-**`onyx.config.json`** — vault root and project paths:
+`onyx.config.json` sets vault path and agent driver:
+
 ```json
 {
   "vault_root": "/absolute/path/to/your/obsidian/vault",
+  "agent_driver": "claude-code",
   "projects_glob": "01 - Projects/**",
-  "stale_lock_threshold_ms": 300000
+  "stale_lock_threshold_ms": 1800000
 }
 ```
 
-Set `vault_root` to your Obsidian vault. That's the only required field. External skills that call APIs (Linear, ElevenLabs, etc.) read their own keys from `~/clawd/skills/<name>/.env` — see each skill's `SKILL.md`.
+Secrets live in `.env` (gitignored). External skills read their own credentials from `~/clawd/skills/<name>/.env` — see each skill's `SKILL.md`.
+
+The `hooks/pre-commit` script blocks commits containing common secret patterns (GitHub PATs, OpenAI keys, Anthropic keys, Linear tokens, AWS keys). Install it once:
+
+```bash
+git config core.hooksPath hooks
+```
 
 ---
 
-## Principles (hard-won, from §20 of the Master Directive)
+## Principles
 
-1. **One source of truth.** Vault-as-state everywhere. Skills that cache state across runs are wrong. Write to the vault; read from the vault.
-2. **Minimal code, max utility.** Every line earns its place. Five composable primitives; no new category without evidence.
-3. **Vault-first beats parallel databases.** Every `state.json` temptation has been replaced by frontmatter. Resist the regression.
-4. **Fractal tree, not spider web.** One `up:` parent per node. Cross-branch relationships in frontmatter, not body wikilinks.
-5. **Pluggable backends from day one.** Skills with a plausible alternative provider ship with `pickProvider()` and one stub on the first commit.
-6. **Directives orchestrate; skills execute; profiles constrain.** Violate that separation and debugging becomes archaeology.
-7. **Declare the plan before the code.** Write the vault contract (phase file or Skill Overview) first. Implement backwards from it.
-8. **Name what you can't solve.** Blockers surface as `## Human Requirements`. Silence is not success.
-9. **Verify before declaring done.** After a move, list the destination. After a merge, grep for stragglers. "Should be fine" ≠ "verified fine."
-10. **Human in the loop on paid actions.** Never auto-submit a DistroKid release, a Spotify publish, a music-distro flow. Leave the wizard at the review step.
+The hard-won ones. Each is one sentence because each is one principle.
+
+1. **One source of truth.** Vault as state, everywhere. No parallel `state.json`.
+2. **Every turn is a pause point.** Write progress after every meaningful action.
+3. **Frontmatter is the cheap index.** Cross-branch relationships go there, not in body wikilinks.
+4. **Fractal tree, not spider web.** One `up:` per node. Hubs list children down.
+5. **Pluggable backends from day one.** A skill with a plausible alternative provider ships with `pickProvider()` on commit one.
+6. **Six verbs, no more.** A new operation must justify why it can't be `execute`, `run`, or `heal`.
+7. **Compact and consolidate are human-triggered.** Wisdom is promoted by review, not by automation.
+8. **Money-touching pipelines stop at the wizard.** Never auto-submit a paid action without an explicit Risk Budget.
+9. **Stale Progress means cold-start the phase.** If `Updated:` is > 24h old or `touches:` files are newer, re-read everything before resuming.
+10. **Name what you can't solve.** Blockers surface as `## Human Requirements`. Silence is not success.
 
 ---
 
-## Documentation
+## What ships in the bundled vault
 
-Open `./vault/` in Obsidian for the live docs:
+`./vault/` is a clean v2 starter. It contains:
 
-| File | What's in it |
-|---|---|
-| `08 - System/ONYX Master Directive.md` | **The runtime spec.** Every agent reads this first. Everything flows from here. |
-| `08 - System/Conventions/Tag Convention.md` | The 8 tag families + canonical kind tags + Obsidian colour-coding |
-| `08 - System/Conventions/Project ID Convention.md` | Kebab-case slug rules; everything cascades from `project_id` |
-| `08 - System/Conventions/Fractal Linking Convention.md` | Hubs, `up:`, no body wikilinks across bundles |
-| `08 - System/Conventions/Minimal Code Max Utility.md` | Authoring convention for skills, directives, and phase work |
-| `08 - System/Conventions/Browser Automation for Services Without APIs.md` | CDP-attach pattern for Clerk-protected / session-bound services |
-| `08 - System/Agent Skills/Agent Skills Hub.md` | Registry of all skills, grouped by category |
-| `08 - System/Agent Directives/` | All system directives — professional roles + system roles |
-| `08 - System/Profiles/` | All profile specs with required fields and acceptance gates |
-| `00 - Dashboard/What is ONYX.md` | Mental model, use cases |
-| `00 - Dashboard/Getting Started.md` | First project walkthrough — install to running |
+- `08 - System/ONYX v2 Runtime.md` — the runtime contract.
+- `08 - System/PRINCIPLES.md` — cross-project wisdom.
+- `08 - System/Templates/` — the templates `new` scaffolds from (Overview per kind, Phase, Pipeline, Status, Knowledge, Decisions, Journal).
+- `08 - System/Roles/` — role briefs the `role:` field resolves against.
+- `08 - System/Agent Skills/` — Skill Overviews for every skill in `skills/`.
+- `00 - Dashboard/Central Dashboard.md` — `heal` rebuilds this.
+- `01 - Projects/example-app/` — a one-phase, one-pipeline smoke test. Delete it once you have a real project.
+
+No v1 artifacts. No Master Directive, no Operations folder, no Profiles registry. If you find a reference to any of those, it's a bug — please file an issue.
 
 ---
 
 ## License
 
-MIT
+MIT.
 
 ---
 
-**Vault is state. Master Directive is program. Skills are effectors. Phases are work units. Agents are disposable.**
+*Vault is state. Runtime contract is program. Skills are effectors. Phases are work units. Pipelines are repeatable work. Agents are disposable.*

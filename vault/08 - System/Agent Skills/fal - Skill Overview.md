@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: fal
 source_skill_path: ~/clawd/skills/fal/SKILL.md
-updated: 2026-04-20
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -17,7 +20,7 @@ up: Agent Skills Hub
 
 ## When a directive should call this
 
-- Generating short video clips (My Show backgrounds, establishing shots, motion passes)
+- Generating short video clips (Example Cartoon Series backgrounds, establishing shots, motion passes)
 - Generating stills (thumbnails, cover art, scene illustrations)
 - Any fal-hosted inference: flux, veo, kling, ltx, wan, imagen, runway, pika, stable-audio, etc.
 
@@ -32,9 +35,9 @@ up: Agent Skills Hub
 ```bash
 # Account management
 fal account list
-fal account add my-show --field FAL_KEY=<key>
-fal account show my-show
-fal account remove my-show
+fal account add example-cartoon-series --field FAL_KEY=<key>
+fal account show example-cartoon-series
+fal account remove example-cartoon-series
 
 # Text-to-video (Veo 3 fast)
 fal video-gen \
@@ -44,9 +47,9 @@ fal video-gen \
   --duration 8 \
   --output-dir ./out/
 
-# Image-to-video (Kling, canonical my-show background-motion recipe)
+# Image-to-video (Kling, canonical example-cartoon-series background-motion recipe)
 fal video-gen \
-  --account-ref my-show \
+  --account-ref example-cartoon-series \
   --model fal-ai/kling-video/v2/master/image-to-video \
   --image ./storyboard/panel-01.png \
   --prompt "<motion description — camera, parallax, wind, etc.>" \
@@ -120,7 +123,7 @@ Any fal model ID is valid via `--model`; the catalog is a convenience list.
 
 ## Used by
 
-- **My Show** — `cartoon-animator` directive. Image-to-video for backgrounds, motion passes, establishing shots.
+- **Example Cartoon Series** — `cartoon-animator` directive. Image-to-video for backgrounds, motion passes, establishing shots.
 - Future: any project needing ad-hoc video/image generation.
 
 ## See also

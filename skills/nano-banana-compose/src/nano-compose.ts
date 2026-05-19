@@ -4,7 +4,7 @@
 // Used by video-production directives to combine 2+ reference images into
 // a single composed output (per-shot keyframe, brand bake, etc.).
 //
-// Imports from the sibling `fal` skill (must be at clawd-skills/fal/).
+// Imports from the sibling `fal` skill (must be at skills/fal/).
 //
 // Usage:
 //   bun nano-compose.ts --output OUT.png --prompt "..." [--aspect-ratio 16:9] IMG1 IMG2 ...

@@ -14,7 +14,7 @@ This means:
 - Respecting the project bundle structure (Overview, Kanban, Knowledge, Docs Hub, Docs, Phases).
 - Preserving YAML frontmatter and navigation blocks.
 - Using the Docs Hub + Docs/ patterns for project docs.
-Whenever possible, let higher-level skills (Vault Skill, Project Atomiser, Phase Planner, Phase Executor) decide *what* to write; this skill is the IO layer that executes those decisions.
+Whenever possible, let higher-level skills (higher-level orchestration layers) decide *what* to write; this skill is the IO layer that executes those decisions.
 
 ## How Obsidian Works
 
@@ -56,7 +56,7 @@ When used in the **ONYX Orchestrator** context, this skill is the **main interfa
 - Reading project bundles (Overview/Kanban/Knowledge/Docs Hub/Docs/Phases)
 - Checking/syncing vault structure against the codebase
 - Writing and updating notes according to the Vault Architect Directive
-Higher‑level skills (Project Health, Vault Skill, Atomiser, Phase Planner, Phase Executor) should call this skill for all vault IO rather than manipulating files directly.
+Higher‑level skills (higher-level orchestration layers) should call this skill for all vault IO rather than manipulating files directly.
 
 ## Links
 

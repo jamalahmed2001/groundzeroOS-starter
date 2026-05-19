@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: instagram-publish
 source_skill_path: ~/clawd/skills/instagram-publish/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -30,7 +33,7 @@ up: Agent Skills Hub
 
 ```bash
 ~/clawd/skills/instagram-publish/bin/instagram-publish \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --video-url https://cdn.example.com/e08-9x16.mp4 \
   --caption-file ./caption.txt \
   --cover-url https://cdn.example.com/e08-thumb.jpg \
@@ -47,8 +50,8 @@ Emits structured JSON on stdout (success) or stderr (error with classification).
 
 | Project | Directive | Which video(s) |
 |---|---|---|
-| My Podcast | `my-podcast-distributor` | Reels companion clips |
-| My Show | `cartoon-launch-ops` | Every episode as IG Reel (tertiary — carryover audience) |
+| Example Podcast | `example-distributor` | Reels companion clips |
+| Example Cartoon Series | `cartoon-launch-ops` | Every episode as IG Reel (tertiary — carryover audience) |
 
 ## See also
 

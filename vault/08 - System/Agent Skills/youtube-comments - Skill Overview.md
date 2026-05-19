@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: youtube-comments
 source_skill_path: ~/clawd/skills/youtube-comments/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -32,14 +35,14 @@ up: Agent Skills Hub
 ```bash
 # Fetch
 ~/clawd/skills/youtube-comments/bin/youtube-comments \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --video-id <id> \
   --since "2026-04-10T00:00:00Z" \
   --output comments.json
 
 # Post reply
 ~/clawd/skills/youtube-comments/bin/youtube-comments \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --post-reply \
   --comment-id <parent> \
   --text "Thanks for the feedback!"
@@ -57,8 +60,8 @@ Emits structured JSON on stdout (success) or stderr (error with classification).
 
 | Project | Directive | What it does |
 |---|---|---|
-| My Podcast | `universal-engagement` | Fetch comments, post approved replies |
-| My Show | `cartoon-engagement-manager` (when wired) | Same |
+| Example Podcast | `universal-engagement` | Fetch comments, post approved replies |
+| Example Cartoon Series | `cartoon-engagement-manager` (when wired) | Same |
 
 ## See also
 

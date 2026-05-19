@@ -1,6 +1,6 @@
 ---
 name: notify
-description: Fire a single openclaw notification per Master Directive §15. Always echoes to stdout in §15.4 format; also dispatches via openclaw CLI if OPENCLAW_NOTIFY_TARGET is set. Replaces src/notify/notify.ts (99 LOC); batching responsibility shifts to callers.
+description: Fire a single openclaw notification per runtime contract (notifications). Always echoes to stdout in §15.4 format; also dispatches via openclaw CLI if OPENCLAW_NOTIFY_TARGET is set. Replaces src/notify/notify.ts (99 LOC); batching responsibility shifts to callers.
 metadata:
   clawdbot:
     emoji: "📣"
@@ -25,7 +25,7 @@ notify --event <name> --project <pid> --phase <pid|-> --severity <info|warn|aler
 
 Required: `--event`, `--project`, `--message`. Optional: `--phase` (default `-`), `--severity` (default `info`).
 
-`<event-name>` must be one of the canonical events from Master Directive §15.3 (`phase_completed`, `phase_blocked`, `phase_started`, `integrity_error`, `rate_limit_backoff`, `long_running`, `schedule_fired`, `heal_action`, plus the legacy events `linear_import_done`, `linear_uplink_done`, etc.).
+`<event-name>` must be one of the canonical events from runtime contract (notifications).3 (`phase_completed`, `phase_blocked`, `phase_started`, `integrity_error`, `rate_limit_backoff`, `long_running`, `schedule_fired`, `heal_action`, plus the legacy events `linear_import_done`, `linear_uplink_done`, etc.).
 
 ## Behaviour
 

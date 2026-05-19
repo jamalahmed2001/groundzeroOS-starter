@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: rss-fetch
 source_skill_path: ~/clawd/skills/rss-fetch/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -45,7 +48,7 @@ None — reads public feeds.
 
 | Project | Directive | What it ingests |
 |---|---|---|
-| My Podcast | research phases | Medical blog feeds |
+| Example Podcast | research phases | Medical blog feeds |
 | Any media project | `marketing-strategist` / `journalist` | Trend + news feeds |
 
 ## See also

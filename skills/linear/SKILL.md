@@ -137,6 +137,6 @@ new_identifier=$(echo "$result" | jq -r '.identifier')
 
 ## Related
 
-- `08 - System/Operations/linear-import.md` — directive that uses this skill to pull a Linear project into a vault bundle.
-- `08 - System/Operations/linear-uplink.md` — directive that uses this skill to push vault phases back to Linear as sub-issues.
+- `a project bundle running `run <project> linear-import`` — directive that uses this skill to pull a Linear project into a vault bundle.
+- `a project bundle running `run <project> linear-uplink`` — directive that uses this skill to push vault phases back to Linear as sub-issues.
 - Legacy: `src/linear/*.ts` (839 LOC) — to be deleted after the directive shadow week proves zero behavioural diff against the TS path.

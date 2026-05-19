@@ -23,11 +23,11 @@ Not for primary character/location generation — use `fal` skill with text-to-i
 ## Install
 
 ```bash
-cd ~/clawd/onyx/clawd-skills/nano-banana-compose
+cd ~/clawd/skills/nano-banana-compose
 # nothing to install; bun runs the .ts files directly
 ```
 
-Requires: `bun` on PATH, the `fal` skill installed at the standard sibling path (`~/clawd/skills/fal/` or whatever the operator's `clawd-skills/` root resolves to).
+Requires: `bun` on PATH, the `fal` skill installed at the standard sibling path (`~/clawd/skills/fal/` or whatever the operator's `skills/` root resolves to).
 
 ## Credentials
 

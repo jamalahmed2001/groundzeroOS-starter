@@ -122,7 +122,7 @@ The script returns JSON like:
 
 ## Integration with <workplace>ProjectSync
 
-To use this skill inside `fanvue-sync.js`:
+To use this skill inside `your-sync.js`:
 
 1. Add a script reference in the orchestrator:
 
@@ -148,7 +148,7 @@ To use this skill inside `fanvue-sync.js`:
      try {
        notionContext = JSON.parse(notionResult.stdout);
      } catch {
-       console.error("[fanvue-sync] WARN: failed to parse Notion context JSON");
+       console.error("[your-sync] WARN: failed to parse Notion context JSON");
      }
    }
    ```

@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: suno-generate
 source_skill_path: skills/suno-generate/SKILL.md
-up: Agent Skills Hub
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 

@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: pubmed-search
 source_skill_path: ~/clawd/skills/pubmed-search/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -46,7 +49,7 @@ Optional. Set `PUBMED_API_KEY` env var or pass `--api-key` to bump the NCBI rate
 
 | Project | Directive | What it queries |
 |---|---|---|
-| My Podcast | research phases | Condition-specific evidence (dialysis, transplant, etc) |
+| Example Podcast | research phases | Condition-specific evidence (dialysis, transplant, etc) |
 | Any biomedical project | `clinical-researcher` | Evidence for clinical questions |
 
 ## See also

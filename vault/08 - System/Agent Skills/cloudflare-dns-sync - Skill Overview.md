@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: cloudflare-dns-sync
 source_skill_path: ~/clawd/skills/cloudflare-dns-sync/SKILL.md
-updated: 2026-04-19
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -30,14 +33,14 @@ up: Agent Skills Hub
 
 ```bash
 # DDNS — auto-detect public IP
-cloudflare-dns-sync --zone hitpapers.com --record mail.hitpapers.com --type A
+cloudflare-dns-sync --zone example.com --record mail.example.com --type A
 
 # Static MX
-cloudflare-dns-sync --zone hitpapers.com --record hitpapers.com --type MX \
-  --content mail.hitpapers.com --priority 10
+cloudflare-dns-sync --zone example.com --record example.com --type MX \
+  --content mail.example.com --priority 10
 
 # SPF
-cloudflare-dns-sync --zone hitpapers.com --record hitpapers.com --type TXT \
+cloudflare-dns-sync --zone example.com --record example.com --type TXT \
   --content "v=spf1 mx -all"
 
 # Dry run
@@ -56,6 +59,6 @@ Stdout JSON: `{ ok, action: "noop|created|updated", record, type, content, id, p
 
 ## Typical scheduling (DDNS on systemd timer)
 
-See `Mail Server Setup — hitpapers.com hub` under OpenClaw Infrastructure for a worked example using this skill on a 5-minute timer.
+See `Mail Server Setup — example.com hub` under OpenClaw Infrastructure for a worked example using this skill on a 5-minute timer.
 
 See `~/clawd/skills/cloudflare-dns-sync/SKILL.md` for full flag reference.

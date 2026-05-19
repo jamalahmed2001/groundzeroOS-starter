@@ -1,16 +1,27 @@
 {
   "name": "onyx",
-  "version": "0.1.0",
-  "description": "ONYX — vault-native agent orchestration. Claude is the runtime.",
+  "version": "0.2.0",
+  "description": "ONYX v2 — vault-native agent orchestration. Six verbs. Claude is the runtime.",
   "type": "module",
+  "scripts": {
+    "setup": "scripts/setup.sh",
+    "setup:hooks": "scripts/setup.sh --hooks-only",
+    "setup:fast": "scripts/setup.sh --skip-build"
+  },
   "files": [
     "vault/",
+    "skills/",
+    "bin/",
+    "hooks/",
+    "tools/",
+    "scripts/",
     "onyx.config.json",
     ".env.example",
     "CLAUDE.md",
     "README.md",
     "GETTING_STARTED.md",
-    "vault-viewer.html"
+    "INSTALL.md",
+    "PIPELINES.md"
   ],
   "dependencies": {
     "gray-matter": "^4.0.3"

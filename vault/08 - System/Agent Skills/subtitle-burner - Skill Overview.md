@@ -4,7 +4,7 @@ graph_domain: system
 status: active
 skill_name: subtitle-burner
 source_skill_path: skills/subtitle-burner/SKILL.md
-up: Agent Skills Hub
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -49,7 +49,7 @@ Burned-in video at `--output`. Intermediate ASS file at `<output>.ass`.
 
 ## Used by
 
-- my-show pipelines that ship short-form vertical content (TikTok / Reels / Shorts)
+- video-production pipelines that ship short-form vertical content (TikTok / Reels / Shorts)
 - audio-production pipelines that ship a video version of a podcast episode
 
 ## Prerequisites

@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: youtube-publish
 source_skill_path: ~/clawd/skills/youtube-publish/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -40,7 +43,7 @@ youtube-publish account remove <ref>
 
 # Upload
 ~/clawd/skills/youtube-publish/bin/youtube-publish \
-  --account-ref my-podcast \
+  --account-ref example-podcast \
   --video ./out.mp4 \
   --title "Episode 8" \
   --description-file ./desc.md \
@@ -52,10 +55,10 @@ youtube-publish account remove <ref>
 
 1. **Create a Google Cloud project** (reusable across all your channels): enable YouTube Data API v3, create OAuth 2.0 client (Desktop app type).
 2. **Generate a refresh token** for the target channel — log in as the channel's owner, authorize scope `https://www.googleapis.com/auth/youtube.upload` (plus `youtube.readonly` for channel ID lookup). Save the refresh token.
-3. `youtube-publish account add my-channel --backend api \\
+3. `youtube-publish account add example-cartoon-series --backend api \\
      --field YOUTUBE_CLIENT_ID=... --field YOUTUBE_CLIENT_SECRET=... \\
      --field YOUTUBE_REFRESH_TOKEN=... --field YOUTUBE_CHANNEL_ID=UC...`
-4. Test: `youtube-publish --account-ref my-channel --video ./test.mp4 --title Test --privacy private`
+4. Test: `youtube-publish --account-ref example-cartoon-series --video ./test.mp4 --title Test --privacy private`
 5. Delete the test video from the channel when done.
 
 Emits structured JSON on stdout (success) or stderr (error with classification).
@@ -68,7 +71,8 @@ Emits structured JSON on stdout (success) or stderr (error with classification).
 
 | Project | Directive | Which video(s) |
 |---|---|---|
-| My Podcast | `my-podcast-distributor` | Long-form episode + Short |
+| Example Podcast | `example-distributor` | Long-form episode + Short |
+| Example Cartoon Series | `cartoon-launch-ops` | Every episode as Short |
 
 ## See also
 

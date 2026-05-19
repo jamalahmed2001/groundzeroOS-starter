@@ -1,4 +1,4 @@
-# clawd-skills
+# skills
 
 General-purpose agent skills shipped alongside the ONYX runtime. Each one is the source-of-truth implementation that the matching [Skill Overview](../vault/08%20-%20System/Agent%20Skills/) doc in the vault describes.
 
@@ -10,11 +10,11 @@ The skills expect to be resolved under `~/clawd/skills/<name>/` (that's what eve
 
 ```bash
 # Copy everything
-cp -r clawd-skills/* ~/clawd/skills/
+cp -r skills/* ~/clawd/skills/
 
 # Or symlink (recommended for development — edit in repo, use from ~/clawd)
 mkdir -p ~/clawd/skills
-for d in clawd-skills/*/; do
+for d in skills/*/; do
   ln -sfn "$PWD/$d" "$HOME/clawd/skills/$(basename "$d")"
 done
 ```

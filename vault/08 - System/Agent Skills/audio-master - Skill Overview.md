@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: audio-master
 source_skill_path: ~/clawd/skills/audio-master/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -54,9 +57,9 @@ None — reads/writes local files. Requires `ffmpeg` on PATH.
 
 | Project | Directive | What gets mastered |
 |---|---|---|
-| My Podcast | `my-podcast-audio-producer` | ElevenLabs segments → full episode MP3 |
-| My Album | `suno-track-master` | Each track to album-consistent LUFS |
-| My Show | `cartoon-voice-director` (polish) | Polished voice lines |
+| Example Podcast | `example-audio-producer` | ElevenLabs segments → full episode MP3 |
+| Suno Albums | `suno-track-master` | Each track to album-consistent LUFS |
+| Example Cartoon Series | `cartoon-voice-director` (polish) | Polished voice lines |
 
 ## See also
 

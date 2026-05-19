@@ -818,7 +818,7 @@ export default function EmailView() {
                   <span style={{ color: '#fb923c', fontWeight: 600 }}>Mail server unreachable</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5, marginBottom: 8 }}>
-                  All configured accounts failed to connect. The IMAP port (993) appears to be blocked from this machine — likely a transient firewall / fail2ban issue on <code style={{ fontFamily: 'monospace', fontSize: 10, padding: '0 4px', background: 'rgba(255,255,255,0.04)', borderRadius: 3 }}>mail.hitpapers.com</code>. Cached emails are still viewable below.
+                  All configured accounts failed to connect. The IMAP port (993) appears to be blocked from this machine — likely a transient firewall / fail2ban issue on <code style={{ fontFamily: 'monospace', fontSize: 10, padding: '0 4px', background: 'rgba(255,255,255,0.04)', borderRadius: 3 }}>mail.example.com</code>. Cached emails are still viewable below.
                 </div>
                 <button onClick={retryAll} style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid rgba(251,146,60,0.4)', background: 'rgba(251,146,60,0.08)', cursor: 'pointer', fontSize: 11, color: '#fb923c', fontFamily: 'inherit', fontWeight: 500 }}>
                   Retry connection

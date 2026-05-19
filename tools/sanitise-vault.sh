@@ -50,55 +50,24 @@ if [[ "$MODE" != "scan" && "$MODE" != "fix" ]]; then
   exit 2
 fi
 
-# Mechanical pass: exact replacements, safe to auto-apply
+# Mechanical pass: exact replacements, safe to auto-apply.
 # Format: <pattern>\t<replacement>
+# Customise for your own deployment — leave the file empty for a no-op mechanical pass.
 read -r -d '' MECHANICAL <<'EOF' || true
-/home/jamal/	<home>/
-/Users/jamal/	<home>/
-jamal@fanvue.com	<email>
-ManiPlus	My Podcast
-mani-plus	my-podcast
-maniplus	my-podcast
-Video Production Pipeline	My Show
-video-production	my-show
-Cartoon Remakes	My Show
-cartoon-remakes	my-show
-Suno Albums	My Album
-suno-albums	my-album
-Cypher Lane	Example Show
-Higher Branch	Example Show
-Listening Train	Example Show
-Hitpapers	Example Brand
-JammieD	Example Artist
-Almani	Example Brand
-Fanvue	<workplace>
 EOF
 
-# Flagged pass: patterns that need human judgement, never auto-applied
+# Flagged pass: patterns that need human judgement, never auto-applied.
 # Format: <regex>\t<reason>
+# The defaults below catch common secret patterns and operator-memory phrasing.
+# Add your own personal identifiers, project codenames, and avatar names locally —
+# they should not be checked into a public repository.
 read -r -d '' FLAGGED <<'EOF' || true
-\bMani\b	operator first name (avatar / first-person voice leak)
-\bJamal\b	operator first name
-\bAhmed\b	operator family name
-Mellow Max	cartoon character
-DOG Hudson	cartoon character
-Whistlewick	cartoon character
-Bramble	cartoon character
-Capi-Zen	cartoon character
-Trash Prophet	cartoon character
-Booker	cartoon character
-Merl	cartoon character
-\bDale\b	cartoon character (also common word — verify context)
-\bHal\b	cartoon character (also common word — verify context)
-Rasta Mouse	legally-shifted cartoon character reference
-DistroKid	specific distributor — genericise
-Late Check-In	specific real album title
-Last Orders	specific real album title
-Low Light Hours	specific real album title
-Clay & Current	specific real album title
 \b[a-f0-9]{32}\b	possible 32-char hex ID (workspace/voice/account)
 sk_[a-zA-Z0-9]{40,}	possible API key
 sk-[a-zA-Z0-9]{40,}	possible API key
+ghp_[A-Za-z0-9]{36}	GitHub personal access token
+xox[baprs]-[A-Za-z0-9-]{10,}	Slack token
+AKIA[0-9A-Z]{16}	AWS access key id
 §[0-9]{2,}\b	§-numbered cross-ref — verify it points at a real spec, not operator memory
 \boperator (said|asked|flagged|wants)\b	operator-memory phrasing — rewrite as general principle
 \buser (said|asked|flagged|wants)\b	operator-memory phrasing — rewrite as general principle

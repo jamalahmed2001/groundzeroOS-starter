@@ -79,7 +79,7 @@ export async function GET() {
   walkAll(vaultRoot, vaultRoot, files);
 
   // 2. Build lookup maps: basename → [relPath], normPath → relPath
-  const byBase = new Map<string, string[]>();   // "fanvue (main) - overview" → ["02 - <workplace>/..."]
+  const byBase = new Map<string, string[]>();   // "example-project - overview" → ["01 - Projects/..."]
   const byNorm = new Map<string, string>();     // full norm path → relPath
   for (const f of files) {
     const base = path.basename(f.relPath, '.md').toLowerCase();

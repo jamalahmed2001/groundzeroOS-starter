@@ -1,12 +1,12 @@
 ---
 tool: rss-publish
 type: npm
-repo: /path/to/your/repo
+repo: ~/projects/your-podcast-repo
 script: publish:rss
 free: true
 open_source: true
 tags: [tool, distribution, npm]
-up: Agent Skills Hub
+up: "[[Skills Hub]]"
 ---
 
 # rss-publish
@@ -16,7 +16,7 @@ up: Agent Skills Hub
 ## Invocation
 
 ```bash
-cd /path/to/your/repo
+cd ~/projects/your-podcast-repo
 npm run publish:rss -- --episode <episode-id>
 ```
 

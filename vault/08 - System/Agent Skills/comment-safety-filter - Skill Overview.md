@@ -1,11 +1,14 @@
 ---
-tags: [system, status-active, skill-doc]
+tags:
+  - status-active
+  - system
+  - skill-doc
 graph_domain: system
 status: active
 skill_name: comment-safety-filter
 source_skill_path: ~/clawd/skills/comment-safety-filter/SKILL.md
-updated: 2026-04-17
-up: Agent Skills Hub
+updated: 2026-05-04T08:33:08Z
+up: "[[Skills Hub]]"
 ---
 ## 🔗 Navigation
 
@@ -32,7 +35,7 @@ up: Agent Skills Hub
 ```bash
 ~/clawd/skills/comment-safety-filter/bin/comment-safety-filter \
   --input comments.json \
-  --rulepack rules/my-podcast-safety.json \
+  --rulepack rules/example-podcast-safety.json \
   --output triaged.json
 ```
 
@@ -46,19 +49,19 @@ None — stateless filter.
 
 | Project | Directive | What it filters |
 |---|---|---|
-| My Podcast | `universal-engagement` | Incoming comments + outgoing replies (same rulepack) |
-| My Show | `cartoon-engagement-manager` (when wired) | Same pattern, different rulepack |
+| Example Podcast | `universal-engagement` | Incoming comments + outgoing replies (same rulepack) |
+| Example Cartoon Series | `cartoon-engagement-manager` (when wired) | Same pattern, different rulepack |
 
 ## Rulepack authoring
 
 Projects own their rulepack files. Store in the project repo or vault under project-specific paths. The skill itself is agnostic.
 
-**My Podcast** example patterns (medical context):
+**Example Podcast** example patterns (medical context):
 - `\\byou should take\\b` — direct medication instruction
 - `\\bdosage\\b` — dosage reference
 - `\\bconsult (a|your) doctor\\b` — medical referral advice
 
-**My Show** would use a different pack (copyright claim phrases, etc.).
+**Example Cartoon Series** would use a different pack (copyright claim phrases, etc.).
 
 ## See also
 
